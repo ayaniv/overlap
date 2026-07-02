@@ -1,0 +1,190 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 50% 4%, #1c2030 0%, rgba(20, 22, 29, 0) 46%),
+    radial-gradient(125% 115% at 50% 44%, #14161d 0%, #0a0b0f 66%);
+  color: #f5f6f8;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.context {
+  position: absolute;
+  top: 38px;
+  left: 44px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: #565b64;
+  font-weight: 600;
+}
+
+.headline {
+  font-size: 19px;
+  font-weight: 500;
+  color: #c4c8cf;
+  letter-spacing: -0.2px;
+  margin-top: 8px;
+}
+
+.clockContainer {
+  position: relative;
+  width: min(86vmin, 700px);
+  aspect-ratio: 1 / 1;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.nowLabel {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  font-size: 11px;
+  letter-spacing: 3.5px;
+  color: #7b808a;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* central glass disc for depth, sits behind the time */
+.glassDisc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(32, 35, 47, 0.92), rgba(13, 15, 21, 0.5));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 24px 70px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.centerOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.centerLocalLabel {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: #7b808a;
+  margin-bottom: 14px;
+}
+
+.centerTime {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 54px;
+  font-weight: 500;
+  line-height: 0.92;
+  color: #f0ede3;
+  letter-spacing: -2px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.centerDate {
+  font-size: 18px;
+  font-weight: 500;
+  color: #8a8f98;
+  letter-spacing: 2px;
+  text-align: center;
+  margin-top: 14px;
+  white-space: nowrap;
+}
+
+.statusRow {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.statusText {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d6d9de;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.separator {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #3a3e46;
+}
+
+.legend {
+  color: #6c7079;
+  letter-spacing: 0.3px;
+}
+
+/* pulsing halo behind in-hours now-dots */
+@keyframes haloPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+
+.dotHalo {
+  animation: haloPulse 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dotHalo {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
