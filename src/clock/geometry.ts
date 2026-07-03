@@ -7,12 +7,11 @@ export const BEZEL_BASE_RADIUS = 446;
 export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
 export const STRIKE_TOP_RADIUS = 456;
-// ends at the colon of the center time (measured at viewBox y≈493 for the v4 block:
-// local label + 54px time + date, centered as a group)
-export const STRIKE_BOTTOM_Y = 493;
+// lands exactly on the top of the NOW capsule (measured at viewBox y≈370) so the
+// strike connects into the NOW marker
+export const STRIKE_BOTTOM_Y = 370;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
-export const NOW_LABEL_OFFSET_PERCENT = ((BEZEL_BASE_RADIUS + 26) / 1000) * 100;
 
 export type Point = { x: number; y: number };
 

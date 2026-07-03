@@ -6,7 +6,6 @@ import {
   hexToRgba,
   labelArcPath,
   LABEL_RADIUS_OFFSET,
-  NOW_LABEL_OFFSET_PERCENT,
   pointOnCircle,
   ringRadius,
   STRIKE_BOTTOM_Y,
@@ -24,7 +23,6 @@ const IN_HOURS_LABEL_COLOR = '#F4F3EF';
 const OUT_OF_HOURS_LABEL_COLOR = '#7C808A';
 const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
-const HALO_RADIUS_OFFSET = 5.5;
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -90,6 +88,9 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
       </div>
 
       <div className={styles.clockContainer}>
+        {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
+        <div className={styles.glassDisc} aria-hidden="true" />
+
         <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden="true">
           <defs>
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
@@ -135,20 +136,6 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
             );
           })}
 
-          {rings.map((ring) => {
-            const dotRadius = ring.city.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS;
-            if (!ring.inHours) return null;
-            return (
-              <circle
-                key={`halo-${ring.city.id}`}
-                className={styles.dotHalo}
-                cx={ring.dotPosition.x.toFixed(2)}
-                cy={ring.dotPosition.y.toFixed(2)}
-                r={dotRadius + HALO_RADIUS_OFFSET}
-                fill="#FFFFFF"
-              />
-            );
-          })}
           {rings.map((ring) => (
             <circle
               key={`dot-${ring.city.id}`}
@@ -156,7 +143,7 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
               cy={ring.dotPosition.y.toFixed(2)}
               r={ring.city.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
               fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
-              style={{ filter: `drop-shadow(0 0 5px ${ring.inHours ? 'rgba(255,255,255,0.9)' : 'transparent'})` }}
+              style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
             />
           ))}
 
@@ -202,16 +189,15 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
           </g>
         </svg>
 
-        <div className={styles.nowLabel} style={{ top: `calc(50% - ${NOW_LABEL_OFFSET_PERCENT.toFixed(1)}%)` }} aria-hidden="true">
-          NOW
-        </div>
-
-        <div className={styles.glassDisc} aria-hidden="true" />
-
         <div className={styles.centerOverlay} aria-hidden="true">
-          <div className={styles.centerLocalLabel}>{`${homeCity.name.toUpperCase()} · LOCAL`}</div>
+          <div className={styles.centerLocalLabel}>{homeCity.name.toUpperCase()}</div>
           <div className={styles.centerTime}>{homeTime.label}</div>
           <div className={styles.centerDate}>{homeDateLabel}</div>
+        </div>
+
+        {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}
+        <div className={styles.nowLabel} aria-hidden="true">
+          NOW
         </div>
       </div>
 
