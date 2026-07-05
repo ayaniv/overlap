@@ -1,25 +1,25 @@
-# overlap — Milestone Build (M2)
+# overlap — Milestone Build (M3)
 
 ## Workspace (code tasks only)
 - Repo: overlap
-- Branch: claude/overlap-m2
-- Branch status: new (branched from claude/overlap-m1, which contains M0 + M1)
+- Branch: claude/overlap-m3
+- Branch status: new (branched from claude/overlap-m2, which contains M0 + M1 + M2)
 
 ## Mode: implement
-Implement **M2 only** from the plan, then STOP and set STATUS to `waiting` for the user's go-ahead before starting M3. Do not skip ahead. Do not run past the M2 boundary without an explicit go-ahead.
+Implement **M3 only** from the plan, then STOP and set STATUS to `waiting` for the user's go-ahead before starting M4. Do not skip ahead. Do not run past the M3 boundary without an explicit go-ahead.
 
 ## Context
 - Source of truth: `~/Dev/overlap/prompt.md` — read it in full first.
 - Milestone plan: `~/Dev/overlap/plan.md` — read it. Milestones are labeled M0, M1, M2, …
-- **M0 and M1 are already DONE.** Your branch `claude/overlap-m2` is cut from `claude/overlap-m1`, so M0 (repo rename + Vercel config) and M1 (config foundation + app scaffolding, commit `da1e320`) are already present. Do NOT redo them.
+- **M0, M1, M2 are already DONE.** Your branch `claude/overlap-m3` is cut from `claude/overlap-m2` (commit `5c1cf92`), so all prior milestone work is present. Do NOT redo them.
 - Run `npm install` in the worktree before building/running (fresh worktree has no node_modules).
 
 ## Steps
 1. Read `~/Dev/overlap/prompt.md` and `~/Dev/overlap/plan.md` fully.
-2. Identify exactly what **M2** requires (per the plan).
-3. Implement M2 in the worktree, following the repo's existing conventions established in M0/M1.
+2. Identify exactly what **M3** requires (per the plan).
+3. Implement M3 in the worktree, following the conventions established in M0–M2.
 4. Verify (build / lint / tests as applicable) and capture the evidence.
-5. Write a short M2 summary into this TASK.md under `## M2 Result`, set STATUS to `waiting`, and stop for the user's go-ahead.
+5. Write a short M3 summary into this TASK.md under `## M3 Result`, set STATUS to `waiting`, and stop for the user's go-ahead.
 
 ## Engineering Constraints (required)
 - **Test coverage:** cover all new functionality with tests for both happy and failure paths, using the repo's existing test framework (Vitest).
@@ -27,7 +27,7 @@ Implement **M2 only** from the plan, then STOP and set STATUS to `waiting` for t
 - **Conventions:** follow the target repo's existing patterns (styling, state, testing, config) rather than introducing new ones.
 
 ## Output
-Write the M2 summary + verification evidence into this TASK.md under `## M2 Result`. Then STATUS = `waiting`.
+Write the M3 summary + verification evidence into this TASK.md under `## M3 Result`. Then STATUS = `waiting`.
 
 ## Session continuity (required)
 When this session grows long, proactively suggest `/handover` to the user before context degrades.
@@ -37,29 +37,27 @@ When you need input (including between milestones): `echo "waiting: <reason>" > 
 When done: `echo "done" > STATUS`
 (The orchestrator already wrote `working` to STATUS before opening this tab — do not overwrite it until your state actually changes.)
 
-## M2 Result
+## M3 Result
 
-Implemented M2 — Edit locations (B) on top of M1's config foundation, on branch `claude/overlap-m2` (worktree `~/Dev/worktrees/overlap-m2`).
+Implemented M3 — Share (C) on top of M1's config foundation, on branch `claude/overlap-m3` (worktree `~/Dev/worktrees/overlap-m3`).
 
 **What shipped:**
-- `src/clock/cityCatalog.ts` — flattens `@vvo/tzdb`'s `getTimeZones()` main-cities into a single searchable `CityEntry[]` (`{label, timezoneId, country}`); `searchCities(query, limit)` ranks prefix matches ahead of mid-word matches, returns `[]` for blank/no-match queries.
-- `src/clock/locationForm.ts` — pure, fully-tested form logic kept separate from the component (matches the repo's `configOps.ts`/`useClockConfig.ts` split): `isValidHexColor`, `buildLocationId` (slugify + disambiguate against existing ids), `validateNewLocation` (city/label/color/work-hours checks), `buildNewLocation` (throws on misuse if called without a validated city).
-- `src/clock/AddLocationForm.tsx` (+ `.module.css`) — fills the edit-mode center slot: typeahead city search that becomes an editable label once a city is picked (kept as one field to fit the small center disc), color via 8 palette swatches + free hex input + native `<input type="color">`, per-location work-hours (start/end), inline validation error, Cancel/Add actions. Deliberately compact (~196px wide, ~180px tall) since the center slot is only ~30% of the clock's width — verified visually with Playwright that it no longer overflows into the ring labels the way an earlier, roomier draft did.
-- `src/clock/WorldClock.tsx` (+ `.module.css`) — renders an "×" remove button on each non-home ring when `mode === 'edit'` (home isn't removable — it's a singular field, not part of `rings`); new `onRemoveLocation` prop.
-- `src/App.tsx` — wires `addLocation`/`removeLocation` from `useClockConfig` into the new `AddLocationForm` (as `centerContent` during edit mode) and `WorldClock`'s `onRemoveLocation`.
-- Added `@vvo/tzdb` as a real dependency (was already anticipated by M1/plan).
+- `src/clock/share.ts` — `copyShareLink(clipboard, href)`: writes `href` to a clipboard passed in explicitly (so the caller supplies `navigator.clipboard`, keeping the module free of a global dependency and trivially testable); wraps the write in try/catch, logs via `console.error('overlap: failed to copy share link', err)` and returns `false` on any failure (rejected promise, synchronous throw, or a missing/undefined clipboard), `true` on success — matches the repo's established fallible-operation pattern (`shareCodec.ts`, `useClockConfig.ts`).
+- `src/hooks/useToast.ts` — small hook (mirrors `useNow.ts`'s style) holding a transient `message: string | null` with an internal timer; `showToast(text)` sets the message and auto-clears it after 2.6s, restarting the timer on repeat calls; cleans up the pending timeout on unmount.
+- `src/clock/Toast.tsx` (+ `.module.css`) — presentational toast bubble anchored under the top-right `ControlCluster`, `role="status" aria-live="polite"` for a11y consistent with the rest of the clock's screen-reader status line; renders nothing when `message` is `null`.
+- `src/clock/WorldClock.tsx` — new optional `toastMessage` prop, renders `<Toast>` alongside `<ControlCluster>` inside the stage.
+- `src/App.tsx` — `handleShare` now calls `copyShareLink(navigator.clipboard, window.location.href)` (the href already carries the persisted `#c=` share payload via `useClockConfig`'s hash-mirroring from M1) and shows "Link copied" on success or "Couldn't copy link" on failure via `useToast`.
 
 **Tests (Vitest, happy + failure paths):**
-- `cityCatalog.test.ts` — SF → `America/Los_Angeles` (per the plan's own verification spec), case-insensitivity, prefix ranking, blank/no-match/limit edge cases.
-- `locationForm.test.ts` — hex validation (valid/malformed), id slugify + collision disambiguation + all-symbol fallback, full validation matrix (missing city, empty label, bad color, out-of-range/inverted work hours), `buildNewLocation` happy path + throw-on-misuse.
-- No new tests added for `AddLocationForm`/`WorldClock` component rendering — the repo has no jsdom/testing-library installed and all existing tests (including `useClockConfig.test.ts`) test the exported pure logic rather than rendering components, so I followed that convention and put all new logic that could fail into the two pure modules above, which are fully covered.
+- `share.test.ts` — success (writes href, returns `true`); clipboard promise rejection (returns `false`, logs exactly once); clipboard method throwing synchronously (returns `false`, logs exactly once).
+- No new test file for `Toast.tsx`/`useToast.ts` — consistent with the repo's existing convention (no jsdom/testing-library; `useNow.ts`, `useSweepAngle.ts`, `ControlCluster.tsx` etc. are UI/timing wiring left untested, while every fallible/pure operation is pulled into its own tested module). All new logic that can fail (the clipboard write) lives in `share.ts` and is fully covered.
 
 **Verification evidence:**
 - `npm run build` (`tsc -b && vite build`) — clean, no type errors.
 - `npm run lint` (`oxlint`) — clean, exit 0.
-- `npm test` (`vitest run`) — 7 test files, 59 tests, all passing (up from 5 files pre-M2).
-- Manual end-to-end pass via a throwaway Playwright script against `npm run dev`: entered edit mode, searched "Tokyo", picked it, submitted with defaults → appeared on the ring; reloaded the page → persisted (localStorage + hash); re-entered edit mode, clicked the new "×" button → removed; typed an invalid hex color and submitted → inline validation error shown, no location added. Also screenshotted view mode to confirm no regression to the M1 clock/center display.
+- `npm test` (`vitest run`) — 8 test files, 62 tests, all passing (up from 7 files / 59 tests pre-M3).
+- End-to-end via throwaway Playwright scripts against `npm run dev` (clipboard permissions granted): clicked Share → toast showed "Link copied" → read `navigator.clipboard` and confirmed it exactly matches `page.url()` (the `#c=` link) → toast auto-dismissed after ~2.6s. Second script: added a custom location (Tokyo) in one context, clicked Share, copied the link, then opened that exact URL in a **fresh** browser context with no localStorage — confirmed "Tokyo" renders, proving the share link alone reproduces the clock (per the plan's own M3 verification spec: "copy link → fresh context renders from `#c=`").
 
-**Not in scope (left for later milestones per the plan):** Share (M3), Schedule/Google Calendar (M4), responsive layout (M5).
+**Not in scope (left for later milestones per the plan):** Schedule/Google Calendar (M4), responsive layout (M5).
 
-STATUS: `waiting` — ready for go-ahead to start M3.
+STATUS: `waiting` — ready for go-ahead to start M4.

@@ -16,6 +16,7 @@ import {
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
+import { Toast } from './Toast';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
 import styles from './WorldClock.module.css';
@@ -47,6 +48,7 @@ export type WorldClockProps = {
   onShare: () => void;
   onRemoveLocation?: (id: string) => void;
   centerContent?: ReactNode;
+  toastMessage?: string | null;
 };
 
 export function WorldClock({
@@ -59,6 +61,7 @@ export function WorldClock({
   onShare,
   onRemoveLocation,
   centerContent,
+  toastMessage = null,
 }: WorldClockProps) {
   const idPrefix = useId();
 
@@ -129,6 +132,7 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
+      <Toast message={toastMessage} />
 
       <div className={styles.clockContainer}>
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}

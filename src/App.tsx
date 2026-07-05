@@ -1,19 +1,26 @@
 import { useCallback, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
+import { copyShareLink } from './clock/share';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
 import { useNow } from './hooks/useNow';
+import { useToast } from './hooks/useToast';
+
+const SHARE_SUCCESS_MESSAGE = 'Link copied';
+const SHARE_FAILURE_MESSAGE = "Couldn't copy link";
 
 function App() {
   const now = useNow();
   const { config, addLocation, removeLocation } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
+  const { message: toastMessage, showToast } = useToast();
 
   const handleShare = useCallback(() => {
-    // implemented in M3 (copy-link + toast); logged for now so the click is observable
-    console.info('overlap: share requested (share flow lands in M3)');
-  }, []);
+    void copyShareLink(navigator.clipboard, window.location.href).then((didCopy) => {
+      showToast(didCopy ? SHARE_SUCCESS_MESSAGE : SHARE_FAILURE_MESSAGE);
+    });
+  }, [showToast]);
 
   const exitEditMode = useCallback(() => setMode('view'), []);
 
@@ -37,6 +44,7 @@ function App() {
       onShare={handleShare}
       onRemoveLocation={removeLocation}
       centerContent={centerContent}
+      toastMessage={toastMessage}
     />
   );
 }
