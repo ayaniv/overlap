@@ -7,15 +7,18 @@ import {
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
+  parseMeetingInstant,
   pointOnCircle,
   ringRadius,
   STRIKE_BOTTOM_Y,
   STRIKE_TOP_RADIUS,
   workingHoursArcPath,
 } from './geometry';
+import type { Point } from './geometry';
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
+import { CenterContent } from './CenterContent';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
 import styles from './WorldClock.module.css';
@@ -78,14 +81,18 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
-  const meetingDots = useMemo(
-    () =>
-      meetings.map((meeting) => ({
-        meeting,
-        position: pointOnCircle(homeRadius, meetingAngle(new Date(meeting.startISO), now)),
-      })),
-    [meetings, homeRadius, now],
-  );
+  const meetingDots = useMemo(() => {
+    const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    for (const meeting of meetings) {
+      const instant = parseMeetingInstant(meeting.startISO);
+      if (!instant) {
+        console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
+        continue;
+      }
+      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, now)) });
+    }
+    return dots;
+  }, [meetings, homeRadius, now]);
 
   const ticks = useMemo(() => bezelTicks(), []);
   const chevrons = useMemo(() => directionChevrons(), []);
@@ -229,17 +236,7 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
         </svg>
 
         <div className={styles.centerOverlay} aria-hidden={mode === 'view'}>
-          {mode === 'view' ? (
-            <>
-              <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
-              <div className={styles.centerTime}>{homeTime.label}</div>
-              <div className={styles.centerDate}>{homeDateLabel}</div>
-            </>
-          ) : (
-            centerContent ?? (
-              <div className={styles.centerPlaceholder}>{mode === 'edit' ? 'Edit locations' : 'Schedule a meeting'}</div>
-            )
-          )}
+          <CenterContent mode={mode} homeLabel={home.label} homeTimeLabel={homeTime.label} homeDateLabel={homeDateLabel} override={centerContent} />
         </div>
 
         {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}

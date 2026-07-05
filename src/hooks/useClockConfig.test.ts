@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { encodeConfig } from '../clock/shareCodec';
 import type { ClockConfig } from '../clock/types';
 import { DEFAULT_CONFIG, parseHashConfig, parseStoredConfig, resolveInitialConfig } from './useClockConfig';
@@ -8,6 +8,10 @@ const SAMPLE_CONFIG: ClockConfig = {
   rings: [{ id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 }],
   meetings: [],
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('parseHashConfig', () => {
   it('decodes a `#c=` hash into a config', () => {
@@ -39,7 +43,12 @@ describe('parseStoredConfig', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(parseStoredConfig('{not valid json')).toBeNull();
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
+  });
+
+  it('returns null and logs an error for valid JSON with the wrong shape', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(parseStoredConfig(JSON.stringify({ foo: 'bar' }))).toBeNull();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -59,8 +68,7 @@ describe('resolveInitialConfig', () => {
   });
 
   it('falls back to defaults when both hash and storage are corrupt', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(resolveInitialConfig('#c=not-valid', '{not valid json')).toEqual(DEFAULT_CONFIG);
-    errorSpy.mockRestore();
   });
 });
