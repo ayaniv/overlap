@@ -8,12 +8,14 @@ import {
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
+  parseMeetingInstant,
   pointOnCircle,
   ringRadius,
   STRIKE_BOTTOM_Y,
   strikeTopRadius,
   workingHoursArcPath,
 } from './geometry';
+import type { Point } from './geometry';
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
@@ -94,14 +96,18 @@ export function WorldClock({
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
-  const meetingDots = useMemo(
-    () =>
-      meetings.map((meeting) => ({
-        meeting,
-        position: pointOnCircle(homeRadius, meetingAngle(new Date(meeting.startISO), now)),
-      })),
-    [meetings, homeRadius, now],
-  );
+  const meetingDots = useMemo(() => {
+    const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    for (const meeting of meetings) {
+      const instant = parseMeetingInstant(meeting.startISO);
+      if (!instant) {
+        console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
+        continue;
+      }
+      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, now)) });
+    }
+    return dots;
+  }, [meetings, homeRadius, now]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const strikeRadius = strikeTopRadius(totalRings);

@@ -127,3 +127,11 @@ export function meetingAngle(meetingInstant: Date, now: Date): number {
   const hoursDelta = (meetingInstant.getTime() - now.getTime()) / (1000 * 60 * 60);
   return hoursDelta * DEGREES_PER_HOUR;
 }
+
+// a Meeting.startISO of unknown provenance (share link, localStorage) may not be
+// a valid ISO string; returns null instead of an Invalid Date so callers can skip
+// and log rather than silently rendering a NaN-positioned dot
+export function parseMeetingInstant(startISO: string): Date | null {
+  const instant = new Date(startISO);
+  return Number.isNaN(instant.getTime()) ? null : instant;
+}

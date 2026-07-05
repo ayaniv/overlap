@@ -7,6 +7,7 @@ import {
   hexToRgba,
   meetingAngle,
   outermostRingRadius,
+  parseMeetingInstant,
   pointOnCircle,
   ringRadius,
   strikeTopRadius,
@@ -128,5 +129,21 @@ describe('meetingAngle', () => {
 
   it('is negative 15°/hour for a past meeting', () => {
     expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(-15);
+  });
+});
+
+describe('parseMeetingInstant', () => {
+  it('parses a valid ISO string', () => {
+    const instant = parseMeetingInstant('2026-01-01T10:00:00.000Z');
+    expect(instant).toBeInstanceOf(Date);
+    expect(instant?.toISOString()).toBe('2026-01-01T10:00:00.000Z');
+  });
+
+  it('returns null for an unparseable string', () => {
+    expect(parseMeetingInstant('not-a-date')).toBeNull();
+  });
+
+  it('returns null for an empty string', () => {
+    expect(parseMeetingInstant('')).toBeNull();
   });
 });

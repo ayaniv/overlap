@@ -1,5 +1,5 @@
 import { compressToEncodedURIComponent } from 'lz-string';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decodeConfig, encodeConfig } from './shareCodec';
 import type { ClockConfig } from './types';
 
@@ -10,6 +10,10 @@ const SAMPLE_CONFIG: ClockConfig = {
   ],
   meetings: [{ id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync' }],
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('shareCodec', () => {
   it('round-trips a config through encode/decode', () => {
@@ -26,7 +30,6 @@ describe('shareCodec', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(decodeConfig('not-a-valid-encoded-config-$$$')).toBeNull();
     expect(errorSpy).not.toHaveBeenCalled();
-    errorSpy.mockRestore();
   });
 
   it('returns null and logs an error when the decompressed payload is not valid JSON', () => {
@@ -34,7 +37,13 @@ describe('shareCodec', () => {
     const malformed = compressToEncodedURIComponent('{invalid json');
     expect(decodeConfig(malformed)).toBeNull();
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
+  });
+
+  it('returns null and logs an error when the decoded payload is valid JSON but the wrong shape', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const wrongShape = compressToEncodedURIComponent(JSON.stringify({ foo: 'bar' }));
+    expect(decodeConfig(wrongShape)).toBeNull();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
   it('returns null for an empty string', () => {
