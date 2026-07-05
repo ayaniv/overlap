@@ -1,4 +1,6 @@
-# time-spinner
+# overlap
+
+[![Live demo](https://img.shields.io/badge/live%20demo-overlap.vercel.app-4c9a6b)](https://overlap.vercel.app)
 
 A radial multi-timezone "meeting planner" clock. Five cities are drawn as concentric
 rings around a central local time; each ring shows a colored arc for that city's working
