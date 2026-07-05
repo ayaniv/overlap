@@ -11,6 +11,8 @@ _"When can everyone meet today?"_ at a glance.
 Built from a Claude Design reference (`World Clock v4`) — React + Vite + TypeScript,
 all graphics rendered as SVG from `Intl.DateTimeFormat`, no timezone/date libraries.
 
+![overlap screenshot](docs/screenshot.png)
+
 ## Features
 
 - Concentric per-city rings with working-hours arcs (soft glow + crisp pass)
