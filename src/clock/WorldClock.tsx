@@ -1,5 +1,6 @@
 import { useId, useMemo, useRef } from 'react';
 import {
+  bezelBaseRadius,
   bezelTicks,
   directionChevrons,
   handAngle,
@@ -10,7 +11,7 @@ import {
   pointOnCircle,
   ringRadius,
   STRIKE_BOTTOM_Y,
-  STRIKE_TOP_RADIUS,
+  strikeTopRadius,
   workingHoursArcPath,
 } from './geometry';
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
@@ -102,8 +103,13 @@ export function WorldClock({
     [meetings, homeRadius, now],
   );
 
-  const ticks = useMemo(() => bezelTicks(), []);
-  const chevrons = useMemo(() => directionChevrons(), []);
+  const bezelRadius = bezelBaseRadius(totalRings);
+  const strikeRadius = strikeTopRadius(totalRings);
+  const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
+  const chevrons = useMemo(
+    () => directionChevrons(ringViews.map((ring) => ring.radius)),
+    [ringViews],
+  );
   const arrowAngle = handAngle(now);
   const handRef = useRef<SVGGElement>(null);
   useSweepAngle(handRef);
@@ -129,6 +135,7 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
+      {mode !== 'view' && centerContent && <div className={styles.modePanel}>{centerContent}</div>}
 
       <div className={styles.clockContainer}>
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
@@ -157,21 +164,21 @@ export function WorldClock({
             <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
           ))}
 
-          <line x1={500} y1={500 - STRIKE_TOP_RADIUS} x2={500} y2={STRIKE_BOTTOM_Y} stroke="#565B64" strokeWidth={1.5} />
+          <line x1={500} y1={500 - strikeRadius} x2={500} y2={STRIKE_BOTTOM_Y} stroke="#565B64" strokeWidth={1.5} />
 
           {ringViews.map((ring) => {
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
             return (
               <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="49%" textAnchor="end">
+                  <textPath href={`#${ring.textPathId}`} startOffset="47%" textAnchor="end">
                     {ring.location.label}
-                    {' '}
+                    {'  '}
                   </textPath>
                 </text>
                 <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="51%" textAnchor="start">
-                    {' '}
+                  <textPath href={`#${ring.textPathId}`} startOffset="53%" textAnchor="start">
+                    {'  '}
                     {ring.time.label}
                   </textPath>
                 </text>
@@ -277,18 +284,11 @@ export function WorldClock({
           </g>
         </svg>
 
-        <div className={styles.centerOverlay} aria-hidden={mode === 'view'}>
-          {mode === 'view' ? (
-            <>
-              <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
-              <div className={styles.centerTime}>{homeTime.label}</div>
-              <div className={styles.centerDate}>{homeDateLabel}</div>
-            </>
-          ) : (
-            centerContent ?? (
-              <div className={styles.centerPlaceholder}>{mode === 'edit' ? 'Edit locations' : 'Schedule a meeting'}</div>
-            )
-          )}
+        {/* always shows the home clock now — Edit/Schedule live in a panel next to their button (M2 notice) */}
+        <div className={styles.centerOverlay} aria-hidden="true">
+          <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
+          <div className={styles.centerTime}>{homeTime.label}</div>
+          <div className={styles.centerDate}>{homeDateLabel}</div>
         </div>
 
         {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}
