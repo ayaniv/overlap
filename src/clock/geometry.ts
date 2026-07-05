@@ -1,6 +1,6 @@
 export const CENTER = 500;
-export const RING_RADIUS_STEP = 58;
 export const INNER_RING_RADIUS = 160;
+export const OUTER_RING_RADIUS = 392;
 export const LABEL_RADIUS_OFFSET = 16;
 export const LABEL_ARC_HALF_SPAN_DEG = 63;
 export const BEZEL_BASE_RADIUS = 446;
@@ -23,9 +23,14 @@ export function pointOnCircle(radius: number, angleDeg: number): Point {
   return { x: CENTER + radius * Math.sin(a), y: CENTER - radius * Math.cos(a) };
 }
 
-// ring radii run outer -> inner as index increases toward the last (home) ring
+// ring radii run outer -> inner as index increases toward the last (home) ring,
+// always spanning the full [INNER_RING_RADIUS, OUTER_RING_RADIUS] band regardless
+// of ring count so the bezel/chevrons/strike stay correctly proportioned as
+// locations are added or removed (M2)
 export function ringRadius(indexFromOuter: number, totalRings: number): number {
-  return INNER_RING_RADIUS + (totalRings - 1 - indexFromOuter) * RING_RADIUS_STEP;
+  if (totalRings <= 1) return INNER_RING_RADIUS;
+  const step = (OUTER_RING_RADIUS - INNER_RING_RADIUS) / (totalRings - 1);
+  return INNER_RING_RADIUS + (totalRings - 1 - indexFromOuter) * step;
 }
 
 // arc from workStart to workEnd, rotated so the city's current time sits at the top axis
@@ -89,4 +94,20 @@ export function directionChevrons(): Chevron[] {
     // right-pointing ">" (apex at x=505) becomes clockwise once the group is rotated to 270°
     return { angle: CHEVRON_ANGLE, opacity: 0.6, points: `493,${y - 8} 505,${y} 493,${y + 8}` };
   });
+}
+
+// angle of a meeting marker relative to the top (NOW) axis: elapsed hours between
+// now and the meeting instant is timezone-independent, so the same angle applies
+// to every ring
+export function meetingAngle(meetingInstant: Date, now: Date): number {
+  const hoursDelta = (meetingInstant.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return hoursDelta * DEGREES_PER_HOUR;
+}
+
+// a Meeting.startISO of unknown provenance (share link, localStorage) may not be
+// a valid ISO string; returns null instead of an Invalid Date so callers can skip
+// and log rather than silently rendering a NaN-positioned dot
+export function parseMeetingInstant(startISO: string): Date | null {
+  const instant = new Date(startISO);
+  return Number.isNaN(instant.getTime()) ? null : instant;
 }

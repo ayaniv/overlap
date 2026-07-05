@@ -6,15 +6,21 @@ import {
   hexToRgba,
   labelArcPath,
   LABEL_RADIUS_OFFSET,
+  meetingAngle,
+  parseMeetingInstant,
   pointOnCircle,
   ringRadius,
   STRIKE_BOTTOM_Y,
   STRIKE_TOP_RADIUS,
   workingHoursArcPath,
 } from './geometry';
+import type { Point } from './geometry';
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
-import type { RingCity, WorldClockProps } from './types';
+import { ControlCluster } from './ControlCluster';
+import { CenterContent } from './CenterContent';
+import type { Location, Meeting, Mode } from './types';
+import type { ReactNode } from 'react';
 import styles from './WorldClock.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
@@ -23,6 +29,8 @@ const IN_HOURS_LABEL_COLOR = '#F4F3EF';
 const OUT_OF_HOURS_LABEL_COLOR = '#7C808A';
 const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
+const MEETING_DOT_RADIUS = 6;
+const MEETING_DOT_COLOR = '#F472B6';
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -30,36 +38,61 @@ const STATUS_NONE_COLOR = '#565B64';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd = 18 }: WorldClockProps) {
+export type WorldClockProps = {
+  now: Date;
+  home: Location;
+  rings: Location[];
+  meetings: Meeting[];
+  mode: Mode;
+  onSetMode: (mode: Mode) => void;
+  onShare: () => void;
+  centerContent?: ReactNode;
+};
+
+export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShare, centerContent }: WorldClockProps) {
   const idPrefix = useId();
 
-  const orderedCities: Array<RingCity & { isHome: boolean }> = useMemo(
-    () => [...worldCities.map((city) => ({ ...city, isHome: false })), { ...homeCity, isHome: true }],
-    [worldCities, homeCity],
+  const orderedLocations: Array<Location & { isHome: boolean }> = useMemo(
+    () => [...rings.map((location) => ({ ...location, isHome: false })), { ...home, isHome: true }],
+    [rings, home],
   );
-  const totalRings = orderedCities.length;
+  const totalRings = orderedLocations.length;
 
-  const rings = useMemo(
+  const ringViews = useMemo(
     () =>
-      orderedCities.map((city, index) => {
+      orderedLocations.map((location, index) => {
         const radius = ringRadius(index, totalRings);
         const labelRadius = radius + LABEL_RADIUS_OFFSET;
-        const time = getCityTime(now, city.timezoneId);
-        const inHours = isWithinWorkingHours(time.frac, workStart, workEnd);
+        const time = getCityTime(now, location.timezoneId);
+        const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
         return {
-          city,
+          location,
           radius,
           time,
           inHours,
-          arcPath: workingHoursArcPath(radius, time.frac, workStart, workEnd),
+          arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
-    [orderedCities, totalRings, now, workStart, workEnd, idPrefix],
+    [orderedLocations, totalRings, now, idPrefix],
   );
+
+  const homeRadius = ringRadius(totalRings - 1, totalRings);
+  const meetingDots = useMemo(() => {
+    const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    for (const meeting of meetings) {
+      const instant = parseMeetingInstant(meeting.startISO);
+      if (!instant) {
+        console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
+        continue;
+      }
+      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, now)) });
+    }
+    return dots;
+  }, [meetings, homeRadius, now]);
 
   const ticks = useMemo(() => bezelTicks(), []);
   const chevrons = useMemo(() => directionChevrons(), []);
@@ -68,17 +101,17 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
 
-  const homeTime = getCityTime(now, homeCity.timezoneId);
-  const homeDateLabel = getCityDateLabel(now, homeCity.timezoneId);
+  const homeTime = getCityTime(now, home.timezoneId);
+  const homeDateLabel = getCityDateLabel(now, home.timezoneId);
 
-  const availableCount = rings.filter((ring) => ring.inHours).length;
-  const totalCount = rings.length;
+  const availableCount = ringViews.filter((ring) => ring.inHours).length;
+  const totalCount = ringViews.length;
   const statusText = availableCount === 0 ? 'No teams free right now' : `${availableCount} of ${totalCount} teams free now`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
-  const workLabel = `${pad(workStart)}:00–${pad(workEnd % 24)}:00`;
+  const workLabel = `${pad(home.workStart)}:00–${pad(home.workEnd % 24)}:00`;
 
-  const summary = rings.map((ring) => `${ring.city.name} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
+  const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
   return (
     <section className={styles.stage} aria-label="World clock meeting planner">
@@ -86,6 +119,8 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
         <div className={styles.eyebrow}>MEETING&nbsp;PLANNER</div>
         <div className={styles.headline}>When can everyone meet today?</div>
       </div>
+
+      <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
 
       <div className={styles.clockContainer}>
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
@@ -96,39 +131,39 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
             </filter>
-            {rings.map((ring) => (
+            {ringViews.map((ring) => (
               <path key={ring.textPathId} id={ring.textPathId} d={ring.topArcPath} fill="none" />
             ))}
           </defs>
 
-          {rings.map((ring) => (
-            <circle key={`base-${ring.city.id}`} cx={500} cy={500} r={ring.radius} fill="none" stroke="#2F323C" strokeWidth={6} />
+          {ringViews.map((ring) => (
+            <circle key={`base-${ring.location.id}`} cx={500} cy={500} r={ring.radius} fill="none" stroke="#2F323C" strokeWidth={6} />
           ))}
 
           <g filter={`url(#${glowFilterId})`} opacity={0.5}>
-            {rings.map((ring) => (
-              <path key={`glow-${ring.city.id}`} d={ring.arcPath} fill="none" stroke={ring.city.color} strokeWidth={7} strokeLinecap="round" />
+            {ringViews.map((ring) => (
+              <path key={`glow-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={7} strokeLinecap="round" />
             ))}
           </g>
-          {rings.map((ring) => (
-            <path key={`crisp-${ring.city.id}`} d={ring.arcPath} fill="none" stroke={ring.city.color} strokeWidth={6} strokeLinecap="round" />
+          {ringViews.map((ring) => (
+            <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
           ))}
 
           <line x1={500} y1={500 - STRIKE_TOP_RADIUS} x2={500} y2={STRIKE_BOTTOM_Y} stroke="#565B64" strokeWidth={1.5} />
 
-          {rings.map((ring) => {
+          {ringViews.map((ring) => {
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
             return (
-              <g key={`label-${ring.city.id}`}>
+              <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
                   <textPath href={`#${ring.textPathId}`} startOffset="49%" textAnchor="end">
-                    {ring.city.name}
-                    {' '}
+                    {ring.location.label}
+                    {' '}
                   </textPath>
                 </text>
                 <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
                   <textPath href={`#${ring.textPathId}`} startOffset="51%" textAnchor="start">
-                    {' '}
+                    {' '}
                     {ring.time.label}
                   </textPath>
                 </text>
@@ -136,14 +171,25 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
             );
           })}
 
-          {rings.map((ring) => (
+          {ringViews.map((ring) => (
             <circle
-              key={`dot-${ring.city.id}`}
+              key={`dot-${ring.location.id}`}
               cx={ring.dotPosition.x.toFixed(2)}
               cy={ring.dotPosition.y.toFixed(2)}
-              r={ring.city.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
+              r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
               fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
               style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
+            />
+          ))}
+
+          {meetingDots.map(({ meeting, position }) => (
+            <circle
+              key={`meeting-${meeting.id}`}
+              cx={position.x.toFixed(2)}
+              cy={position.y.toFixed(2)}
+              r={MEETING_DOT_RADIUS}
+              fill={MEETING_DOT_COLOR}
+              style={{ filter: `drop-shadow(0 0 5px ${hexToRgba(MEETING_DOT_COLOR, 0.7)})` }}
             />
           ))}
 
@@ -189,10 +235,8 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
           </g>
         </svg>
 
-        <div className={styles.centerOverlay} aria-hidden="true">
-          <div className={styles.centerLocalLabel}>{homeCity.name.toUpperCase()}</div>
-          <div className={styles.centerTime}>{homeTime.label}</div>
-          <div className={styles.centerDate}>{homeDateLabel}</div>
+        <div className={styles.centerOverlay} aria-hidden={mode === 'view'}>
+          <CenterContent mode={mode} homeLabel={home.label} homeTimeLabel={homeTime.label} homeDateLabel={homeDateLabel} override={centerContent} />
         </div>
 
         {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}
@@ -210,11 +254,11 @@ export function WorldClock({ now, homeCity, worldCities, workStart = 9, workEnd 
           {statusText}
         </div>
         <span className={styles.separator} />
-        <div className={styles.legend}>Working hours {workLabel} · local</div>
+        <div className={styles.legend}>Home working hours {workLabel} · local</div>
       </div>
 
       <p className={styles.srOnly} role="status">
-        {homeCity.name} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
+        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
     </section>
   );
