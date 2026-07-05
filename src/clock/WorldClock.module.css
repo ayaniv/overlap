@@ -123,6 +123,16 @@
   white-space: nowrap;
 }
 
+.centerPlaceholder {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #c4c8cf;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 0 24px;
+}
+
 .statusRow {
   position: absolute;
   bottom: 40px;

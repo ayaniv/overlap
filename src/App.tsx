@@ -1,17 +1,28 @@
+import { useCallback, useState } from 'react';
 import { WorldClock } from './clock/WorldClock';
-import { DEFAULT_HOME_CITY, DEFAULT_WORK_END, DEFAULT_WORK_START, DEFAULT_WORLD_CITIES } from './clock/defaultCities';
+import type { Mode } from './clock/types';
+import { useClockConfig } from './hooks/useClockConfig';
 import { useNow } from './hooks/useNow';
 
 function App() {
   const now = useNow();
+  const { config } = useClockConfig();
+  const [mode, setMode] = useState<Mode>('view');
+
+  const handleShare = useCallback(() => {
+    // implemented in M3 (copy-link + toast); logged for now so the click is observable
+    console.info('overlap: share requested (share flow lands in M3)');
+  }, []);
 
   return (
     <WorldClock
       now={now}
-      homeCity={DEFAULT_HOME_CITY}
-      worldCities={DEFAULT_WORLD_CITIES}
-      workStart={DEFAULT_WORK_START}
-      workEnd={DEFAULT_WORK_END}
+      home={config.home}
+      rings={config.rings}
+      meetings={config.meetings}
+      mode={mode}
+      onSetMode={setMode}
+      onShare={handleShare}
     />
   );
 }
