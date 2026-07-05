@@ -15,10 +15,9 @@ export type AddLocationFormProps = {
 
 const FALLBACK_SWATCH_COLOR = '#000000';
 
-// fills the edit-mode center slot: typeahead city search that becomes an
-// editable label once a city is picked, color (swatches + free hex + native
-// picker), and per-location work hours. Kept compact (the disc it renders in
-// is only ~30% of the clock's width) by collapsing search+label into one field.
+// renders inside the edit-mode panel anchored next to the Edit button: typeahead
+// city search that becomes an editable label once a city is picked, color
+// (swatches + free hex + native picker), and per-location work hours.
 export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFormProps) {
   const [query, setQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityEntry | null>(null);

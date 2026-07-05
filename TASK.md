@@ -60,4 +60,21 @@ Implemented M3 — Share (C) on top of M1's config foundation, on branch `claude
 
 **Not in scope (left for later milestones per the plan):** Schedule/Google Calendar (M4), responsive layout (M5).
 
+## M2 follow-up: plan.md "Notice" fixes
+
+After testing M2, feedback was left at the bottom of `plan.md` under a `Notice:` heading (5 items). Addressed all 5, since items 2–4 are core `WorldClock`/`geometry.ts` behavior (M1) that only becomes visible once rings are actually added/removed via M2's UI, and item 5 directly fixes the "squeezed into the center component" complaint:
+
+1. **Gap between ring label and time** — widened the `<textPath>` split from 49%/51% to 47%/53% with an extra space on each side (`WorldClock.tsx`).
+2. **Rings grow from center, gradually** — replaced the old "redistribute all rings evenly across a fixed [160,392] band" formula with a fixed `RING_RADIUS_STEP` (58): home always stays at `INNER_RING_RADIUS` (160), and each ring further from home sits exactly one more fixed step out. Adding a location no longer rescales/compresses existing rings — it grows the whole face outward by one step; removing shrinks it back (`geometry.ts`: `ringRadius`, new `outermostRingRadius`).
+3. **Ticks radial grows/shrinks accordingly** — `bezelTicks()` now takes a `baseRadius` computed from `bezelBaseRadius(totalRings)` (outermost ring + fixed margin), so the tick bezel expands/contracts with the ring stack instead of sitting at a fixed radius. `strikeTopRadius(totalRings)` does the same for the center strike line.
+4. **Chevrons only between rings** — `directionChevrons()` now takes the actual list of ring radii and emits one chevron per adjacent gap (so the count always equals `totalRings - 1`), instead of a hardcoded list of 4 fixed radii.
+5. **Modal next to the button, not the center component** — `WorldClock` no longer swaps the center disc's content by mode; the home clock always renders there. `centerContent` (the `AddLocationForm`) now renders in a new floating panel (`.modePanel`) anchored below the `ControlCluster` buttons, top-right. `AddLocationForm` was widened (196px → 280px) and given more breathing room now that it isn't squeezed into a ~210px disc.
+
+**Verification:**
+- `geometry.test.ts` updated/extended: new tests for fixed-step ring growth, `bezelBaseRadius`/`strikeTopRadius` tracking the outermost ring, and `directionChevrons` producing one chevron per gap (including the single-ring / zero-chevron edge case). 66 tests total, all passing.
+- `npm run build` / `npm run lint` / `npm test` — all clean.
+- Manual Playwright pass: screenshotted view mode, edit mode (panel now beside the Edit button, center clock fully visible), added "Tokyo" (existing 5 rings + bezel + chevrons all grew outward by one step, chevron count went 4 → 5), then removed it (everything shrank back to the original 5-ring layout exactly).
+
+**Merge note (M3 branch):** M3 was cut from M2 before this follow-up landed; merged `claude/overlap-m2` back into `claude/overlap-m3` to pick it up. `WorldClock.tsx` conflict resolved by keeping M2's `.modePanel` (edit/schedule content no longer swaps the center disc) alongside M3's `<Toast>`, both rendered next to `<ControlCluster>`.
+
 STATUS: `waiting` — ready for go-ahead to start M4.

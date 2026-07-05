@@ -131,14 +131,18 @@
   white-space: nowrap;
 }
 
-.centerPlaceholder {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-  color: #c4c8cf;
-  letter-spacing: 1px;
-  text-align: center;
-  padding: 0 24px;
+/* Edit/Schedule panel: anchored below the ControlCluster buttons, top-right,
+   instead of swapping the center disc's content (M2 notice) */
+.modePanel {
+  position: absolute;
+  top: 86px;
+  right: 44px;
+  z-index: 2;
+  border-radius: 14px;
+  border: 1px solid #3a3e46;
+  background: #14161d;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
 
 .statusRow {
