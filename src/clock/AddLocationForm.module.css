@@ -1,0 +1,235 @@
+.form {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 196px;
+  padding: 2px 4px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+}
+
+.heading {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  color: #7b808a;
+  text-align: center;
+}
+
+.field {
+  position: relative;
+}
+
+.textInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #f5f6f8;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 8px;
+  border: 1px solid #3a3e46;
+  background: #14161d;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 7px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #f5f6f8;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.suggestionCountry {
+  color: #7b808a;
+  font-size: 10px;
+}
+
+.selectedMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #7b808a;
+  letter-spacing: 0.3px;
+}
+
+.changeCity {
+  border: none;
+  background: transparent;
+  color: #38bdf8;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.colorRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.swatch,
+.swatchActive {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatchActive {
+  border-color: #f5f6f8;
+}
+
+.hexRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hexInput {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 5px 7px;
+  border-radius: 7px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #f5f6f8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.hexInput:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.colorPicker {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #3a3e46;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hoursRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hoursLabel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: #7b808a;
+}
+
+.hoursInput {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border-radius: 7px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #f5f6f8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.hoursInput:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.error {
+  font-size: 10px;
+  color: #fb7185;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cancelButton,
+.addButton {
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.cancelButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.6);
+  color: #c4c8cf;
+}
+
+.cancelButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.addButton {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  color: #f5f6f8;
+}
+
+.addButton:hover {
+  background: rgba(56, 189, 248, 0.2);
+}

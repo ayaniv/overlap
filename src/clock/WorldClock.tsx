@@ -28,6 +28,8 @@ const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
+const REMOVE_BUTTON_ANGLE = 180;
+const REMOVE_BUTTON_RADIUS = 11;
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -43,10 +45,21 @@ export type WorldClockProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
+  onRemoveLocation?: (id: string) => void;
   centerContent?: ReactNode;
 };
 
-export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShare, centerContent }: WorldClockProps) {
+export function WorldClock({
+  now,
+  home,
+  rings,
+  meetings,
+  mode,
+  onSetMode,
+  onShare,
+  onRemoveLocation,
+  centerContent,
+}: WorldClockProps) {
   const idPrefix = useId();
 
   const orderedLocations: Array<Location & { isHome: boolean }> = useMemo(
@@ -63,6 +76,7 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
         const time = getCityTime(now, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
+        const removePosition = pointOnCircle(radius, REMOVE_BUTTON_ANGLE);
         return {
           location,
           radius,
@@ -71,6 +85,7 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
+          removePosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
@@ -185,6 +200,40 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
               style={{ filter: `drop-shadow(0 0 5px ${hexToRgba(MEETING_DOT_COLOR, 0.7)})` }}
             />
           ))}
+
+          {mode === 'edit' &&
+            onRemoveLocation &&
+            ringViews
+              .filter((ring) => !ring.location.isHome)
+              .map((ring) => (
+                <g
+                  key={`remove-${ring.location.id}`}
+                  role="button"
+                  aria-label={`Remove ${ring.location.label}`}
+                  className={styles.removeButton}
+                  onClick={() => onRemoveLocation(ring.location.id)}
+                >
+                  <circle cx={ring.removePosition.x.toFixed(2)} cy={ring.removePosition.y.toFixed(2)} r={REMOVE_BUTTON_RADIUS} fill="#1C1F27" stroke="#565B64" strokeWidth={1.5} />
+                  <line
+                    x1={(ring.removePosition.x - 4).toFixed(2)}
+                    y1={(ring.removePosition.y - 4).toFixed(2)}
+                    x2={(ring.removePosition.x + 4).toFixed(2)}
+                    y2={(ring.removePosition.y + 4).toFixed(2)}
+                    stroke="#C4C8CF"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={(ring.removePosition.x - 4).toFixed(2)}
+                    y1={(ring.removePosition.y + 4).toFixed(2)}
+                    x2={(ring.removePosition.x + 4).toFixed(2)}
+                    y2={(ring.removePosition.y - 4).toFixed(2)}
+                    stroke="#C4C8CF"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                </g>
+              ))}
 
           {chevrons.map((chevron, index) => (
             <g key={index} transform={`rotate(${chevron.angle} 500 500)`}>

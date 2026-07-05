@@ -49,6 +49,14 @@
   overflow: visible;
 }
 
+.removeButton {
+  cursor: pointer;
+}
+
+.removeButton:hover circle {
+  stroke: #fb7185;
+}
+
 .nowLabel {
   position: absolute;
   left: 50%;
