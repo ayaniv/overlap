@@ -49,7 +49,7 @@ export type WorldClockProps = {
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
   onRemoveLocation?: (id: string) => void;
-  centerContent?: ReactNode;
+  modePanelContent?: ReactNode;
 };
 
 export function WorldClock({
@@ -61,7 +61,7 @@ export function WorldClock({
   onSetMode,
   onShare,
   onRemoveLocation,
-  centerContent,
+  modePanelContent,
 }: WorldClockProps) {
   const idPrefix = useId();
 
@@ -141,7 +141,7 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
-      {mode !== 'view' && centerContent && <div className={styles.modePanel}>{centerContent}</div>}
+      {mode !== 'view' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
 
       <div className={styles.clockContainer}>
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
@@ -290,7 +290,6 @@ export function WorldClock({
           </g>
         </svg>
 
-        {/* always shows the home clock now — Edit/Schedule live in a panel next to their button (M2 notice) */}
         <div className={styles.centerOverlay} aria-hidden="true">
           <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
           <div className={styles.centerTime}>{homeTime.label}</div>

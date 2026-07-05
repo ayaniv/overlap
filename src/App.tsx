@@ -17,7 +17,7 @@ function App() {
 
   const exitEditMode = useCallback(() => setMode('view'), []);
 
-  const centerContent =
+  const modePanelContent =
     mode === 'edit' ? (
       <AddLocationForm
         existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
@@ -36,7 +36,7 @@ function App() {
       onSetMode={setMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
-      centerContent={centerContent}
+      modePanelContent={modePanelContent}
     />
   );
 }

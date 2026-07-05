@@ -131,8 +131,7 @@
   white-space: nowrap;
 }
 
-/* Edit/Schedule panel: anchored below the ControlCluster buttons, top-right,
-   instead of swapping the center disc's content (M2 notice) */
+/* Edit/Schedule panel, anchored below the ControlCluster buttons, top-right */
 .modePanel {
   position: absolute;
   top: 86px;
