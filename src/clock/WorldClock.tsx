@@ -4,6 +4,7 @@ import {
   directionChevrons,
   handAngle,
   hexToRgba,
+  labelArcHalfLength,
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
@@ -34,6 +35,7 @@ const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
+const LABEL_DOT_GAP = 18;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -68,6 +70,7 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
         return {
           location,
           radius,
+          labelRadius,
           time,
           inHours,
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
@@ -150,17 +153,16 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
 
           {ringViews.map((ring) => {
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
+            const halfLength = labelArcHalfLength(ring.labelRadius);
             return (
               <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="48%" textAnchor="end">
+                  <textPath href={`#${ring.textPathId}`} startOffset={halfLength - LABEL_DOT_GAP} textAnchor="end">
                     {ring.location.label}
-                    {' '}
                   </textPath>
                 </text>
                 <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="52%" textAnchor="start">
-                    {' '}
+                  <textPath href={`#${ring.textPathId}`} startOffset={halfLength + LABEL_DOT_GAP} textAnchor="start">
                     {ring.time.label}
                   </textPath>
                 </text>

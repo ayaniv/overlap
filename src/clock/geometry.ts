@@ -50,6 +50,14 @@ export function labelArcPath(radius: number): string {
   return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 1 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
 }
 
+// arc length from the start of labelArcPath(radius) to its center (angle 0, where the
+// ring's dot sits) — lets callers place text a fixed pixel distance from the dot via an
+// absolute textPath startOffset, instead of a percentage (which is a different pixel
+// distance on every ring, since arc length scales with radius)
+export function labelArcHalfLength(radius: number): number {
+  return (radius * LABEL_ARC_HALF_SPAN_DEG * Math.PI) / 180;
+}
+
 export type BezelTick = { x1: number; y1: number; x2: number; y2: number; stroke: string; width: number };
 
 export function bezelTicks(): BezelTick[] {

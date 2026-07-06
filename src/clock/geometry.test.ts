@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bezelTicks, handAngle, hexToRgba, meetingAngle, parseMeetingInstant, pointOnCircle, ringRadius, topMarkerPoints } from './geometry';
+import { bezelTicks, handAngle, hexToRgba, labelArcHalfLength, meetingAngle, parseMeetingInstant, pointOnCircle, ringRadius, topMarkerPoints } from './geometry';
 
 describe('pointOnCircle', () => {
   it('places angle 0 straight up from center', () => {
@@ -54,6 +54,13 @@ describe('bezelTicks', () => {
     expect(ticks[0].stroke).toBe('#6B7079');
     expect(ticks[1].stroke).toBe('#3D414A');
     expect(ticks[5].stroke).toBe('#6B7079');
+  });
+});
+
+describe('labelArcHalfLength', () => {
+  it('scales linearly with radius, so a fixed pixel gap around the dot stays constant across rings', () => {
+    expect(labelArcHalfLength(100)).toBeCloseTo(109.96, 1);
+    expect(labelArcHalfLength(200)).toBeCloseTo(2 * labelArcHalfLength(100));
   });
 });
 
