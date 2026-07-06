@@ -10,6 +10,7 @@ import {
   MAX_WORK_START,
   MIN_WORK_END,
   MIN_WORK_START,
+  pickAvailableColor,
   validateNewLocation,
 } from './locationForm';
 import type { Location } from './types';
@@ -17,6 +18,7 @@ import styles from './AddLocationForm.module.css';
 
 export type AddLocationFormProps = {
   existingIds: string[];
+  existingColors: string[];
   onAdd: (location: Location) => void;
   onCancel: () => void;
 };
@@ -26,10 +28,10 @@ const FALLBACK_SWATCH_COLOR = '#000000';
 // renders inside the edit-mode panel anchored next to the Edit button: typeahead
 // city search that becomes an editable label once a city is picked, color
 // (swatches + free hex + native picker), and per-location work hours.
-export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFormProps) {
+export function AddLocationForm({ existingIds, existingColors, onAdd, onCancel }: AddLocationFormProps) {
   const [query, setQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityEntry | null>(null);
-  const [color, setColor] = useState<string>(PALETTE[0]);
+  const [color, setColor] = useState<string>(() => pickAvailableColor(existingColors));
   const [workStart, setWorkStart] = useState(DEFAULT_WORK_START);
   const [workEnd, setWorkEnd] = useState(DEFAULT_WORK_END);
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +49,13 @@ export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFor
     setQuery('');
   };
 
-  const resetForm = () => {
+  // `usedColors` lets the caller factor in a color not yet reflected in the
+  // existingColors prop (namely the one just submitted) so back-to-back adds
+  // in the same edit session don't suggest the same swatch twice
+  const resetForm = (usedColors: string[] = existingColors) => {
     setQuery('');
     setSelectedCity(null);
-    setColor(PALETTE[0]);
+    setColor(pickAvailableColor(usedColors));
     setWorkStart(DEFAULT_WORK_START);
     setWorkEnd(DEFAULT_WORK_END);
     setError(null);
@@ -65,7 +70,7 @@ export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFor
       return;
     }
     onAdd(buildNewLocation(input, existingIds));
-    resetForm();
+    resetForm([...existingColors, color]);
   };
 
   return (

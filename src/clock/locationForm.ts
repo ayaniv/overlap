@@ -1,4 +1,5 @@
 import type { CityEntry } from './cityCatalog';
+import { PALETTE } from './defaultCities';
 import type { Location } from './types';
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -12,6 +13,15 @@ export const MAX_WORK_END = 24;
 
 export function isValidHexColor(value: string): boolean {
   return HEX_COLOR_PATTERN.test(value.trim());
+}
+
+// suggests a palette swatch not already used by an existing location, so
+// newly added rings default to visually distinct colors; falls back to any
+// palette color once every swatch is already taken
+export function pickAvailableColor(usedColors: string[]): string {
+  const unused = PALETTE.filter((color) => !usedColors.includes(color));
+  const pool = unused.length > 0 ? unused : PALETTE;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // kebab-case id derived from the label, disambiguated against existing ids so

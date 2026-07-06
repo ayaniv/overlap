@@ -12,10 +12,18 @@ async function pickTokyo(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('AddLocationForm', () => {
-  it('searches, selects a city, and adds a location with the default color and work hours', async () => {
+  it('searches, selects a city, and adds a location with an unused default color and default work hours', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={['tel-aviv']} onAdd={onAdd} onCancel={vi.fn()} />);
+    // every palette swatch but the last is already in use, so the suggested default is deterministic
+    render(
+      <AddLocationForm
+        existingIds={['tel-aviv']}
+        existingColors={PALETTE.slice(0, PALETTE.length - 1)}
+        onAdd={onAdd}
+        onCancel={vi.fn()}
+      />,
+    );
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -26,17 +34,28 @@ describe('AddLocationForm', () => {
         id: 'tokyo',
         label: 'Tokyo',
         timezoneId: 'Asia/Tokyo',
-        color: PALETTE[0],
+        color: PALETTE[PALETTE.length - 1],
         workStart: DEFAULT_WORK_START,
         workEnd: DEFAULT_WORK_END,
       }),
     );
   });
 
+  it('defaults to some palette color when none are in use yet', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onCancel={vi.fn()} />);
+
+    await pickTokyo(user);
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(PALETTE).toContain(onAdd.mock.calls[0][0].color);
+  });
+
   it('lets the user pick a color swatch before submitting', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} onAdd={onAdd} onCancel={vi.fn()} />);
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onCancel={vi.fn()} />);
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: `Color ${PALETTE[2]}` }));
@@ -48,7 +67,7 @@ describe('AddLocationForm', () => {
   it('shows an inline validation error and does not call onAdd for an invalid hex color', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} onAdd={onAdd} onCancel={vi.fn()} />);
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onCancel={vi.fn()} />);
 
     await pickTokyo(user);
     const hexInput = screen.getByLabelText('Hex color');
@@ -63,7 +82,7 @@ describe('AddLocationForm', () => {
   it('does not call onAdd when no city has been selected', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} onAdd={onAdd} onCancel={vi.fn()} />);
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onCancel={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
@@ -74,7 +93,7 @@ describe('AddLocationForm', () => {
   it('calls onCancel when Cancel is clicked', async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
-    render(<AddLocationForm existingIds={[]} onAdd={vi.fn()} onCancel={onCancel} />);
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onCancel={onCancel} />);
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 

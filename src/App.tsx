@@ -21,6 +21,7 @@ function App() {
     mode === 'edit' ? (
       <AddLocationForm
         existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
+        existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
         onCancel={exitEditMode}
       />
