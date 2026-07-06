@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef } from 'react';
 import {
   bezelTicks,
+  CENTER,
   directionChevrons,
   handAngle,
   hexToRgba,
@@ -12,6 +13,7 @@ import {
   pointOnCircle,
   ringRadius,
   topMarkerPoints,
+  TOP_MARKER_INNER_RADIUS,
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
@@ -102,6 +104,8 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
   const handRef = useRef<SVGGElement>(null);
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
+  const fadeLineId = `${idPrefix}-fade-line`;
+  const fadeLineTopY = CENTER - TOP_MARKER_INNER_RADIUS;
 
   const homeTime = getCityTime(now, home.timezoneId);
   const homeDateLabel = getCityDateLabel(now, home.timezoneId);
@@ -133,6 +137,10 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
             </filter>
+            <linearGradient id={fadeLineId} gradientUnits="userSpaceOnUse" x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER}>
+              <stop offset="0%" stopColor="#9CA3AF" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#9CA3AF" stopOpacity={0} />
+            </linearGradient>
             {ringViews.map((ring) => (
               <path key={ring.textPathId} id={ring.textPathId} d={ring.topArcPath} fill="none" />
             ))}
@@ -169,6 +177,9 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
               </g>
             );
           })}
+
+          {/* subtle guide from the triangle down to the center readout, behind all the dots */}
+          <line x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER} stroke={`url(#${fadeLineId})`} strokeWidth={1.5} />
 
           {ringViews.map((ring) => (
             <circle
