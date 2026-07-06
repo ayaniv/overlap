@@ -1,68 +1,65 @@
-# overlap — Milestone Build (M4)
+# overlap — Milestone Build (M5) + commit, push, PR
 
 ## Workspace (code tasks only)
-- Repo: overlap
-- Branch: claude/overlap-m4
-- Branch status: new (branched from claude/overlap-m3, which contains M0–M3)
+- Repo: overlap (GitHub: `ayaniv/overlap`, `gh` authed as `ayaniv`)
+- Branch: claude/overlap-m5
+- Branch status: new (branched from claude/overlap-m4, which contains M0–M4)
 
-## Mode: implement
-Implement **M4 only** from the plan, then STOP and set STATUS to `waiting` for the user's go-ahead before starting M5. Do not skip ahead. Do not run past the M4 boundary without an explicit go-ahead.
+## Mode: implement → commit → push → open PR
+Implement **M5** from the plan, then **commit, push, and open a PR**. (No stop-for-go-ahead this time — complete the full cycle through opening the PR.)
 
 ## Context
-- Source of truth: `~/Dev/overlap/prompt.md` — read it in full first.
-- Milestone plan: `~/Dev/overlap/plan.md` — read it. Milestones are labeled M0, M1, M2, …
-- **M0–M3 are already DONE.** Your branch `claude/overlap-m4` is cut from `claude/overlap-m3` (tip `59046df`), so all prior milestone work is present. Do NOT redo them. (Note: M1 is already merged to main via PR #1; M2 PR #2 and M3 PR #3 are open.)
+- Source of truth: `~/Dev/overlap/prompt.md` and the milestone plan `~/Dev/overlap/plan.md` — read both fully first.
+- **M0–M4 are already DONE.** Your branch `claude/overlap-m5` is cut from `claude/overlap-m4` (tip `7823ca8`), so all prior milestone work is present. Do NOT redo them.
+- The overlap PRs form a **stacked chain**: PR #2 `overlap-m2→main`, PR #3 `overlap-m3→overlap-m2`, M4 → overlap-m3. Keep the chain going: **your M5 PR base = `claude/overlap-m4`** (NOT main), so the PR shows only the M5 diff.
 - Run `npm install` in the worktree before building/running (fresh worktree has no node_modules).
 
 ## Steps
-1. Read `~/Dev/overlap/prompt.md` and `~/Dev/overlap/plan.md` fully.
-2. Identify exactly what **M4** requires (per the plan).
-3. Implement M4 in the worktree, following the conventions established in M0–M3.
-4. Verify (build / lint / tests as applicable) and capture the evidence.
-5. Write a short M4 summary into this TASK.md under `## M4 Result`, set STATUS to `waiting`, and stop for the user's go-ahead.
+1. Read `~/Dev/overlap/prompt.md` and `~/Dev/overlap/plan.md` fully; identify exactly what **M5** requires.
+2. Implement M5 in the worktree, following the conventions established in M0–M4.
+3. Verify: build + lint + tests (Vitest) all green — capture the evidence.
+4. Commit with a clear message (match the existing `overlap: M5 …` commit style on this repo).
+5. Push the branch: `git push -u origin claude/overlap-m5`.
+6. Open the stacked PR:
+   `gh pr create --repo ayaniv/overlap --base claude/overlap-m4 --head claude/overlap-m5 --title "M5: <summary>" --body "<what M5 adds + test/verification note>"` — follow any `.github` PR template if present.
+7. Capture the PR URL.
 
 ## Engineering Constraints (required)
-- **Test coverage:** cover all new functionality with tests for both happy and failure paths, using the repo's existing test framework (Vitest).
+- **Test coverage:** cover all new functionality with tests for both happy and failure paths (Vitest).
 - **Error observability:** any fallible operation must handle and log errors so failures are observable.
-- **Conventions:** follow the target repo's existing patterns (styling, state, testing, config) rather than introducing new ones.
+- **Conventions:** follow the repo's existing patterns (styling, state, testing, config, commit/PR style); no new dependencies unless the milestone truly requires them.
+- Confirm the PR opened (non-error `gh` exit + a real URL) before reporting done.
 
 ## Output
-Write the M4 summary + verification evidence into this TASK.md under `## M4 Result`. Then STATUS = `waiting`.
+Write the M5 summary, verification evidence, and the **PR URL** into this TASK.md under `## M5 Result`. Then STATUS = `done`.
 
 ## Session continuity (required)
 When this session grows long, proactively suggest `/handover` to the user before context degrades.
 
 ## Status reporting (required)
-When you need input (including between milestones): `echo "waiting: <reason>" > STATUS`
-When done: `echo "done" > STATUS`
+When you need input: `echo "waiting: <reason>" > STATUS`
+When done (PR opened): `echo "done" > STATUS`
 (The orchestrator already wrote `working` to STATUS before opening this tab — do not overwrite it until your state actually changes.)
 
-## M4 Result
+## M5 Result
 
-Implemented **M4 — Schedule** per `plan.md`. All new code lives in `src/clock/` and `src/App.tsx`; no changes to M0–M3 behavior other than the additive `previewOffsetMs`/`scrubBind` props on `WorldClock`.
-
-**New files**
-- `src/clock/geometry.ts` (+tests): added `angleFromCenterOffset`, `angleDelta`, `offsetMsFromAngle` — pure angle/offset math shared by the drag hook.
-- `src/clock/useRingScrub.ts`: pointer-drag + arrow-key hook. Drag anywhere on the clock face to rotate a preview at 15°/hour (`DEGREES_PER_HOUR`, matching the existing meeting-dot convention); arrow keys step ±1h for keyboard a11y. Exposes `previewOffsetMs`, `isDragging`, `reset`, `setOffsetMs`, and a `bind` object of pointer/keyboard handlers.
-- `src/clock/googleCalendar.ts` (+tests): client-side Google Identity Services (GIS) token flow, gated on `VITE_GOOGLE_CLIENT_ID`. `loadGoogleIdentityServices` injects the GIS script once (cached, with a 10s timeout so a blocked/offline network fails observably instead of hanging); `requestAccessToken` drives the popup token client (with an `error_callback` for a closed/blocked popup — found and fixed via manual browser verification, see below); `createCalendarEvent` POSTs a 30-minute (default) event to the primary calendar's v3 endpoint; `scheduleMeetingOnGoogleCalendar` orchestrates all three and rethrows (each step also logs via `console.error`).
-- `src/clock/meetingForm.ts` (+tests): pure helpers — `validateMeetingTitle`, `buildMeeting` (id disambiguation mirrors `locationForm.ts`), `toDatetimeLocalValue`/`fromDatetimeLocalValue` for the `<input type="datetime-local">`. (Named `meetingForm.ts`, not `scheduleForm.ts`, to avoid a case-only filename collision with `ScheduleForm.tsx`.)
-- `src/clock/ScheduleForm.tsx` + `.module.css`: schedule-mode panel (same floating-panel-next-to-ControlCluster pattern M2 established for `AddLocationForm`). Shows a gated note when `VITE_GOOGLE_CLIENT_ID` is unset; otherwise a title + datetime-local form. Success → "✓ added" then auto-returns to view mode after 3s; failure shows an inline, retryable error.
-- `.env.example`: template for `VITE_GOOGLE_CLIENT_ID`.
+Implemented **M5 — Responsive** per `plan.md`. Pure CSS: no new components, hooks, or logic — only media-query rules in the two files the plan named. No new dependencies.
 
 **Modified**
-- `src/clock/WorldClock.tsx`: accepts `previewOffsetMs`, `scrubBind`, `isScrubbing`. Computes `effectiveNow = now + previewOffsetMs` and uses it for every ring's time/arc/dot, the meeting dots, and the center clock — so dragging in schedule mode previews the whole face at a different instant (verified: working-hours count updates live while dragging). The sweeping second hand stays on true real time (cosmetic, pre-existing `useSweepAngle` behavior, intentionally untouched). The `clockContainer` div gets the scrub bind + `role="slider"`/`tabIndex` only while `mode === 'schedule'`.
-- `src/clock/WorldClock.module.css`: grab/grabbing cursor + focus ring for the scrubbable state.
-- `src/App.tsx`: wires `useRingScrub`, computes `previewInstant`, renders `ScheduleForm` in the mode panel, resets the scrub offset whenever schedule mode isn't active.
-- `.gitignore`: ignore `.env`/`.env.*` (except `.env.example`) — no such rule existed yet and M4 is the first milestone to introduce a real secret-shaped env var.
-- `README.md`: one Features bullet + an "Environment variables" section pointing at `.env.example`.
+- `src/clock/WorldClock.module.css`: added `@media (orientation: portrait)` block. Portrait/mobile now: scales `.clockContainer` up to `min(165vw, 760px)` (vs. the desktop `min(86vmin, 700px)`) and anchors it high with `margin-top: 68px` + `.stage { align-items: flex-start }`, so the top rings, NOW capsule, and center time dominate the screen while the sides/bottom clip against the stage's existing `overflow: hidden`. Also added `flex-shrink: 0` to the base `.clockContainer` rule — without it, the flex row's default shrink-to-fit was silently clamping the enlarged portrait width back down to the viewport width (caught via computed-style inspection during manual verification, see below). Reflowed `.context` (max-width + smaller type so the two-line headline can't run under the button cluster), `.modePanel` (tighter offset to match the shrunk cluster), and `.statusRow` (switches to a centered, wrapped column instead of a fixed-gap nowrap row, which was overflowing/clipping horizontally on narrow screens).
+- `src/clock/ControlCluster.module.css`: added a matching portrait rule shrinking the button cluster's padding/font-size/gap and offset so it clears the reflowed header text.
+
+**Not touched:** `src/clock/WorldClock.tsx`, `App.tsx`, and every other component/hook — M5 is styling-only, per the plan.
+
+**Test coverage:** no new Vitest tests — M5 introduces no new functions, hooks, or branching logic (pure CSS media queries), so there is no new unit-testable behavior; the existing 116 tests are an unaffected regression baseline (still 116/116 green, see below). Verified visually instead, per the plan's own verification method for this milestone (Playwright screenshots).
 
 **Verification**
 - `npm run build` — clean (tsc -b + vite build).
 - `npm run lint` — clean (oxlint, 0 warnings).
-- `npm test` — **116/116 passing** (11 files), including 15 new `googleCalendar` tests (config gating, event payload, token success/failure/popup-closed, script load success/failure/timeout, full orchestration) and 8 new `meetingForm` tests, plus 6 new `geometry` tests for the drag math.
-- Manual browser verification (Playwright, headless Chromium, against `npm run dev`):
-  - Unconfigured (`VITE_GOOGLE_CLIENT_ID` unset): Schedule button opens the gated note, no console errors.
-  - Configured: opened the form, dragged from 12 o'clock to 3 o'clock (~90°) and confirmed the datetime-local input advanced exactly 6 hours (90°/15°per hour) and every ring/arc/status count updated live; confirmed ArrowRight adds +1h.
-  - Submitting against the real `accounts.google.com/gsi/client` script with a fake client id surfaced `popup_closed` inline within seconds (not stuck on "Scheduling…") — this caught a real bug during manual verification: the initial implementation had no `error_callback`/timeout, so a closed/blocked OAuth popup left the UI hanging forever. Fixed by adding GIS's `error_callback` plus a 10s script-load timeout, both covered by new tests.
+- `npm test` — **116/116 passing** (11 files, unchanged from M4 — no regressions).
+- Manual browser verification (Playwright, headless Chromium, against `npm run dev`), screenshots at the plan's specified sizes:
+  - **1280×800 (desktop/landscape)**: pixel-identical to pre-M5 (portrait rule doesn't apply) — confirmed no regression.
+  - **390×844 (mobile portrait)**: before this milestone, the header text visibly collided with the Edit/Schedule/Share buttons and the bottom status row's text overflowed/clipped past the viewport edges (confirmed via a baseline screenshot). After: header, cluster, and clock all clear each other; the clock is markedly larger and anchored to the top of the screen with San Francisco/New York's arcs clipping off the left/right edges by design; the status row wraps into two centered lines that fit within the viewport. Also opened Edit mode at this size to confirm the mode panel (`AddLocationForm`) still fits fully on-screen alongside the shrunk cluster.
+  - **844×390 (mobile landscape)**: renders via the default (non-portrait) rules, same layout family as desktop, correctly scaled down — no overlap or clipping issues.
 
-**Not touched:** M5 (responsive layout) — out of scope per the M4 boundary.
+**PR:** see below once opened.

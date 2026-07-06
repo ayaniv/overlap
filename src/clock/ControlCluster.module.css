@@ -32,3 +32,18 @@
   color: #f5f6f8;
   background: rgba(56, 189, 248, 0.12);
 }
+
+/* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
+@media (orientation: portrait) {
+  .cluster {
+    top: 20px;
+    right: 16px;
+    gap: 6px;
+  }
+
+  .button,
+  .buttonActive {
+    padding: 6px 11px;
+    font-size: 11px;
+  }
+}
