@@ -6,6 +6,7 @@ import {
   handAngle,
   hexToRgba,
   labelArcPath,
+  LABEL_ARC_HALF_SPAN_DEG,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
   parseMeetingInstant,
@@ -31,7 +32,10 @@ const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
-const REMOVE_BUTTON_ANGLE = 180;
+// a few degrees past the label arc's outer end (where the city name starts),
+// so the remove button reads as attached to the name without overlapping it
+const REMOVE_BUTTON_ANGLE_MARGIN = 8;
+const REMOVE_BUTTON_ANGLE = -(LABEL_ARC_HALF_SPAN_DEG + REMOVE_BUTTON_ANGLE_MARGIN);
 const REMOVE_BUTTON_RADIUS = 11;
 const REMOVE_BUTTON_CROSS_OFFSET = 4;
 const REMOVE_BUTTON_BG_COLOR = '#1C1F27';
@@ -84,7 +88,7 @@ export function WorldClock({
         const time = getCityTime(now, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
-        const removePosition = pointOnCircle(radius, REMOVE_BUTTON_ANGLE);
+        const removePosition = pointOnCircle(labelRadius, REMOVE_BUTTON_ANGLE);
         return {
           location,
           radius,
