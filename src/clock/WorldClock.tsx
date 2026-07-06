@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
@@ -32,10 +32,17 @@ const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
-// a few degrees past the label arc's outer end (where the city name starts),
-// so the remove button reads as attached to the name without overlapping it
-const REMOVE_BUTTON_ANGLE_MARGIN = 8;
-const REMOVE_BUTTON_ANGLE = -(LABEL_ARC_HALF_SPAN_DEG + REMOVE_BUTTON_ANGLE_MARGIN);
+// must match the name textPath's startOffset below, so the computed "end of
+// the name" angle used to place the remove button lines up with where the
+// name is actually drawn
+const NAME_TEXT_START_OFFSET_PERCENT = 47;
+const NAME_END_ANGLE =
+  -LABEL_ARC_HALF_SPAN_DEG + (NAME_TEXT_START_OFFSET_PERCENT / 100) * (2 * LABEL_ARC_HALF_SPAN_DEG);
+// small angular gap between the measured end of the name and the remove
+// button, and a rough fallback span (degrees) for the one frame before the
+// name's real rendered length has been measured
+const REMOVE_BUTTON_GAP_DEG = 4;
+const FALLBACK_NAME_ANGLE_SPAN_DEG = 20;
 const REMOVE_BUTTON_RADIUS = 11;
 const REMOVE_BUTTON_CROSS_OFFSET = 4;
 const REMOVE_BUTTON_BG_COLOR = '#1C1F27';
@@ -88,21 +95,47 @@ export function WorldClock({
         const time = getCityTime(now, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
-        const removePosition = pointOnCircle(labelRadius, REMOVE_BUTTON_ANGLE);
         return {
           location,
           radius,
+          labelRadius,
           time,
           inHours,
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
-          removePosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
     [orderedLocations, totalRings, now, idPrefix],
   );
+
+  // measures each ring's actual rendered name width (via the real SVG
+  // textPath, not an estimate) so the remove button can sit right at the
+  // name's start regardless of label length or font metrics
+  const nameTextRefs = useRef(new Map<string, SVGTextPathElement>());
+  const [nameWidths, setNameWidths] = useState(new Map<string, number>());
+  const ringLabelsKey = ringViews.map((ring) => `${ring.location.id}:${ring.location.label}`).join('|');
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      const next = new Map<string, number>();
+      nameTextRefs.current.forEach((el, id) => next.set(id, el.getComputedTextLength()));
+      setNameWidths(next);
+    };
+    measure();
+    // the initial measurement can land before the Space Grotesk webfont has
+    // swapped in (it loads with display=swap), measuring the narrower
+    // fallback font instead — re-measure once the real font is ready
+    document.fonts.ready.then(measure);
+    return () => {
+      cancelled = true;
+    };
+    // re-measure only when the set of rings or their labels actually change, not every tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ringLabelsKey]);
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
   const meetingDots = useMemo(() => {
@@ -196,7 +229,15 @@ export function WorldClock({
             return (
               <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="47%" textAnchor="end">
+                  <textPath
+                    ref={(el) => {
+                      if (el) nameTextRefs.current.set(ring.location.id, el);
+                      else nameTextRefs.current.delete(ring.location.id);
+                    }}
+                    href={`#${ring.textPathId}`}
+                    startOffset={`${NAME_TEXT_START_OFFSET_PERCENT}%`}
+                    textAnchor="end"
+                  >
                     {ring.location.label}
                     {'  '}
                   </textPath>
@@ -236,44 +277,51 @@ export function WorldClock({
           {mode === 'edit' &&
             ringViews
               .filter((ring) => !ring.location.isHome)
-              .map((ring) => (
-                <g
-                  key={`remove-${ring.location.id}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Remove ${ring.location.label}`}
-                  className={styles.removeButton}
-                  onClick={() => onRemoveLocation(ring.location.id)}
-                  onKeyDown={(event) => handleRemoveKeyDown(event, ring.location.id)}
-                >
-                  <circle
-                    cx={ring.removePosition.x.toFixed(2)}
-                    cy={ring.removePosition.y.toFixed(2)}
-                    r={REMOVE_BUTTON_RADIUS}
-                    fill={REMOVE_BUTTON_BG_COLOR}
-                    stroke={REMOVE_BUTTON_BORDER_COLOR}
-                    strokeWidth={1.5}
-                  />
-                  <line
-                    x1={(ring.removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y1={(ring.removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    x2={(ring.removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y2={(ring.removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    stroke={REMOVE_BUTTON_CROSS_COLOR}
-                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1={(ring.removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y1={(ring.removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    x2={(ring.removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y2={(ring.removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    stroke={REMOVE_BUTTON_CROSS_COLOR}
-                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
-                    strokeLinecap="round"
-                  />
-                </g>
-              ))}
+              .map((ring) => {
+                const nameWidth = nameWidths.get(ring.location.id);
+                const nameAngleSpan =
+                  nameWidth != null ? (nameWidth / ring.labelRadius) * (180 / Math.PI) : FALLBACK_NAME_ANGLE_SPAN_DEG;
+                const removeAngle = NAME_END_ANGLE - nameAngleSpan - REMOVE_BUTTON_GAP_DEG;
+                const removePosition = pointOnCircle(ring.labelRadius, removeAngle);
+                return (
+                  <g
+                    key={`remove-${ring.location.id}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Remove ${ring.location.label}`}
+                    className={styles.removeButton}
+                    onClick={() => onRemoveLocation(ring.location.id)}
+                    onKeyDown={(event) => handleRemoveKeyDown(event, ring.location.id)}
+                  >
+                    <circle
+                      cx={removePosition.x.toFixed(2)}
+                      cy={removePosition.y.toFixed(2)}
+                      r={REMOVE_BUTTON_RADIUS}
+                      fill={REMOVE_BUTTON_BG_COLOR}
+                      stroke={REMOVE_BUTTON_BORDER_COLOR}
+                      strokeWidth={1.5}
+                    />
+                    <line
+                      x1={(removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      y1={(removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      x2={(removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      y2={(removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      stroke={REMOVE_BUTTON_CROSS_COLOR}
+                      strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1={(removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      y1={(removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      x2={(removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      y2={(removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                      stroke={REMOVE_BUTTON_CROSS_COLOR}
+                      strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
+                      strokeLinecap="round"
+                    />
+                  </g>
+                );
+              })}
 
           {chevrons.map((chevron, index) => (
             <g key={index} transform={`rotate(${chevron.angle} 500 500)`}>
