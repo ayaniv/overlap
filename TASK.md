@@ -62,4 +62,4 @@ Implemented **M5 — Responsive** per `plan.md`. Pure CSS: no new components, ho
   - **390×844 (mobile portrait)**: before this milestone, the header text visibly collided with the Edit/Schedule/Share buttons and the bottom status row's text overflowed/clipped past the viewport edges (confirmed via a baseline screenshot). After: header, cluster, and clock all clear each other; the clock is markedly larger and anchored to the top of the screen with San Francisco/New York's arcs clipping off the left/right edges by design; the status row wraps into two centered lines that fit within the viewport. Also opened Edit mode at this size to confirm the mode panel (`AddLocationForm`) still fits fully on-screen alongside the shrunk cluster.
   - **844×390 (mobile landscape)**: renders via the default (non-portrait) rules, same layout family as desktop, correctly scaled down — no overlap or clipping issues.
 
-**PR:** see below once opened.
+**PR:** https://github.com/ayaniv/overlap/pull/6 (`claude/overlap-m5` → `claude/overlap-m4`, open)
