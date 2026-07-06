@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  angleDelta,
+  angleFromCenterOffset,
   bezelBaseRadius,
   bezelTicks,
   directionChevrons,
   handAngle,
   hexToRgba,
   meetingAngle,
+  offsetMsFromAngle,
   outermostRingRadius,
   parseMeetingInstant,
   pointOnCircle,
@@ -145,5 +148,56 @@ describe('parseMeetingInstant', () => {
 
   it('returns null for an empty string', () => {
     expect(parseMeetingInstant('')).toBeNull();
+  });
+});
+
+describe('angleFromCenterOffset', () => {
+  it('is 0 straight up from center', () => {
+    expect(angleFromCenterOffset(0, -10)).toBeCloseTo(0);
+  });
+
+  it('is 90 to the right of center', () => {
+    expect(angleFromCenterOffset(10, 0)).toBeCloseTo(90);
+  });
+
+  it('is 180 straight down from center', () => {
+    expect(angleFromCenterOffset(0, 10)).toBeCloseTo(180);
+  });
+
+  it('is 270 (not negative) to the left of center', () => {
+    expect(angleFromCenterOffset(-10, 0)).toBeCloseTo(270);
+  });
+});
+
+describe('angleDelta', () => {
+  it('is positive for a small clockwise turn', () => {
+    expect(angleDelta(10, 40)).toBeCloseTo(30);
+  });
+
+  it('is negative for a small counterclockwise turn', () => {
+    expect(angleDelta(40, 10)).toBeCloseTo(-30);
+  });
+
+  it('takes the short way across the 0/360 seam', () => {
+    expect(angleDelta(350, 10)).toBeCloseTo(20);
+    expect(angleDelta(10, 350)).toBeCloseTo(-20);
+  });
+
+  it('is 0 for no change', () => {
+    expect(angleDelta(90, 90)).toBe(0);
+  });
+});
+
+describe('offsetMsFromAngle', () => {
+  it('converts one hour of rotation (15deg) to one hour in ms', () => {
+    expect(offsetMsFromAngle(15)).toBe(3_600_000);
+  });
+
+  it('is negative for a counterclockwise rotation', () => {
+    expect(offsetMsFromAngle(-30)).toBe(-7_200_000);
+  });
+
+  it('is 0 for no rotation', () => {
+    expect(offsetMsFromAngle(0)).toBe(0);
   });
 });

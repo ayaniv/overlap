@@ -20,6 +20,7 @@ import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime'
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
 import { Toast } from './Toast';
+import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
 import styles from './WorldClock.module.css';
@@ -52,6 +53,9 @@ export type WorldClockProps = {
   onRemoveLocation?: (id: string) => void;
   centerContent?: ReactNode;
   toastMessage?: string | null;
+  previewOffsetMs?: number;
+  scrubBind?: RingScrubBind;
+  isScrubbing?: boolean;
 };
 
 export function WorldClock({
@@ -65,8 +69,18 @@ export function WorldClock({
   onRemoveLocation,
   centerContent,
   toastMessage = null,
+  previewOffsetMs = 0,
+  scrubBind,
+  isScrubbing = false,
 }: WorldClockProps) {
   const idPrefix = useId();
+
+  // in schedule mode, dragging the clock face (useRingScrub) previews a different instant;
+  // every ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
+  const effectiveNow = useMemo(
+    () => (previewOffsetMs ? new Date(now.getTime() + previewOffsetMs) : now),
+    [now, previewOffsetMs],
+  );
 
   const orderedLocations: Array<Location & { isHome: boolean }> = useMemo(
     () => [...rings.map((location) => ({ ...location, isHome: false })), { ...home, isHome: true }],
@@ -79,7 +93,7 @@ export function WorldClock({
       orderedLocations.map((location, index) => {
         const radius = ringRadius(index, totalRings);
         const labelRadius = radius + LABEL_RADIUS_OFFSET;
-        const time = getCityTime(now, location.timezoneId);
+        const time = getCityTime(effectiveNow, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
         const removePosition = pointOnCircle(radius, REMOVE_BUTTON_ANGLE);
@@ -95,7 +109,7 @@ export function WorldClock({
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
-    [orderedLocations, totalRings, now, idPrefix],
+    [orderedLocations, totalRings, effectiveNow, idPrefix],
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
@@ -107,10 +121,10 @@ export function WorldClock({
         console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
         continue;
       }
-      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, now)) });
+      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
     }
     return dots;
-  }, [meetings, homeRadius, now]);
+  }, [meetings, homeRadius, effectiveNow]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const strikeRadius = strikeTopRadius(totalRings);
@@ -124,8 +138,8 @@ export function WorldClock({
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
 
-  const homeTime = getCityTime(now, home.timezoneId);
-  const homeDateLabel = getCityDateLabel(now, home.timezoneId);
+  const homeTime = getCityTime(effectiveNow, home.timezoneId);
+  const homeDateLabel = getCityDateLabel(effectiveNow, home.timezoneId);
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
@@ -147,7 +161,16 @@ export function WorldClock({
       {mode !== 'view' && centerContent && <div className={styles.modePanel}>{centerContent}</div>}
       <Toast message={toastMessage} />
 
-      <div className={styles.clockContainer}>
+      <div
+        className={styles.clockContainer}
+        data-scrubbable={mode === 'schedule' || undefined}
+        data-scrubbing={isScrubbing || undefined}
+        tabIndex={mode === 'schedule' ? 0 : undefined}
+        role={mode === 'schedule' ? 'slider' : undefined}
+        aria-label={mode === 'schedule' ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
+        aria-valuenow={mode === 'schedule' ? previewOffsetMs : undefined}
+        {...(mode === 'schedule' ? scrubBind : undefined)}
+      >
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
 

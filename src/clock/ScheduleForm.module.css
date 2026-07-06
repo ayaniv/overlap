@@ -1,0 +1,122 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 280px;
+  padding: 16px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  color: #7b808a;
+}
+
+.field {
+  position: relative;
+}
+
+.textInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #f5f6f8;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.hoursLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: #7b808a;
+}
+
+.hint {
+  margin: -4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #565b64;
+}
+
+.gatedNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9096a0;
+}
+
+.gatedNote code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #38bdf8;
+}
+
+.successNote {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #34d399;
+}
+
+.error {
+  font-size: 12px;
+  color: #fb7185;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.cancelButton,
+.addButton {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.cancelButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.6);
+  color: #c4c8cf;
+}
+
+.cancelButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.addButton {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  color: #f5f6f8;
+}
+
+.addButton:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.addButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -18,6 +18,7 @@ export const STRIKE_TOP_MARGIN = 10;
 export const STRIKE_BOTTOM_Y = 370;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
+export const MS_PER_HOUR = 3_600_000;
 
 export type Point = { x: number; y: number };
 
@@ -134,4 +135,26 @@ export function meetingAngle(meetingInstant: Date, now: Date): number {
 export function parseMeetingInstant(startISO: string): Date | null {
   const instant = new Date(startISO);
   return Number.isNaN(instant.getTime()) ? null : instant;
+}
+
+// angle (same convention as pointOnCircle: 0 = up, clockwise positive, in [0,360)) of a
+// point expressed as a pixel offset from a center — scale-invariant, so a drag handler
+// can pass raw pointer-to-center deltas without converting to viewBox units
+export function angleFromCenterOffset(dx: number, dy: number): number {
+  const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  return deg < 0 ? deg + 360 : deg;
+}
+
+// shortest signed delta from one angle to another, in (-180, 180], so a drag that
+// crosses the 0/360 seam doesn't jump to the long way around
+export function angleDelta(fromDeg: number, toDeg: number): number {
+  let delta = (toDeg - fromDeg) % 360;
+  if (delta > 180) delta -= 360;
+  if (delta <= -180) delta += 360;
+  return delta;
+}
+
+// converts a rotation (degrees, at DEGREES_PER_HOUR) into a time offset in milliseconds
+export function offsetMsFromAngle(deltaDeg: number): number {
+  return (deltaDeg / DEGREES_PER_HOUR) * MS_PER_HOUR;
 }
