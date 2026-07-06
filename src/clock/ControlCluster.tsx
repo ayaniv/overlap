@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
 
@@ -9,7 +10,10 @@ export type ControlClusterProps = {
 
 // top-right entry points for edit/schedule modes + share; M2/M3/M4 wire up the
 // actual center-content and share behavior behind these same callbacks
-export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
+//
+// memoized because it doesn't receive `now`: without this it re-renders every
+// second along with WorldClock's once-a-second tick, for no visual benefit
+export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
 
   return (
@@ -35,4 +39,4 @@ export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps
       </button>
     </div>
   );
-}
+});
