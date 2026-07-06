@@ -13,7 +13,7 @@ import {
   pointOnCircle,
   ringRadius,
   topMarkerPoints,
-  TOP_MARKER_INNER_RADIUS,
+  TOP_MARKER_APEX_Y,
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
@@ -105,7 +105,7 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
   const fadeLineId = `${idPrefix}-fade-line`;
-  const fadeLineTopY = CENTER - TOP_MARKER_INNER_RADIUS;
+  const fadeLineTopY = TOP_MARKER_APEX_Y;
 
   const homeTime = getCityTime(now, home.timezoneId);
   const homeDateLabel = getCityDateLabel(now, home.timezoneId);

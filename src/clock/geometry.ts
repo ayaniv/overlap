@@ -13,6 +13,9 @@ export const TOP_MARKER_HALF_WIDTH = 12;
 // height of an equilateral triangle = base * sqrt(3)/2, so the apex radius is
 // derived from the base width rather than picked independently
 export const TOP_MARKER_INNER_RADIUS = TOP_MARKER_OUTER_RADIUS - TOP_MARKER_HALF_WIDTH * Math.sqrt(3);
+// the triangle's apex y — shared so callers (the polygon itself, the fading guide
+// line) can't drift apart if the marker geometry changes again
+export const TOP_MARKER_APEX_Y = CENTER - TOP_MARKER_INNER_RADIUS;
 
 export type Point = { x: number; y: number };
 
@@ -84,7 +87,7 @@ export function bezelTicks(): BezelTick[] {
 // replacing bezel tick #0 (fixed at angle 0, so no need for pointOnCircle)
 export function topMarkerPoints(): string {
   const baseY = (CENTER - TOP_MARKER_OUTER_RADIUS).toFixed(2);
-  const apexY = (CENTER - TOP_MARKER_INNER_RADIUS).toFixed(2);
+  const apexY = TOP_MARKER_APEX_Y.toFixed(2);
   return `${CENTER - TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER + TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER},${apexY}`;
 }
 
