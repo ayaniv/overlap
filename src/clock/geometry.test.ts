@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bezelTicks, handAngle, hexToRgba, meetingAngle, parseMeetingInstant, pointOnCircle, ringRadius } from './geometry';
+import { bezelTicks, handAngle, hexToRgba, meetingAngle, parseMeetingInstant, pointOnCircle, ringRadius, topMarkerPoints } from './geometry';
 
 describe('pointOnCircle', () => {
   it('places angle 0 straight up from center', () => {
@@ -54,6 +54,18 @@ describe('bezelTicks', () => {
     expect(ticks[0].stroke).toBe('#6B7079');
     expect(ticks[1].stroke).toBe('#3D414A');
     expect(ticks[5].stroke).toBe('#6B7079');
+  });
+});
+
+describe('topMarkerPoints', () => {
+  it('is a triangle centered on x=500 with its apex pointing inward (toward center)', () => {
+    const points = topMarkerPoints().split(' ').map((pair) => pair.split(',').map(Number));
+    expect(points).toHaveLength(3);
+    const [left, right, apex] = points;
+    expect(left).toEqual([491, 34]);
+    expect(right).toEqual([509, 34]);
+    expect(apex).toEqual([500, 58]);
+    expect(apex[1]).toBeGreaterThan(left[1]);
   });
 });
 

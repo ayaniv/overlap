@@ -10,8 +10,7 @@ import {
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
-  STRIKE_BOTTOM_Y,
-  STRIKE_TOP_RADIUS,
+  topMarkerPoints,
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
@@ -149,8 +148,6 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
             <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
           ))}
 
-          <line x1={500} y1={500 - STRIKE_TOP_RADIUS} x2={500} y2={STRIKE_BOTTOM_Y} stroke="#565B64" strokeWidth={1.5} />
-
           {ringViews.map((ring) => {
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
             return (
@@ -207,18 +204,27 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
             </g>
           ))}
 
-          {ticks.map((tick, index) => (
-            <line
-              key={index}
-              x1={tick.x1.toFixed(2)}
-              y1={tick.y1.toFixed(2)}
-              x2={tick.x2.toFixed(2)}
-              y2={tick.y2.toFixed(2)}
-              stroke={tick.stroke}
-              strokeWidth={tick.width}
-              strokeLinecap="round"
-            />
-          ))}
+          {ticks.map((tick, index) =>
+            index === 0 ? null : (
+              <line
+                key={index}
+                x1={tick.x1.toFixed(2)}
+                y1={tick.y1.toFixed(2)}
+                x2={tick.x2.toFixed(2)}
+                y2={tick.y2.toFixed(2)}
+                stroke={tick.stroke}
+                strokeWidth={tick.width}
+                strokeLinecap="round"
+              />
+            ),
+          )}
+
+          {/* sole "now" marker: a triangle fixed at 12 o'clock, apex pointing into the dial */}
+          <polygon
+            points={topMarkerPoints()}
+            fill="#EDEAE0"
+            style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
+          />
 
           <g ref={handRef} transform={`rotate(${arrowAngle.toFixed(2)} 500 500)`}>
             <line
@@ -237,11 +243,6 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
 
         <div className={styles.centerOverlay} aria-hidden={mode === 'view'}>
           <CenterContent mode={mode} homeLabel={home.label} homeTimeLabel={homeTime.label} homeDateLabel={homeDateLabel} override={centerContent} />
-        </div>
-
-        {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}
-        <div className={styles.nowLabel} aria-hidden="true">
-          NOW
         </div>
       </div>
 

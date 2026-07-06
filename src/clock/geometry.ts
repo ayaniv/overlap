@@ -6,12 +6,11 @@ export const LABEL_ARC_HALF_SPAN_DEG = 63;
 export const BEZEL_BASE_RADIUS = 446;
 export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
-export const STRIKE_TOP_RADIUS = 456;
-// lands exactly on the top of the NOW capsule (measured at viewBox y≈370) so the
-// strike connects into the NOW marker
-export const STRIKE_BOTTOM_Y = 370;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
+export const TOP_MARKER_OUTER_RADIUS = 466;
+export const TOP_MARKER_INNER_RADIUS = 442;
+export const TOP_MARKER_HALF_WIDTH = 9;
 
 export type Point = { x: number; y: number };
 
@@ -69,6 +68,14 @@ export function bezelTicks(): BezelTick[] {
     });
   }
   return ticks;
+}
+
+// filled triangle at 12 o'clock, apex pointing into the dial; the sole "now" marker,
+// replacing bezel tick #0 (fixed at angle 0, so no need for pointOnCircle)
+export function topMarkerPoints(): string {
+  const baseY = CENTER - TOP_MARKER_OUTER_RADIUS;
+  const apexY = CENTER - TOP_MARKER_INNER_RADIUS;
+  return `${CENTER - TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER + TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER},${apexY}`;
 }
 
 // one full clockwise turn per minute
