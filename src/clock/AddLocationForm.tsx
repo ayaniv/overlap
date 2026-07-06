@@ -3,7 +3,15 @@ import type { FormEvent } from 'react';
 import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, PALETTE } from './defaultCities';
-import { buildNewLocation, isValidHexColor, validateNewLocation } from './locationForm';
+import {
+  buildNewLocation,
+  isValidHexColor,
+  MAX_WORK_END,
+  MAX_WORK_START,
+  MIN_WORK_END,
+  MIN_WORK_START,
+  validateNewLocation,
+} from './locationForm';
 import type { Location } from './types';
 import styles from './AddLocationForm.module.css';
 
@@ -136,8 +144,8 @@ export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFor
           <input
             className={styles.hoursInput}
             type="number"
-            min={0}
-            max={23}
+            min={MIN_WORK_START}
+            max={MAX_WORK_START}
             value={workStart}
             onChange={(event) => setWorkStart(Number(event.target.value))}
           />
@@ -147,8 +155,8 @@ export function AddLocationForm({ existingIds, onAdd, onCancel }: AddLocationFor
           <input
             className={styles.hoursInput}
             type="number"
-            min={1}
-            max={24}
+            min={MIN_WORK_END}
+            max={MAX_WORK_END}
             value={workEnd}
             onChange={(event) => setWorkEnd(Number(event.target.value))}
           />

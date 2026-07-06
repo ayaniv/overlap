@@ -20,7 +20,7 @@ import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime'
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
 import type { Location, Meeting, Mode } from './types';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import styles from './WorldClock.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
@@ -33,6 +33,11 @@ const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
 const REMOVE_BUTTON_ANGLE = 180;
 const REMOVE_BUTTON_RADIUS = 11;
+const REMOVE_BUTTON_CROSS_OFFSET = 4;
+const REMOVE_BUTTON_BG_COLOR = '#1C1F27';
+const REMOVE_BUTTON_BORDER_COLOR = '#565B64';
+const REMOVE_BUTTON_CROSS_COLOR = '#C4C8CF';
+const REMOVE_BUTTON_CROSS_WIDTH = 1.6;
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -48,7 +53,7 @@ export type WorldClockProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
-  onRemoveLocation?: (id: string) => void;
+  onRemoveLocation: (id: string) => void;
   modePanelContent?: ReactNode;
 };
 
@@ -121,6 +126,15 @@ export function WorldClock({
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
 
+  // the remove button is an SVG <g>, not a native <button>, so Enter/Space
+  // need an explicit handler to match native button keyboard behavior
+  const handleRemoveKeyDown = (event: KeyboardEvent<SVGGElement>, id: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onRemoveLocation(id);
+    }
+  };
+
   const homeTime = getCityTime(now, home.timezoneId);
   const homeDateLabel = getCityDateLabel(now, home.timezoneId);
 
@@ -147,7 +161,8 @@ export function WorldClock({
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
 
-        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden="true">
+        {/* only decorative when there's no interactive content (the remove buttons, in edit mode) inside it */}
+        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden={mode !== 'edit'}>
           <defs>
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
@@ -215,34 +230,42 @@ export function WorldClock({
           ))}
 
           {mode === 'edit' &&
-            onRemoveLocation &&
             ringViews
               .filter((ring) => !ring.location.isHome)
               .map((ring) => (
                 <g
                   key={`remove-${ring.location.id}`}
                   role="button"
+                  tabIndex={0}
                   aria-label={`Remove ${ring.location.label}`}
                   className={styles.removeButton}
                   onClick={() => onRemoveLocation(ring.location.id)}
+                  onKeyDown={(event) => handleRemoveKeyDown(event, ring.location.id)}
                 >
-                  <circle cx={ring.removePosition.x.toFixed(2)} cy={ring.removePosition.y.toFixed(2)} r={REMOVE_BUTTON_RADIUS} fill="#1C1F27" stroke="#565B64" strokeWidth={1.5} />
+                  <circle
+                    cx={ring.removePosition.x.toFixed(2)}
+                    cy={ring.removePosition.y.toFixed(2)}
+                    r={REMOVE_BUTTON_RADIUS}
+                    fill={REMOVE_BUTTON_BG_COLOR}
+                    stroke={REMOVE_BUTTON_BORDER_COLOR}
+                    strokeWidth={1.5}
+                  />
                   <line
-                    x1={(ring.removePosition.x - 4).toFixed(2)}
-                    y1={(ring.removePosition.y - 4).toFixed(2)}
-                    x2={(ring.removePosition.x + 4).toFixed(2)}
-                    y2={(ring.removePosition.y + 4).toFixed(2)}
-                    stroke="#C4C8CF"
-                    strokeWidth={1.6}
+                    x1={(ring.removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y1={(ring.removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    x2={(ring.removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y2={(ring.removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    stroke={REMOVE_BUTTON_CROSS_COLOR}
+                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
                     strokeLinecap="round"
                   />
                   <line
-                    x1={(ring.removePosition.x - 4).toFixed(2)}
-                    y1={(ring.removePosition.y + 4).toFixed(2)}
-                    x2={(ring.removePosition.x + 4).toFixed(2)}
-                    y2={(ring.removePosition.y - 4).toFixed(2)}
-                    stroke="#C4C8CF"
-                    strokeWidth={1.6}
+                    x1={(ring.removePosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y1={(ring.removePosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    x2={(ring.removePosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y2={(ring.removePosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    stroke={REMOVE_BUTTON_CROSS_COLOR}
+                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
                     strokeLinecap="round"
                   />
                 </g>
