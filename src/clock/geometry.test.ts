@@ -62,10 +62,21 @@ describe('topMarkerPoints', () => {
     const points = topMarkerPoints().split(' ').map((pair) => pair.split(',').map(Number));
     expect(points).toHaveLength(3);
     const [left, right, apex] = points;
-    expect(left).toEqual([491, 34]);
-    expect(right).toEqual([509, 34]);
-    expect(apex).toEqual([500, 58]);
+    expect(left).toEqual([488, 34]);
+    expect(right).toEqual([512, 34]);
+    expect(apex[0]).toBe(500);
+    expect(apex[1]).toBeCloseTo(54.78, 1);
     expect(apex[1]).toBeGreaterThan(left[1]);
+  });
+
+  it('is equilateral: all three sides have the same length', () => {
+    const [left, right, apex] = topMarkerPoints()
+      .split(' ')
+      .map((pair) => pair.split(',').map(Number));
+    const distance = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const base = distance(left, right);
+    expect(distance(left, apex)).toBeCloseTo(base, 0);
+    expect(distance(right, apex)).toBeCloseTo(base, 0);
   });
 });
 

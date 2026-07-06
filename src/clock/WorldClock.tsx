@@ -153,13 +153,13 @@ export function WorldClock({ now, home, rings, meetings, mode, onSetMode, onShar
             return (
               <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="49%" textAnchor="end">
+                  <textPath href={`#${ring.textPathId}`} startOffset="48%" textAnchor="end">
                     {ring.location.label}
                     {' '}
                   </textPath>
                 </text>
                 <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="51%" textAnchor="start">
+                  <textPath href={`#${ring.textPathId}`} startOffset="52%" textAnchor="start">
                     {' '}
                     {ring.time.label}
                   </textPath>

@@ -9,8 +9,10 @@ export const BEZEL_MAJOR_TICK_EVERY = 5;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
 export const TOP_MARKER_OUTER_RADIUS = 466;
-export const TOP_MARKER_INNER_RADIUS = 442;
-export const TOP_MARKER_HALF_WIDTH = 9;
+export const TOP_MARKER_HALF_WIDTH = 12;
+// height of an equilateral triangle = base * sqrt(3)/2, so the apex radius is
+// derived from the base width rather than picked independently
+export const TOP_MARKER_INNER_RADIUS = TOP_MARKER_OUTER_RADIUS - TOP_MARKER_HALF_WIDTH * Math.sqrt(3);
 
 export type Point = { x: number; y: number };
 
@@ -73,8 +75,8 @@ export function bezelTicks(): BezelTick[] {
 // filled triangle at 12 o'clock, apex pointing into the dial; the sole "now" marker,
 // replacing bezel tick #0 (fixed at angle 0, so no need for pointOnCircle)
 export function topMarkerPoints(): string {
-  const baseY = CENTER - TOP_MARKER_OUTER_RADIUS;
-  const apexY = CENTER - TOP_MARKER_INNER_RADIUS;
+  const baseY = (CENTER - TOP_MARKER_OUTER_RADIUS).toFixed(2);
+  const apexY = (CENTER - TOP_MARKER_INNER_RADIUS).toFixed(2);
   return `${CENTER - TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER + TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER},${apexY}`;
 }
 
