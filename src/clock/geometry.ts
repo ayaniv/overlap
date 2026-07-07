@@ -166,11 +166,16 @@ export function directionChevrons(ringRadii: number[]): Chevron[] {
   });
 }
 
-// angle of a meeting marker relative to the top (NOW) axis: elapsed hours between
-// now and the meeting instant is timezone-independent, so the same angle applies
-// to every ring
+// angle of a meeting marker relative to the top (NOW) axis, in the same
+// (currentFrac - eventFrac) convention as workingHoursArcPath: a future meeting is
+// negative (counterclockwise, hasn't swept up to NOW yet) and sweeps clockwise
+// toward 0 as real time passes, landing exactly on the NOW axis when the meeting
+// arrives, then continuing clockwise into positive (past) territory — sticky to the
+// ring's own rotation, not an independent "distance from now" marker. Elapsed hours
+// between now and the meeting instant is timezone-independent, so the same angle
+// applies to every ring.
 export function meetingAngle(meetingInstant: Date, now: Date): number {
-  const hoursDelta = (meetingInstant.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const hoursDelta = (now.getTime() - meetingInstant.getTime()) / (1000 * 60 * 60);
   return hoursDelta * DEGREES_PER_HOUR;
 }
 

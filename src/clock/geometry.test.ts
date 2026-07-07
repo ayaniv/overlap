@@ -4,6 +4,7 @@ import {
   angleFromCenterOffset,
   bezelBaseRadius,
   bezelTicks,
+  DEGREES_PER_HOUR,
   directionChevrons,
   handAngle,
   hexToRgba,
@@ -180,13 +181,20 @@ describe('meetingAngle', () => {
     expect(meetingAngle(now, now)).toBe(0);
   });
 
-  it('is positive 15°/hour for a future meeting', () => {
-    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(15);
-    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(60);
+  it('is negative 15°/hour for a future meeting — hasn\'t swept up to NOW yet', () => {
+    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(-15);
+    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(-60);
   });
 
-  it('is negative 15°/hour for a past meeting', () => {
-    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(-15);
+  it('is positive 15°/hour for a past meeting — already swept past NOW', () => {
+    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(15);
+  });
+
+  it('matches the sign convention of workingHoursArcPath (currentFrac - eventFrac)', () => {
+    // a boundary 3 hours in the future (e.g. workEnd relative to now) gets the same
+    // negative angle as a meeting 3 hours in the future
+    const threeHoursFuture = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    expect(meetingAngle(threeHoursFuture, now)).toBe((0 - 3) * DEGREES_PER_HOUR);
   });
 });
 
