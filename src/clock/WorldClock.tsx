@@ -2,17 +2,22 @@ import { useId, useMemo, useRef } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
+  CENTER,
   directionChevrons,
   handAngle,
   hexToRgba,
+  labelArcHalfLength,
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
-  STRIKE_BOTTOM_Y,
-  strikeTopRadius,
+  sweepHandDotRadius,
+  sweepHandInnerRadius,
+  sweepHandOuterRadius,
+  topMarkerApexY,
+  topMarkerPoints,
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
@@ -41,6 +46,7 @@ const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
+const LABEL_DOT_GAP = 18;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -86,6 +92,7 @@ export function WorldClock({
         return {
           location,
           radius,
+          labelRadius,
           time,
           inHours,
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
@@ -112,7 +119,6 @@ export function WorldClock({
   }, [meetings, homeRadius, now]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
-  const strikeRadius = strikeTopRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
   // ring radii depend only on index/totalRings (not `now`), so this only needs
   // to recompute when the ring count changes, not every tick like ringViews does
@@ -124,6 +130,8 @@ export function WorldClock({
   const handRef = useRef<SVGGElement>(null);
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
+  const fadeLineId = `${idPrefix}-fade-line`;
+  const fadeLineTopY = topMarkerApexY(totalRings);
 
   // the remove button is an SVG <g>, not a native <button>, so Enter/Space
   // need an explicit handler to match native button keyboard behavior
@@ -166,6 +174,10 @@ export function WorldClock({
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
             </filter>
+            <linearGradient id={fadeLineId} gradientUnits="userSpaceOnUse" x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER}>
+              <stop offset="0%" stopColor="#9CA3AF" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#9CA3AF" stopOpacity={0} />
+            </linearGradient>
             {ringViews.map((ring) => (
               <path key={ring.textPathId} id={ring.textPathId} d={ring.topArcPath} fill="none" />
             ))}
@@ -184,27 +196,27 @@ export function WorldClock({
             <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
           ))}
 
-          <line x1={500} y1={500 - strikeRadius} x2={500} y2={STRIKE_BOTTOM_Y} stroke="#565B64" strokeWidth={1.5} />
-
           {ringViews.map((ring) => {
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
+            const halfLength = labelArcHalfLength(ring.labelRadius);
             return (
               <g key={`label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="47%" textAnchor="end">
+                  <textPath href={`#${ring.textPathId}`} startOffset={halfLength - LABEL_DOT_GAP} textAnchor="end">
                     {ring.location.label}
-                    {'  '}
                   </textPath>
                 </text>
                 <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
-                  <textPath href={`#${ring.textPathId}`} startOffset="53%" textAnchor="start">
-                    {'  '}
+                  <textPath href={`#${ring.textPathId}`} startOffset={halfLength + LABEL_DOT_GAP} textAnchor="start">
                     {ring.time.label}
                   </textPath>
                 </text>
               </g>
             );
           })}
+
+          {/* subtle guide from the triangle down to the center readout, behind all the dots */}
+          <line x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER} stroke={`url(#${fadeLineId})`} strokeWidth={1.5} />
 
           {ringViews.map((ring) => {
             // in edit mode, non-home rings swap their status dot for a remove
@@ -287,31 +299,46 @@ export function WorldClock({
             </g>
           ))}
 
-          {ticks.map((tick, index) => (
-            <line
-              key={index}
-              x1={tick.x1.toFixed(2)}
-              y1={tick.y1.toFixed(2)}
-              x2={tick.x2.toFixed(2)}
-              y2={tick.y2.toFixed(2)}
-              stroke={tick.stroke}
-              strokeWidth={tick.width}
-              strokeLinecap="round"
-            />
-          ))}
+          {ticks.map((tick, index) =>
+            index === 0 ? null : (
+              <line
+                key={index}
+                x1={tick.x1.toFixed(2)}
+                y1={tick.y1.toFixed(2)}
+                x2={tick.x2.toFixed(2)}
+                y2={tick.y2.toFixed(2)}
+                stroke={tick.stroke}
+                strokeWidth={tick.width}
+                strokeLinecap="round"
+              />
+            ),
+          )}
+
+          {/* sole "now" marker: a triangle fixed at 12 o'clock, apex pointing into the dial */}
+          <polygon
+            points={topMarkerPoints(totalRings)}
+            fill="#EDEAE0"
+            style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
+          />
 
           <g ref={handRef} transform={`rotate(${arrowAngle.toFixed(2)} 500 500)`}>
             <line
               x1={500}
-              y1={40}
+              y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
               x2={500}
-              y2={62}
+              y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
               stroke="#EDEAE0"
               strokeWidth={2}
               strokeLinecap="round"
               style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
             />
-            <circle cx={500} cy={38} r={2.6} fill="#EDEAE0" style={{ filter: 'drop-shadow(0 0 5px rgba(237,234,224,0.85))' }} />
+            <circle
+              cx={500}
+              cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
+              r={2.6}
+              fill="#EDEAE0"
+              style={{ filter: 'drop-shadow(0 0 5px rgba(237,234,224,0.85))' }}
+            />
           </g>
         </svg>
 
@@ -319,11 +346,6 @@ export function WorldClock({
           <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
           <div className={styles.centerTime}>{homeTime.label}</div>
           <div className={styles.centerDate}>{homeDateLabel}</div>
-        </div>
-
-        {/* NOW sits at the inner (bottom) end of the strike, inside the home ring, above the local time */}
-        <div className={styles.nowLabel} aria-hidden="true">
-          NOW
         </div>
       </div>
 

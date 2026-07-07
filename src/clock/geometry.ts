@@ -7,17 +7,21 @@ export const RING_RADIUS_STEP = 58;
 export const LABEL_RADIUS_OFFSET = 16;
 export const LABEL_ARC_HALF_SPAN_DEG = 63;
 // gap between the outermost ring and the tick bezel, and between the bezel and
-// the strike's top end — both tracked from the outermost ring so they grow/
-// shrink with it
+// the triangle marker's outer edge — both tracked from the outermost ring so
+// they grow/shrink with it
 export const BEZEL_MARGIN = 54;
 export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
-export const STRIKE_TOP_MARGIN = 10;
-// lands exactly on the top of the NOW capsule (measured at viewBox y≈370) so the
-// strike connects into the NOW marker
-export const STRIKE_BOTTOM_Y = 370;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
+export const TOP_MARKER_TOP_MARGIN = 20;
+export const TOP_MARKER_HALF_WIDTH = 12;
+// the fast minute-sweep hand rides just outside the tick bezel; margins are
+// relative to bezelBaseRadius(totalRings) so it tracks the bezel as the ring
+// stack grows/shrinks, instead of floating at a fixed radius
+export const SWEEP_HAND_INNER_MARGIN = -8;
+export const SWEEP_HAND_OUTER_MARGIN = 14;
+export const SWEEP_HAND_DOT_MARGIN = 16;
 
 export type Point = { x: number; y: number };
 
@@ -44,8 +48,32 @@ export function bezelBaseRadius(totalRings: number): number {
   return outermostRingRadius(totalRings) + BEZEL_MARGIN;
 }
 
-export function strikeTopRadius(totalRings: number): number {
-  return bezelBaseRadius(totalRings) + STRIKE_TOP_MARGIN;
+export function sweepHandInnerRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_INNER_MARGIN;
+}
+
+export function sweepHandOuterRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_OUTER_MARGIN;
+}
+
+export function sweepHandDotRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_DOT_MARGIN;
+}
+
+export function topMarkerOuterRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + TOP_MARKER_TOP_MARGIN;
+}
+
+// height of an equilateral triangle = base * sqrt(3)/2, so the apex radius is
+// derived from the base width rather than picked independently
+export function topMarkerInnerRadius(totalRings: number): number {
+  return topMarkerOuterRadius(totalRings) - TOP_MARKER_HALF_WIDTH * Math.sqrt(3);
+}
+
+// the triangle's apex y — shared so callers (the polygon itself, the fading guide
+// line) can't drift apart if the marker geometry changes again
+export function topMarkerApexY(totalRings: number): number {
+  return CENTER - topMarkerInnerRadius(totalRings);
 }
 
 // arc from workStart to workEnd, rotated so the city's current time sits at the top axis
@@ -62,6 +90,14 @@ export function labelArcPath(radius: number): string {
   const start = pointOnCircle(radius, -LABEL_ARC_HALF_SPAN_DEG);
   const end = pointOnCircle(radius, LABEL_ARC_HALF_SPAN_DEG);
   return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 1 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
+}
+
+// arc length from the start of labelArcPath(radius) to its center (angle 0, where the
+// ring's dot sits) — lets callers place text a fixed pixel distance from the dot via an
+// absolute textPath startOffset, instead of a percentage (which is a different pixel
+// distance on every ring, since arc length scales with radius)
+export function labelArcHalfLength(radius: number): number {
+  return (radius * LABEL_ARC_HALF_SPAN_DEG * Math.PI) / 180;
 }
 
 export type BezelTick = { x1: number; y1: number; x2: number; y2: number; stroke: string; width: number };
@@ -86,6 +122,15 @@ export function bezelTicks(baseRadius: number): BezelTick[] {
     });
   }
   return ticks;
+}
+
+// filled triangle at 12 o'clock, apex pointing into the dial; the sole "now" marker,
+// replacing bezel tick #0 (fixed at angle 0, so no need for pointOnCircle); grows/
+// shrinks with the ring stack via topMarkerOuterRadius(totalRings)
+export function topMarkerPoints(totalRings: number): string {
+  const baseY = (CENTER - topMarkerOuterRadius(totalRings)).toFixed(2);
+  const apexY = topMarkerApexY(totalRings).toFixed(2);
+  return `${CENTER - TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER + TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER},${apexY}`;
 }
 
 // one full clockwise turn per minute

@@ -37,6 +37,14 @@ Rename dir `~/Dev/time-spinner` → `~/Dev/overlap`; `gh repo rename overlap`; u
 `src/clock/useRingScrub.ts` (pointer drag rotates rings → `previewOffsetMs` at **15°/hour**; `WorldClock` renders `now = liveNow + offset`; arrow-key a11y); date input; `src/clock/googleCalendar.ts` (GIS script, token flow, scope `calendar.events`, `VITE_GOOGLE_CLIENT_ID`, `signIn`→`createEvent` v3 primary cal, 30min default). Fills schedule-mode slot; success → "V added" 3s → auto-return; failure inline; unset client id → gated note. On success `addMeeting` → **marker dot** on home ring at `angle=(meetingInstant−now)h×15°` (rotates toward NOW).
 **Deployable:** schedule meetings (Google-gated) + persistent marker dots.
 
+### Addendum (pre-M5) — Clock marker & dial polish
+Unplanned, landed on `claude/overlap-clock-marker` (PR #5) ahead of M5, touching the same `WorldClock.tsx`/`geometry.ts` files M5 will also touch (see merge-conflict hotspots below) — M5 should rebase onto this first.
+- Removed the NOW crossing-line + pill capsule; replaced with a filled **equilateral triangle** marker fixed at 12 o'clock (`topMarkerPoints()` in `geometry.ts`), replacing bezel tick #0.
+- Added a subtle fading guide line (SVG `linearGradient`) from the triangle's apex down to the dial center, rendered behind the per-ring dots.
+- Fixed inconsistent per-ring label/dot gap — `startOffset` was a percentage of each ring's arc length (which scales with radius, so inner rings looked cramped); switched to a fixed absolute-pixel gap via `labelArcHalfLength()`. This closes note 1 from the pre-M5 review below ("Add more gap between dot name and time").
+- Memoized `ControlCluster` (doesn't depend on the once-a-second `now` tick).
+**Deployable:** merged as PR #5.
+
 ### M5 — Responsive (E) — parallel, needs only M0
 CSS media queries: landscape/desktop = current centered `min(86vmin,700px)`; **portrait/mobile** = clock scaled larger + anchored high so top rings + NOW + center dominate and lower rings bleed off-bottom (per vertical ref; SVG `overflow:visible` → scale-up + downward translate). Top-left context, top-right cluster, bottom status reflow. Touches `WorldClock.module.css` + stage CSS.
 **Deployable:** usable on phones (portrait + landscape).
