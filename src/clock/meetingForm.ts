@@ -25,16 +25,28 @@ export function buildMeeting(title: string, instant: Date, existingIds: string[]
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-// formats a Date as the value a <input type="datetime-local"> expects, in local time
-export function toDatetimeLocalValue(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+// formats a Date as the value a <input type="date"> expects, in local time
+export function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-// parses a <input type="datetime-local"> value back into a Date; returns null (and lets
-// the caller decide whether to log) for an empty or unparseable value rather than an
-// Invalid Date
-export function fromDatetimeLocalValue(value: string): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+const DATE_INPUT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// combines a <input type="date"> value (the day) with an existing instant's time-of-day
+// (hours/minutes/seconds) — picking a date never silently resets the time the user
+// already dialed in by scrubbing. Returns null (letting the caller log) for an
+// unparseable value rather than an Invalid Date.
+export function withDatePart(value: string, timeSource: Date): Date | null {
+  const match = DATE_INPUT_PATTERN.exec(value);
+  if (!match) return null;
+  const [, yearStr, monthStr, dayStr] = match;
+  const combined = new Date(timeSource);
+  combined.setFullYear(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
+  return Number.isNaN(combined.getTime()) ? null : combined;
+}
+
+// HH:MM in the browser's local time — a read-only readout next to the date picker,
+// since the time itself is set by scrubbing the rings, not typed
+export function formatLocalTime(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }

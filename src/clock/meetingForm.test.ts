@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMeeting, fromDatetimeLocalValue, toDatetimeLocalValue, validateMeetingTitle } from './meetingForm';
+import { buildMeeting, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
 
 describe('validateMeetingTitle', () => {
   it('requires a non-blank title', () => {
@@ -26,24 +26,39 @@ describe('buildMeeting', () => {
   });
 });
 
-describe('toDatetimeLocalValue / fromDatetimeLocalValue', () => {
-  it('round-trips a date through the datetime-local format', () => {
-    const date = new Date(2026, 0, 15, 9, 30);
-    const value = toDatetimeLocalValue(date);
-    expect(value).toBe('2026-01-15T09:30');
-    expect(fromDatetimeLocalValue(value)).toEqual(date);
+describe('toDateInputValue', () => {
+  it('formats a date as YYYY-MM-DD in local time', () => {
+    expect(toDateInputValue(new Date(2026, 0, 15, 9, 30))).toBe('2026-01-15');
   });
 
-  it('pads single-digit month/day/hour/minute', () => {
-    const date = new Date(2026, 2, 5, 4, 7);
-    expect(toDatetimeLocalValue(date)).toBe('2026-03-05T04:07');
+  it('pads single-digit month/day', () => {
+    expect(toDateInputValue(new Date(2026, 2, 5, 4, 7))).toBe('2026-03-05');
+  });
+});
+
+describe('withDatePart', () => {
+  const timeSource = new Date(2026, 0, 15, 9, 30, 0);
+
+  it('replaces the date while preserving the time-of-day', () => {
+    const combined = withDatePart('2026-03-20', timeSource);
+    expect(combined).toEqual(new Date(2026, 2, 20, 9, 30, 0));
   });
 
   it('returns null for an empty value', () => {
-    expect(fromDatetimeLocalValue('')).toBeNull();
+    expect(withDatePart('', timeSource)).toBeNull();
   });
 
   it('returns null for an unparseable value', () => {
-    expect(fromDatetimeLocalValue('not-a-date')).toBeNull();
+    expect(withDatePart('not-a-date', timeSource)).toBeNull();
+  });
+});
+
+describe('formatLocalTime', () => {
+  it('formats HH:MM in local time', () => {
+    expect(formatLocalTime(new Date(2026, 0, 15, 9, 30))).toBe('09:30');
+  });
+
+  it('pads single-digit hour/minute', () => {
+    expect(formatLocalTime(new Date(2026, 0, 15, 4, 7))).toBe('04:07');
   });
 });

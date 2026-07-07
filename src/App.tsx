@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
@@ -23,9 +23,12 @@ function App() {
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
   // gates the schedule form: the user must scrub the rings (drag or arrow keys) at
-  // least once per schedule-mode visit before they can submit — forces a deliberate
-  // time pick via the app's core gesture instead of silently defaulting to "now"
+  // least once before they can submit — forces a deliberate time pick via the app's
+  // core gesture instead of silently defaulting to "now". Scrubbing itself works
+  // whenever the clock isn't in edit mode, independent of the schedule form's state,
+  // so previewing a time doesn't require opening — or keeping open — the panel first
   const [hasScrubbed, setHasScrubbed] = useState(false);
+  const canScrub = mode !== 'edit';
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
@@ -37,17 +40,14 @@ function App() {
   }, [showToast]);
 
   const exitEditMode = useCallback(() => setMode('view'), []);
-  const exitScheduleMode = useCallback(() => setMode('view'), []);
 
-  // the ring-scrub preview offset only makes sense while actively scheduling; drop it
-  // (and the scrub-gate) whenever schedule mode isn't active so re-entering (or
-  // switching to edit/share) starts fresh from "now" again
-  useEffect(() => {
-    if (mode !== 'schedule') {
-      resetScrub();
-      setHasScrubbed(false);
-    }
-  }, [mode, resetScrub]);
+  // returning to view resets the preview back to "now" — a deliberate way to abandon
+  // an in-progress scheduling attempt, distinct from just toggling the panel closed
+  const exitScheduleMode = useCallback(() => {
+    setMode('view');
+    resetScrub();
+    setHasScrubbed(false);
+  }, [resetScrub]);
 
   const previewInstant = useMemo(() => new Date(now.getTime() + scrubOffsetMs), [now, scrubOffsetMs]);
 
@@ -104,8 +104,8 @@ function App() {
       onRemoveLocation={removeLocation}
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
-      previewOffsetMs={mode === 'schedule' ? scrubOffsetMs : 0}
-      scrubBind={mode === 'schedule' ? scrubBindWithGate : undefined}
+      previewOffsetMs={canScrub ? scrubOffsetMs : 0}
+      scrubBind={canScrub ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
     />
   );

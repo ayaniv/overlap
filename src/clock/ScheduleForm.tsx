@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import { isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
-import { buildMeeting, fromDatetimeLocalValue, toDatetimeLocalValue, validateMeetingTitle } from './meetingForm';
+import { buildMeeting, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
 import type { Meeting } from './types';
 import styles from './ScheduleForm.module.css';
 
@@ -21,21 +21,22 @@ export type ScheduleFormProps = {
 
 type Status = 'idle' | 'pending' | 'success' | 'error';
 
-// opens the native date/time picker on click, not just on the small calendar-icon
-// affordance a plain <input type="datetime-local"> otherwise requires
+// opens the native calendar on click, not just on the small calendar-icon affordance a
+// plain <input type="date"> otherwise requires
 function handleWhenClick(event: MouseEvent<HTMLInputElement>) {
   const input = event.currentTarget;
   if (typeof input.showPicker !== 'function') return;
   try {
     input.showPicker();
   } catch (err) {
-    console.error('overlap: failed to open the native date/time picker', err);
+    console.error('overlap: failed to open the native calendar', err);
   }
 }
 
 // renders inside the schedule-mode panel anchored next to the Schedule button: a title +
-// datetime-local input (kept in sync with the ring-drag preview via onChangeInstant), and
-// a Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
+// a date picker for the day (kept in sync with the ring-drag preview via onChangeInstant;
+// the time-of-day itself is read-only here — it's set by scrubbing, not typed), and a
+// Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
 export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel, isEnabled }: ScheduleFormProps) {
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -48,10 +49,10 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     return () => clearTimeout(timer);
   }, [status, onCancel]);
 
-  const handleInstantChange = (value: string) => {
-    const instant = fromDatetimeLocalValue(value);
+  const handleDateChange = (value: string) => {
+    const instant = withDatePart(value, previewInstant);
     if (!instant) {
-      console.error('overlap: could not parse the datetime-local input value', value);
+      console.error('overlap: could not parse the date input value', value);
       return;
     }
     onChangeInstant(instant);
@@ -129,13 +130,16 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
         <div className={styles.field}>
           <label className={styles.hoursLabel}>
             When
-            <input
-              className={styles.textInput}
-              type="datetime-local"
-              value={toDatetimeLocalValue(previewInstant)}
-              onChange={(event) => handleInstantChange(event.target.value)}
-              onClick={handleWhenClick}
-            />
+            <div className={styles.whenRow}>
+              <input
+                className={styles.textInput}
+                type="date"
+                value={toDateInputValue(previewInstant)}
+                onChange={(event) => handleDateChange(event.target.value)}
+                onClick={handleWhenClick}
+              />
+              <span className={styles.timeReadout}>{formatLocalTime(previewInstant)}</span>
+            </div>
           </label>
         </div>
       </fieldset>

@@ -59,6 +59,26 @@
   color: #7b808a;
 }
 
+.whenRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.whenRow .textInput {
+  flex: 1;
+}
+
+/* read-only — the time-of-day is set by scrubbing the rings, not typed here */
+.timeReadout {
+  flex: none;
+  padding: 9px 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #c4c8cf;
+  font-variant-numeric: tabular-nums;
+}
+
 .hint {
   margin: -4px 0 0;
   font-size: 11px;

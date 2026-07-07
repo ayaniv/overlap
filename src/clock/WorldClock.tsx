@@ -84,9 +84,13 @@ export function WorldClock({
   isScrubbing = false,
 }: WorldClockProps) {
   const idPrefix = useId();
+  // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
+  // allowed (not in edit mode) — WorldClock just reflects that, it doesn't re-derive
+  // its own mode rule
+  const isScrubbable = Boolean(scrubBind);
 
-  // in schedule mode, dragging the clock face (useRingScrub) previews a different instant;
-  // every ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
+  // dragging the clock face (useRingScrub) previews a different instant; every
+  // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
   const effectiveNow = useMemo(
     () => (previewOffsetMs ? new Date(now.getTime() + previewOffsetMs) : now),
     [now, previewOffsetMs],
@@ -184,13 +188,13 @@ export function WorldClock({
 
       <div
         className={styles.clockContainer}
-        data-scrubbable={mode === 'schedule' || undefined}
+        data-scrubbable={isScrubbable || undefined}
         data-scrubbing={isScrubbing || undefined}
-        tabIndex={mode === 'schedule' ? 0 : undefined}
-        role={mode === 'schedule' ? 'slider' : undefined}
-        aria-label={mode === 'schedule' ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
-        aria-valuenow={mode === 'schedule' ? previewOffsetMs : undefined}
-        {...(mode === 'schedule' ? scrubBind : undefined)}
+        tabIndex={isScrubbable ? 0 : undefined}
+        role={isScrubbable ? 'slider' : undefined}
+        aria-label={isScrubbable ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
+        aria-valuenow={isScrubbable ? previewOffsetMs : undefined}
+        {...(isScrubbable ? scrubBind : undefined)}
       >
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
