@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, MouseEvent } from 'react';
 import { isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
 import { buildMeeting, fromDatetimeLocalValue, toDatetimeLocalValue, validateMeetingTitle } from './meetingForm';
 import type { Meeting } from './types';
@@ -7,20 +7,36 @@ import styles from './ScheduleForm.module.css';
 
 const AUTO_RETURN_DELAY_MS = 3000;
 
+const SCRUB_GATE_TOOLTIP = 'Scrub the rings to pick a time';
+
 export type ScheduleFormProps = {
   previewInstant: Date;
   onChangeInstant: (instant: Date) => void;
   existingMeetingIds: string[];
   onScheduled: (meeting: Meeting) => void;
   onCancel: () => void;
+  // gated behind having scrubbed the rings at least once this visit — see App.tsx
+  isEnabled: boolean;
 };
 
 type Status = 'idle' | 'pending' | 'success' | 'error';
 
+// opens the native date/time picker on click, not just on the small calendar-icon
+// affordance a plain <input type="datetime-local"> otherwise requires
+function handleWhenClick(event: MouseEvent<HTMLInputElement>) {
+  const input = event.currentTarget;
+  if (typeof input.showPicker !== 'function') return;
+  try {
+    input.showPicker();
+  } catch (err) {
+    console.error('overlap: failed to open the native date/time picker', err);
+  }
+}
+
 // renders inside the schedule-mode panel anchored next to the Schedule button: a title +
 // datetime-local input (kept in sync with the ring-drag preview via onChangeInstant), and
 // a Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
-export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel }: ScheduleFormProps) {
+export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel, isEnabled }: ScheduleFormProps) {
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -93,31 +109,40 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.heading}>Schedule meeting</div>
 
-      <div className={styles.field}>
-        <input
-          className={styles.textInput}
-          type="text"
-          placeholder="Meeting title…"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          aria-label="Meeting title"
-          autoComplete="off"
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.hoursLabel}>
-          When
+      <fieldset
+        className={styles.fieldset}
+        disabled={!isEnabled}
+        title={isEnabled ? undefined : SCRUB_GATE_TOOLTIP}
+      >
+        <div className={styles.field}>
           <input
             className={styles.textInput}
-            type="datetime-local"
-            value={toDatetimeLocalValue(previewInstant)}
-            onChange={(event) => handleInstantChange(event.target.value)}
+            type="text"
+            placeholder="Meeting title…"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            aria-label="Meeting title"
+            autoComplete="off"
           />
-        </label>
-      </div>
+        </div>
 
-      <p className={styles.hint}>Drag the clock face (or use the arrow keys) to preview a different time.</p>
+        <div className={styles.field}>
+          <label className={styles.hoursLabel}>
+            When
+            <input
+              className={styles.textInput}
+              type="datetime-local"
+              value={toDatetimeLocalValue(previewInstant)}
+              onChange={(event) => handleInstantChange(event.target.value)}
+              onClick={handleWhenClick}
+            />
+          </label>
+        </div>
+      </fieldset>
+
+      <p className={isEnabled ? styles.hint : styles.hintGate}>
+        {isEnabled ? 'Drag the clock face (or use the arrow keys) to preview a different time.' : SCRUB_GATE_TOOLTIP}
+      </p>
 
       {error && (
         <div className={styles.error} role="alert">
@@ -129,7 +154,12 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
         <button type="button" className={styles.cancelButton} onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className={styles.addButton} disabled={status === 'pending'}>
+        <button
+          type="submit"
+          className={styles.addButton}
+          disabled={status === 'pending' || !isEnabled}
+          title={isEnabled ? undefined : SCRUB_GATE_TOOLTIP}
+        >
           {status === 'pending' ? 'Scheduling…' : 'Schedule'}
         </button>
       </div>

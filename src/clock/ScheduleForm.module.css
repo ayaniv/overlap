@@ -15,6 +15,15 @@
   color: #7b808a;
 }
 
+/* resets the native fieldset chrome so it's purely a disabled-state boundary —
+   `display: contents` keeps its children in the normal .form flex flow */
+.fieldset {
+  display: contents;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
 .field {
   position: relative;
 }
@@ -36,6 +45,11 @@
   border-color: #38bdf8;
 }
 
+.textInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .hoursLabel {
   display: flex;
   flex-direction: column;
@@ -50,6 +64,16 @@
   font-size: 11px;
   line-height: 1.4;
   color: #565b64;
+}
+
+/* the gate reason takes over from the passive hint — it's the reason the form
+   below is greyed out, not a footnote, so it gets more visual weight */
+.hintGate {
+  margin: -4px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #fbbf4b;
 }
 
 .gatedNote {
