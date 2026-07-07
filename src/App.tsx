@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
@@ -15,6 +15,8 @@ const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
   copied: 'Link copied',
   failed: "Couldn't copy link",
 };
+
+const MARK_SCRUBBED_DEBOUNCE_MS = 300;
 
 function App() {
   const now = useNow();
@@ -56,7 +58,20 @@ function App() {
     [setOffsetMs, now],
   );
 
-  const markScrubbed = useCallback(() => setHasScrubbed(true), []);
+  // scrubbing is the entry point into scheduling: starting a drag (or pressing an
+  // arrow key) from view mode opens the schedule panel automatically, so the user
+  // sees the form fill in live as they pick a time instead of having to scrub first
+  // and only then think to click Schedule. onPointerDown fires once per drag, but
+  // onKeyDown repeats continuously while an arrow key is held — debounced (leading
+  // edge) so holding a key doesn't call setState on every repeat, only once per burst
+  const lastMarkScrubbedRef = useRef(0);
+  const markScrubbed = useCallback(() => {
+    const timestamp = Date.now();
+    if (timestamp - lastMarkScrubbedRef.current < MARK_SCRUBBED_DEBOUNCE_MS) return;
+    lastMarkScrubbedRef.current = timestamp;
+    setHasScrubbed(true);
+    setMode((current) => (current === 'view' ? 'schedule' : current));
+  }, []);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
     () => ({

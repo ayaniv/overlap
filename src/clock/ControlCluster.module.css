@@ -41,3 +41,12 @@
   width: 34px;
   padding: 8px;
 }
+
+.iconButtonActive {
+  composes: buttonActive;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  padding: 8px;
+}

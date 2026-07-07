@@ -126,6 +126,10 @@ export function WorldClock({
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
+  // pinned to real time, not `effectiveNow`: an already-scheduled meeting is a fixed
+  // calendar event, so its dot must stay put on the home ring's availability arc while
+  // the user scrubs to preview a *different* candidate time for a next meeting — only
+  // real time passing should ever move it
   const meetingDots = useMemo(() => {
     const dots: Array<{ meeting: Meeting; position: Point }> = [];
     for (const meeting of meetings) {
@@ -134,10 +138,10 @@ export function WorldClock({
         console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
         continue;
       }
-      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
+      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, now)) });
     }
     return dots;
-  }, [meetings, homeRadius, effectiveNow]);
+  }, [meetings, homeRadius, now]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
