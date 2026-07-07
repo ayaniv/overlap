@@ -86,7 +86,6 @@ export function WorldClock({
         return {
           location,
           radius,
-          labelRadius,
           time,
           inHours,
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
@@ -115,9 +114,11 @@ export function WorldClock({
   const bezelRadius = bezelBaseRadius(totalRings);
   const strikeRadius = strikeTopRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
+  // ring radii depend only on index/totalRings (not `now`), so this only needs
+  // to recompute when the ring count changes, not every tick like ringViews does
   const chevrons = useMemo(
-    () => directionChevrons(ringViews.map((ring) => ring.radius)),
-    [ringViews],
+    () => directionChevrons(Array.from({ length: totalRings }, (_, index) => ringRadius(index, totalRings))),
+    [totalRings],
   );
   const arrowAngle = handAngle(now);
   const handRef = useRef<SVGGElement>(null);
