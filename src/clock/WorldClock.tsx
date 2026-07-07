@@ -22,7 +22,7 @@ import { ControlCluster } from './ControlCluster';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import styles from './WorldClock.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
@@ -33,8 +33,12 @@ const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
-const REMOVE_BUTTON_ANGLE = 180;
 const REMOVE_BUTTON_RADIUS = 11;
+const REMOVE_BUTTON_CROSS_OFFSET = 4;
+const REMOVE_BUTTON_BG_COLOR = '#1C1F27';
+const REMOVE_BUTTON_BORDER_COLOR = '#565B64';
+const REMOVE_BUTTON_CROSS_COLOR = '#C4C8CF';
+const REMOVE_BUTTON_CROSS_WIDTH = 1.6;
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -50,8 +54,8 @@ export type WorldClockProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
-  onRemoveLocation?: (id: string) => void;
-  centerContent?: ReactNode;
+  onRemoveLocation: (id: string) => void;
+  modePanelContent?: ReactNode;
   toastMessage?: string | null;
   previewOffsetMs?: number;
   scrubBind?: RingScrubBind;
@@ -67,7 +71,7 @@ export function WorldClock({
   onSetMode,
   onShare,
   onRemoveLocation,
-  centerContent,
+  modePanelContent,
   toastMessage = null,
   previewOffsetMs = 0,
   scrubBind,
@@ -96,7 +100,6 @@ export function WorldClock({
         const time = getCityTime(effectiveNow, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
-        const removePosition = pointOnCircle(radius, REMOVE_BUTTON_ANGLE);
         return {
           location,
           radius,
@@ -105,7 +108,6 @@ export function WorldClock({
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
-          removePosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
@@ -129,14 +131,25 @@ export function WorldClock({
   const bezelRadius = bezelBaseRadius(totalRings);
   const strikeRadius = strikeTopRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
+  // ring radii depend only on index/totalRings (not `now`), so this only needs
+  // to recompute when the ring count changes, not every tick like ringViews does
   const chevrons = useMemo(
-    () => directionChevrons(ringViews.map((ring) => ring.radius)),
-    [ringViews],
+    () => directionChevrons(Array.from({ length: totalRings }, (_, index) => ringRadius(index, totalRings))),
+    [totalRings],
   );
   const arrowAngle = handAngle(now);
   const handRef = useRef<SVGGElement>(null);
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
+
+  // the remove button is an SVG <g>, not a native <button>, so Enter/Space
+  // need an explicit handler to match native button keyboard behavior
+  const handleRemoveKeyDown = (event: KeyboardEvent<SVGGElement>, id: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onRemoveLocation(id);
+    }
+  };
 
   const homeTime = getCityTime(effectiveNow, home.timezoneId);
   const homeDateLabel = getCityDateLabel(effectiveNow, home.timezoneId);
@@ -158,7 +171,7 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
-      {mode !== 'view' && centerContent && <div className={styles.modePanel}>{centerContent}</div>}
+      {mode !== 'view' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
       <Toast message={toastMessage} />
 
       <div
@@ -174,7 +187,8 @@ export function WorldClock({
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
 
-        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden="true">
+        {/* only decorative when there's no interactive content (the remove buttons, in edit mode) inside it */}
+        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden={mode !== 'edit'}>
           <defs>
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
@@ -219,16 +233,61 @@ export function WorldClock({
             );
           })}
 
-          {ringViews.map((ring) => (
-            <circle
-              key={`dot-${ring.location.id}`}
-              cx={ring.dotPosition.x.toFixed(2)}
-              cy={ring.dotPosition.y.toFixed(2)}
-              r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
-              fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
-              style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
-            />
-          ))}
+          {ringViews.map((ring) => {
+            // in edit mode, non-home rings swap their status dot for a remove
+            // button at the exact same spot (dotPosition is already the
+            // natural gap between the name and the time)
+            if (mode === 'edit' && !ring.location.isHome) {
+              return (
+                <g
+                  key={`remove-${ring.location.id}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Remove ${ring.location.label}`}
+                  className={styles.removeButton}
+                  onClick={() => onRemoveLocation(ring.location.id)}
+                  onKeyDown={(event) => handleRemoveKeyDown(event, ring.location.id)}
+                >
+                  <circle
+                    cx={ring.dotPosition.x.toFixed(2)}
+                    cy={ring.dotPosition.y.toFixed(2)}
+                    r={REMOVE_BUTTON_RADIUS}
+                    fill={REMOVE_BUTTON_BG_COLOR}
+                    stroke={REMOVE_BUTTON_BORDER_COLOR}
+                    strokeWidth={1.5}
+                  />
+                  <line
+                    x1={(ring.dotPosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y1={(ring.dotPosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    x2={(ring.dotPosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y2={(ring.dotPosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    stroke={REMOVE_BUTTON_CROSS_COLOR}
+                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={(ring.dotPosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y1={(ring.dotPosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    x2={(ring.dotPosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    y2={(ring.dotPosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
+                    stroke={REMOVE_BUTTON_CROSS_COLOR}
+                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            }
+            return (
+              <circle
+                key={`dot-${ring.location.id}`}
+                cx={ring.dotPosition.x.toFixed(2)}
+                cy={ring.dotPosition.y.toFixed(2)}
+                r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
+                fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
+                style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
+              />
+            );
+          })}
 
           {meetingDots.map(({ meeting, position }) => (
             <circle
@@ -240,40 +299,6 @@ export function WorldClock({
               style={{ filter: `drop-shadow(0 0 5px ${hexToRgba(MEETING_DOT_COLOR, 0.7)})` }}
             />
           ))}
-
-          {mode === 'edit' &&
-            onRemoveLocation &&
-            ringViews
-              .filter((ring) => !ring.location.isHome)
-              .map((ring) => (
-                <g
-                  key={`remove-${ring.location.id}`}
-                  role="button"
-                  aria-label={`Remove ${ring.location.label}`}
-                  className={styles.removeButton}
-                  onClick={() => onRemoveLocation(ring.location.id)}
-                >
-                  <circle cx={ring.removePosition.x.toFixed(2)} cy={ring.removePosition.y.toFixed(2)} r={REMOVE_BUTTON_RADIUS} fill="#1C1F27" stroke="#565B64" strokeWidth={1.5} />
-                  <line
-                    x1={(ring.removePosition.x - 4).toFixed(2)}
-                    y1={(ring.removePosition.y - 4).toFixed(2)}
-                    x2={(ring.removePosition.x + 4).toFixed(2)}
-                    y2={(ring.removePosition.y + 4).toFixed(2)}
-                    stroke="#C4C8CF"
-                    strokeWidth={1.6}
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1={(ring.removePosition.x - 4).toFixed(2)}
-                    y1={(ring.removePosition.y + 4).toFixed(2)}
-                    x2={(ring.removePosition.x + 4).toFixed(2)}
-                    y2={(ring.removePosition.y - 4).toFixed(2)}
-                    stroke="#C4C8CF"
-                    strokeWidth={1.6}
-                    strokeLinecap="round"
-                  />
-                </g>
-              ))}
 
           {chevrons.map((chevron, index) => (
             <g key={index} transform={`rotate(${chevron.angle} 500 500)`}>
@@ -317,7 +342,6 @@ export function WorldClock({
           </g>
         </svg>
 
-        {/* always shows the home clock now — Edit/Schedule live in a panel next to their button (M2 notice) */}
         <div className={styles.centerOverlay} aria-hidden="true">
           <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
           <div className={styles.centerTime}>{homeTime.label}</div>

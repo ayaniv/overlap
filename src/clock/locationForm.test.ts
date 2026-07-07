@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { buildLocationId, buildNewLocation, isValidHexColor, validateNewLocation } from './locationForm';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildLocationId, buildNewLocation, isValidHexColor, pickAvailableColor, validateNewLocation } from './locationForm';
 import type { NewLocationInput } from './locationForm';
 import type { CityEntry } from './cityCatalog';
+import { PALETTE } from './defaultCities';
 
 const TOKYO: CityEntry = { label: 'Tokyo', timezoneId: 'Asia/Tokyo', country: 'Japan' };
 
@@ -18,6 +19,35 @@ describe('isValidHexColor', () => {
     expect(isValidHexColor('#38B')).toBe(false);
     expect(isValidHexColor('#GGGGGG')).toBe(false);
     expect(isValidHexColor('')).toBe(false);
+  });
+});
+
+describe('pickAvailableColor', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('never returns a color already in use when unused ones remain', () => {
+    const usedColors = PALETTE.slice(0, PALETTE.length - 1);
+    const remaining = PALETTE[PALETTE.length - 1];
+    expect(pickAvailableColor(usedColors)).toBe(remaining);
+  });
+
+  it('picks among all unused colors (deterministic via a mocked Math.random)', () => {
+    const usedColors = [PALETTE[0]];
+    const unused = PALETTE.slice(1);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    expect(pickAvailableColor(usedColors)).toBe(unused[0]);
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    expect(pickAvailableColor(usedColors)).toBe(unused[unused.length - 1]);
+  });
+
+  it('falls back to the full palette once every swatch is already used', () => {
+    expect(PALETTE).toContain(pickAvailableColor(PALETTE));
+  });
+
+  it('returns a palette color when nothing is in use yet', () => {
+    expect(PALETTE).toContain(pickAvailableColor([]));
   });
 });
 

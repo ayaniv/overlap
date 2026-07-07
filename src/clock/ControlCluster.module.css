@@ -33,6 +33,15 @@
   background: rgba(56, 189, 248, 0.12);
 }
 
+.iconButton {
+  composes: button;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  padding: 8px;
+}
+
 /* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
 @media (orientation: portrait) {
   .cluster {
@@ -45,5 +54,10 @@
   .buttonActive {
     padding: 6px 11px;
     font-size: 11px;
+  }
+
+  .iconButton {
+    width: 28px;
+    padding: 6px;
   }
 }

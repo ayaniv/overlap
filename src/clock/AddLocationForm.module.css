@@ -200,7 +200,7 @@
   margin-top: 2px;
 }
 
-.cancelButton,
+.doneButton,
 .addButton {
   padding: 7px 16px;
   border-radius: 999px;
@@ -211,13 +211,13 @@
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.cancelButton {
+.doneButton {
   border: 1px solid #3a3e46;
   background: rgba(20, 22, 29, 0.6);
   color: #c4c8cf;
 }
 
-.cancelButton:hover {
+.doneButton:hover {
   border-color: #565b64;
   color: #f5f6f8;
 }

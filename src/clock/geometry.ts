@@ -2,13 +2,13 @@ export const CENTER = 500;
 export const INNER_RING_RADIUS = 160;
 // fixed radial gap between adjacent rings, so existing rings never rescale —
 // adding a location grows the whole face outward by one step, removing one
-// shrinks it back, instead of squeezing every ring into a fixed band (M2 notice)
+// shrinks it back
 export const RING_RADIUS_STEP = 58;
 export const LABEL_RADIUS_OFFSET = 16;
 export const LABEL_ARC_HALF_SPAN_DEG = 63;
 // gap between the outermost ring and the tick bezel, and between the bezel and
 // the strike's top end — both tracked from the outermost ring so they grow/
-// shrink with it rather than sitting at a fixed radius (M2 notice)
+// shrink with it
 export const BEZEL_MARGIN = 54;
 export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
@@ -68,7 +68,7 @@ export function labelArcPath(radius: number): string {
 export type BezelTick = { x1: number; y1: number; x2: number; y2: number; stroke: string; width: number };
 
 // bezel ticks ring the clock at `baseRadius` (from bezelBaseRadius), so they
-// grow/shrink outward together with the ring stack (M2 notice)
+// grow/shrink outward together with the ring stack
 export function bezelTicks(baseRadius: number): BezelTick[] {
   const ticks: BezelTick[] = [];
   for (let k = 0; k < BEZEL_TICK_COUNT; k++) {
@@ -106,9 +106,9 @@ export const CHEVRON_ANGLE = 270;
 export type Chevron = { angle: number; points: string; opacity: number };
 
 // one chevron at the midpoint of every gap between adjacent rings, so the
-// count always matches the actual number of rings (not a fixed 4) — visible
-// only in between rings, never floating past the outermost or inside home
-// (M2 notice); `ringRadii` must be sorted outer -> inner
+// count always matches the actual number of rings — visible only in between
+// rings, never floating past the outermost or inside home; `ringRadii` must
+// be sorted outer -> inner
 export function directionChevrons(ringRadii: number[]): Chevron[] {
   const gapRadii: number[] = [];
   for (let i = 0; i < ringRadii.length - 1; i++) {
