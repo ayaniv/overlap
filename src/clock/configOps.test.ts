@@ -17,9 +17,9 @@ describe('setHomeOp', () => {
 });
 
 describe('addLocationOp', () => {
-  it('appends a new ring location', () => {
+  it('adds the new ring location first, so it lands on the outermost ring', () => {
     const next = addLocationOp(BASE_CONFIG, NY);
-    expect(next.rings).toEqual([SF, NY]);
+    expect(next.rings).toEqual([NY, SF]);
     expect(BASE_CONFIG.rings).toEqual([SF]); // original untouched
   });
 });

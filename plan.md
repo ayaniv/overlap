@@ -5,7 +5,7 @@ This is the project currently named **time-spinner** (~/Dev/time-spinner, shippe
 
 The work is split into **deployable milestones** so sessions can run in parallel (auto-mode). Cities are currently hardcoded in `App.tsx`; we add five capabilities, backend-free (static, kiosk-friendly): **A** configurable clock, **B** edit locations, **C** share, **D** schedule a meeting, **E** responsive layout.
 
-Locked decisions: colors user-chosen (predefined swatches + free hex + native color picker), stored per location; **work hours per-location**; reorder out; edit/schedule are inline **modes** where the center circle (`glassDisc`) swaps content; entry buttons in a **top-right cluster**; Share is a **copy-link button + toast**; Google Calendar is **client-side** (user-provisioned OAuth Client ID); scheduled meetings drop a **marker dot** on the ring at the meeting time.
+Locked decisions: colors user-chosen (predefined swatches + free hex + native color picker), stored per location; **work hours per-location**; reorder out (revisited in M6 — reorder returns, scoped to the config-panel list only); edit/schedule are inline **modes** where the center circle (`glassDisc`) swaps content; entry buttons in a **top-right cluster**; Share is a **copy-link button + toast**; Google Calendar is **client-side** (user-provisioned OAuth Client ID); scheduled meetings drop a **marker dot** on the ring at the meeting time.
 
 **First execution step:** write this plan verbatim to `plan.md` in the repo root and commit it, so every parallel session shares one source of truth.
 
@@ -62,3 +62,21 @@ CSS media queries: landscape/desktop = current centered `min(86vmin,700px)`; **p
 - **Unit (Vitest):** shareCodec round-trip (M1); cityCatalog SF→`America/Los_Angeles` (M2); geometry radius-band + angle↔offset + meeting-dot angle (M1/M4); config ops (M1).
 - **Headless (Playwright, scratchpad scripts):** M2 add "Tokyo" w/ color+hours, persists on reload + X removes; M3 copy link → fresh context renders from `#c=`; M4 drag previews offset, (with client id) event + confirmation + dot appears, (without) gated; M5 screenshots at 1280×800 / 390×844 / landscape.
 - **Deploy:** each merged milestone builds on Vercel and loads at `overlap.vercel.app`.
+
+
+Notice: Please notice some things I've noticed:
+1. Add more gap between dot name and time.
+2. rings should be from center and can grow gradually
+3. the ticks radial can grow/shrink accordingly
+4. the chevrons should only be visible in between rings.
+5. Im going away from updating the center component according to Edit / Share / Schedule. Instead let's add a modal next to the button on the top right.
+
+### M6 — Config panel: cogwheel entry, reorder, set-home (builds on M2, needs M1/M2)
+Reworks the M2 "Edit" entry point into a proper config panel, and — as a side effect — finally gives the user a way to change HOME (today `home` is a fixed `ClockConfig` field seeded from `DEFAULT_HOME_CITY`; `setHome`/`setHomeOp` exist in `useClockConfig.ts`/`configOps.ts` but are unwired to any UI).
+- `ControlCluster.tsx`: swap the "Edit" text button for a **cogwheel icon** button (same click → opens the config modal per the M2 notice above; mode/aria label becomes "Config").
+- The modal has two stacked sections:
+  a. **Add location** — existing `AddLocationForm`, unchanged.
+  b. **Manage locations** — new list below it, one row per location currently on the clock (home + all rings), **ordered inside → outside**. Each row gets a reorder control (drag or up/down) plus the existing X-remove (home's row has no remove, only reorder).
+  c. The row in the **first/innermost slot** always shows a **home icon** next to its color dot — whichever location is dragged into that slot becomes HOME.
+- Data layer: new `reorderLocationsOp(config, orderedIds)` in `configOps.ts` — takes the full home+rings id order, and if the first id changed, swaps `home` (reusing `setHomeOp`) while sliding the previous home into `rings` at the vacated spot; otherwise just reorders `rings`. `useClockConfig.ts` exposes it (finally wiring `setHome`); `App.tsx` threads it through `WorldClockProps` (new `onReorder`) to the manage-locations list.
+**Deployable:** cogwheel opens a panel with add-location + a reorderable/removable list of every current location; dragging a city into the top slot makes it HOME.

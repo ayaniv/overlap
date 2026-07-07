@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { bezelTicks, handAngle, hexToRgba, labelArcHalfLength, meetingAngle, parseMeetingInstant, pointOnCircle, ringRadius, topMarkerPoints } from './geometry';
+import {
+  bezelBaseRadius,
+  bezelTicks,
+  directionChevrons,
+  handAngle,
+  hexToRgba,
+  labelArcHalfLength,
+  meetingAngle,
+  outermostRingRadius,
+  parseMeetingInstant,
+  pointOnCircle,
+  ringRadius,
+  topMarkerInnerRadius,
+  topMarkerOuterRadius,
+  topMarkerPoints,
+} from './geometry';
 
 describe('pointOnCircle', () => {
   it('places angle 0 straight up from center', () => {
@@ -21,19 +36,37 @@ describe('ringRadius', () => {
     expect(radii).toEqual([392, 334, 276, 218, 160]);
   });
 
-  it('keeps the home (last) ring innermost regardless of ring count', () => {
-    expect(ringRadius(2, 3)).toBe(160);
-  });
-
-  it('always spans the full [160, 392] band regardless of ring count', () => {
-    for (const totalRings of [2, 3, 5, 8]) {
-      expect(ringRadius(0, totalRings)).toBe(392);
+  it('keeps home (the last index) fixed at the inner radius regardless of ring count', () => {
+    for (const totalRings of [1, 2, 3, 5, 8]) {
       expect(ringRadius(totalRings - 1, totalRings)).toBe(160);
     }
   });
 
+  it('grows outward by a fixed step per ring, so existing rings shift by exactly one step when a ring is added', () => {
+    const before = ringRadius(0, 4); // outermost of 4 rings
+    const after = ringRadius(0, 5); // same ring (still index 0), one more ring added
+    expect(after - before).toBe(58);
+  });
+
   it('falls back to the inner radius for a single ring', () => {
     expect(ringRadius(0, 1)).toBe(160);
+  });
+});
+
+describe('outermostRingRadius / bezelBaseRadius / topMarkerOuterRadius', () => {
+  it('track the outermost ring radius as it grows', () => {
+    expect(outermostRingRadius(5)).toBe(392);
+    expect(outermostRingRadius(6)).toBe(450);
+  });
+
+  it('sit at a fixed margin beyond the outermost ring', () => {
+    expect(bezelBaseRadius(5)).toBe(392 + 54);
+    expect(topMarkerOuterRadius(5)).toBe(392 + 54 + 20);
+  });
+
+  it('shrink back down when there are fewer rings', () => {
+    expect(bezelBaseRadius(2)).toBeLessThan(bezelBaseRadius(5));
+    expect(topMarkerOuterRadius(2)).toBeLessThan(topMarkerOuterRadius(5));
   });
 });
 
@@ -49,11 +82,34 @@ describe('handAngle', () => {
 
 describe('bezelTicks', () => {
   it('produces 60 ticks, major every 5th', () => {
-    const ticks = bezelTicks();
+    const ticks = bezelTicks(446);
     expect(ticks).toHaveLength(60);
     expect(ticks[0].stroke).toBe('#6B7079');
     expect(ticks[1].stroke).toBe('#3D414A');
     expect(ticks[5].stroke).toBe('#6B7079');
+  });
+
+  it('sits farther out for a larger base radius', () => {
+    const closer = bezelTicks(446)[0];
+    const farther = bezelTicks(500)[0];
+    expect(Math.hypot(farther.x1 - 500, farther.y1 - 500)).toBeGreaterThan(Math.hypot(closer.x1 - 500, closer.y1 - 500));
+  });
+});
+
+describe('directionChevrons', () => {
+  it('produces one chevron per gap between adjacent rings', () => {
+    expect(directionChevrons([392, 334, 276, 218, 160])).toHaveLength(4);
+    expect(directionChevrons([392, 160])).toHaveLength(1);
+  });
+
+  it('places each chevron at the midpoint of its gap', () => {
+    const [chevron] = directionChevrons([400, 300]);
+    const y = 500 - 350; // midpoint radius (350) measured from center
+    expect(chevron.points).toBe(`493,${y - 8} 505,${y} 493,${y + 8}`);
+  });
+
+  it('produces no chevrons for a single ring', () => {
+    expect(directionChevrons([160])).toEqual([]);
   });
 });
 
@@ -66,7 +122,7 @@ describe('labelArcHalfLength', () => {
 
 describe('topMarkerPoints', () => {
   it('is a triangle centered on x=500 with its apex pointing inward (toward center)', () => {
-    const points = topMarkerPoints().split(' ').map((pair) => pair.split(',').map(Number));
+    const points = topMarkerPoints(5).split(' ').map((pair) => pair.split(',').map(Number));
     expect(points).toHaveLength(3);
     const [left, right, apex] = points;
     expect(left).toEqual([488, 34]);
@@ -77,13 +133,18 @@ describe('topMarkerPoints', () => {
   });
 
   it('is equilateral: all three sides have the same length', () => {
-    const [left, right, apex] = topMarkerPoints()
+    const [left, right, apex] = topMarkerPoints(5)
       .split(' ')
       .map((pair) => pair.split(',').map(Number));
     const distance = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
     const base = distance(left, right);
     expect(distance(left, apex)).toBeCloseTo(base, 0);
     expect(distance(right, apex)).toBeCloseTo(base, 0);
+  });
+
+  it('grows outward with the ring stack, same as the bezel it sits just outside of', () => {
+    expect(topMarkerOuterRadius(6)).toBeGreaterThan(topMarkerOuterRadius(5));
+    expect(topMarkerInnerRadius(6)).toBeGreaterThan(topMarkerInnerRadius(5));
   });
 });
 
