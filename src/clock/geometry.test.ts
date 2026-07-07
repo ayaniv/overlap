@@ -11,6 +11,9 @@ import {
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
+  sweepHandDotRadius,
+  sweepHandInnerRadius,
+  sweepHandOuterRadius,
   topMarkerInnerRadius,
   topMarkerOuterRadius,
   topMarkerPoints,
@@ -67,6 +70,19 @@ describe('outermostRingRadius / bezelBaseRadius / topMarkerOuterRadius', () => {
   it('shrink back down when there are fewer rings', () => {
     expect(bezelBaseRadius(2)).toBeLessThan(bezelBaseRadius(5));
     expect(topMarkerOuterRadius(2)).toBeLessThan(topMarkerOuterRadius(5));
+  });
+});
+
+describe('sweep hand radii', () => {
+  it('sit at a fixed margin around the bezel, same as the old fixed-radius hand', () => {
+    expect(sweepHandInnerRadius(5)).toBe(392 + 54 - 8);
+    expect(sweepHandOuterRadius(5)).toBe(392 + 54 + 14);
+    expect(sweepHandDotRadius(5)).toBe(392 + 54 + 16);
+  });
+
+  it('track the bezel as the ring stack grows or shrinks, instead of floating at a fixed radius', () => {
+    expect(sweepHandOuterRadius(6)).toBeGreaterThan(sweepHandOuterRadius(5));
+    expect(sweepHandOuterRadius(2)).toBeLessThan(sweepHandOuterRadius(5));
   });
 });
 

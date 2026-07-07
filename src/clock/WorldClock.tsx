@@ -13,6 +13,9 @@ import {
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
+  sweepHandDotRadius,
+  sweepHandInnerRadius,
+  sweepHandOuterRadius,
   topMarkerApexY,
   topMarkerPoints,
   workingHoursArcPath,
@@ -321,15 +324,21 @@ export function WorldClock({
           <g ref={handRef} transform={`rotate(${arrowAngle.toFixed(2)} 500 500)`}>
             <line
               x1={500}
-              y1={40}
+              y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
               x2={500}
-              y2={62}
+              y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
               stroke="#EDEAE0"
               strokeWidth={2}
               strokeLinecap="round"
               style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
             />
-            <circle cx={500} cy={38} r={2.6} fill="#EDEAE0" style={{ filter: 'drop-shadow(0 0 5px rgba(237,234,224,0.85))' }} />
+            <circle
+              cx={500}
+              cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
+              r={2.6}
+              fill="#EDEAE0"
+              style={{ filter: 'drop-shadow(0 0 5px rgba(237,234,224,0.85))' }}
+            />
           </g>
         </svg>
 

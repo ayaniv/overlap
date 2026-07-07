@@ -16,6 +16,12 @@ export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
 export const TOP_MARKER_TOP_MARGIN = 20;
 export const TOP_MARKER_HALF_WIDTH = 12;
+// the fast minute-sweep hand rides just outside the tick bezel; margins are
+// relative to bezelBaseRadius(totalRings) so it tracks the bezel as the ring
+// stack grows/shrinks, instead of floating at a fixed radius
+export const SWEEP_HAND_INNER_MARGIN = -8;
+export const SWEEP_HAND_OUTER_MARGIN = 14;
+export const SWEEP_HAND_DOT_MARGIN = 16;
 
 export type Point = { x: number; y: number };
 
@@ -40,6 +46,18 @@ export function outermostRingRadius(totalRings: number): number {
 
 export function bezelBaseRadius(totalRings: number): number {
   return outermostRingRadius(totalRings) + BEZEL_MARGIN;
+}
+
+export function sweepHandInnerRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_INNER_MARGIN;
+}
+
+export function sweepHandOuterRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_OUTER_MARGIN;
+}
+
+export function sweepHandDotRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + SWEEP_HAND_DOT_MARGIN;
 }
 
 export function topMarkerOuterRadius(totalRings: number): number {
