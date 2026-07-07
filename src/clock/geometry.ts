@@ -1,12 +1,18 @@
 export const CENTER = 500;
 export const INNER_RING_RADIUS = 160;
-export const OUTER_RING_RADIUS = 392;
+// fixed radial gap between adjacent rings, so existing rings never rescale —
+// adding a location grows the whole face outward by one step, removing one
+// shrinks it back
+export const RING_RADIUS_STEP = 58;
 export const LABEL_RADIUS_OFFSET = 16;
 export const LABEL_ARC_HALF_SPAN_DEG = 63;
-export const BEZEL_BASE_RADIUS = 446;
+// gap between the outermost ring and the tick bezel, and between the bezel and
+// the strike's top end — both tracked from the outermost ring so they grow/
+// shrink with it
+export const BEZEL_MARGIN = 54;
 export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
-export const STRIKE_TOP_RADIUS = 456;
+export const STRIKE_TOP_MARGIN = 10;
 // lands exactly on the top of the NOW capsule (measured at viewBox y≈370) so the
 // strike connects into the NOW marker
 export const STRIKE_BOTTOM_Y = 370;
@@ -23,14 +29,23 @@ export function pointOnCircle(radius: number, angleDeg: number): Point {
   return { x: CENTER + radius * Math.sin(a), y: CENTER - radius * Math.cos(a) };
 }
 
-// ring radii run outer -> inner as index increases toward the last (home) ring,
-// always spanning the full [INNER_RING_RADIUS, OUTER_RING_RADIUS] band regardless
-// of ring count so the bezel/chevrons/strike stay correctly proportioned as
-// locations are added or removed (M2)
+// ring radii grow outward from the fixed home radius by a constant step: home
+// (the last index) always sits at INNER_RING_RADIUS, and each ring further
+// from home sits exactly one more step out, regardless of ring count
 export function ringRadius(indexFromOuter: number, totalRings: number): number {
-  if (totalRings <= 1) return INNER_RING_RADIUS;
-  const step = (OUTER_RING_RADIUS - INNER_RING_RADIUS) / (totalRings - 1);
-  return INNER_RING_RADIUS + (totalRings - 1 - indexFromOuter) * step;
+  return INNER_RING_RADIUS + (totalRings - 1 - indexFromOuter) * RING_RADIUS_STEP;
+}
+
+export function outermostRingRadius(totalRings: number): number {
+  return ringRadius(0, totalRings);
+}
+
+export function bezelBaseRadius(totalRings: number): number {
+  return outermostRingRadius(totalRings) + BEZEL_MARGIN;
+}
+
+export function strikeTopRadius(totalRings: number): number {
+  return bezelBaseRadius(totalRings) + STRIKE_TOP_MARGIN;
 }
 
 // arc from workStart to workEnd, rotated so the city's current time sits at the top axis
@@ -51,14 +66,16 @@ export function labelArcPath(radius: number): string {
 
 export type BezelTick = { x1: number; y1: number; x2: number; y2: number; stroke: string; width: number };
 
-export function bezelTicks(): BezelTick[] {
+// bezel ticks ring the clock at `baseRadius` (from bezelBaseRadius), so they
+// grow/shrink outward together with the ring stack
+export function bezelTicks(baseRadius: number): BezelTick[] {
   const ticks: BezelTick[] = [];
   for (let k = 0; k < BEZEL_TICK_COUNT; k++) {
     const angle = k * DEGREES_PER_TICK;
     const isMajor = k % BEZEL_MAJOR_TICK_EVERY === 0;
     const length = isMajor ? 12 : 6;
-    const inner = pointOnCircle(BEZEL_BASE_RADIUS, angle);
-    const outer = pointOnCircle(BEZEL_BASE_RADIUS + length, angle);
+    const inner = pointOnCircle(baseRadius, angle);
+    const outer = pointOnCircle(baseRadius + length, angle);
     ticks.push({
       x1: inner.x,
       y1: inner.y,
@@ -84,12 +101,19 @@ export function hexToRgba(hex: string, alpha: number): string {
 // direction chevrons: a radial column at 9 o'clock, one per gap between rings,
 // all pointing clockwise to emphasize the sweep direction
 export const CHEVRON_ANGLE = 270;
-export const CHEVRON_GAP_RADII = [363, 305, 247, 189];
 
 export type Chevron = { angle: number; points: string; opacity: number };
 
-export function directionChevrons(): Chevron[] {
-  return CHEVRON_GAP_RADII.map((radius) => {
+// one chevron at the midpoint of every gap between adjacent rings, so the
+// count always matches the actual number of rings — visible only in between
+// rings, never floating past the outermost or inside home; `ringRadii` must
+// be sorted outer -> inner
+export function directionChevrons(ringRadii: number[]): Chevron[] {
+  const gapRadii: number[] = [];
+  for (let i = 0; i < ringRadii.length - 1; i++) {
+    gapRadii.push((ringRadii[i] + ringRadii[i + 1]) / 2);
+  }
+  return gapRadii.map((radius) => {
     const y = CENTER - radius;
     // right-pointing ">" (apex at x=505) becomes clockwise once the group is rotated to 270°
     return { angle: CHEVRON_ANGLE, opacity: 0.6, points: `493,${y - 8} 505,${y} 493,${y + 8}` };

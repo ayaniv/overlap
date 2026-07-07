@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Orchestrator session files (per-worktree, not repo content)
+/STATUS
+/TASK.md
