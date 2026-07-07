@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { addLocationOp, addMeetingOp, removeLocationOp, setHomeOp, updateLocationOp } from '../clock/configOps';
+import { addLocationOp, addMeetingOp, removeLocationOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
 import { decodeConfig, encodeConfig } from '../clock/shareCodec';
@@ -93,5 +93,9 @@ export function useClockConfig() {
     setConfig((prev) => addMeetingOp(prev, meeting));
   }, []);
 
-  return { config, setHome, addLocation, removeLocation, updateLocation, addMeeting };
+  const reorder = useCallback((orderedIds: string[]) => {
+    setConfig((prev) => reorderLocationsOp(prev, orderedIds));
+  }, []);
+
+  return { config, setHome, addLocation, removeLocation, updateLocation, addMeeting, reorder };
 }

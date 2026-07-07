@@ -2,8 +2,44 @@ import type { ClockConfig, Location, Meeting } from './types';
 
 // pure ClockConfig transitions, kept separate from useClockConfig so they're
 // testable without touching window/localStorage
+// swaps home for one of the current rings: the outgoing home slides into the
+// chosen ring's old slot (mirrors addLocationOp/removeLocationOp's id-based
+// approach) so no location is ever dropped
 export function setHomeOp(config: ClockConfig, home: Location): ClockConfig {
-  return { ...config, home };
+  if (home.id === config.home.id) return config;
+  const ringIndex = config.rings.findIndex((location) => location.id === home.id);
+  if (ringIndex === -1) {
+    console.error('overlap: setHomeOp given a location that is not a current ring', home.id);
+    return config;
+  }
+  const rings = [...config.rings];
+  rings[ringIndex] = config.home;
+  return { ...config, home, rings };
+}
+
+// reorders the full home+rings id list (inside->outside); if `orderedIds[0]`
+// names a different location than the current home, that location becomes
+// home (reusing setHomeOp) while every other location keeps the relative
+// inside->outside order the caller asked for
+export function reorderLocationsOp(config: ClockConfig, orderedIds: string[]): ClockConfig {
+  const allLocations = [config.home, ...config.rings];
+  const pool = new Map(allLocations.map((location) => [location.id, location]));
+  const isValidOrder =
+    orderedIds.length === allLocations.length && new Set(orderedIds).size === orderedIds.length && orderedIds.every((id) => pool.has(id));
+  if (!isValidOrder) {
+    console.error('overlap: reorderLocationsOp given an invalid id order', orderedIds);
+    return config;
+  }
+
+  const [newHomeId, ...restIds] = orderedIds;
+  const newRings = restIds.map((id) => pool.get(id) as Location).reverse();
+
+  if (newHomeId === config.home.id) {
+    return { ...config, rings: newRings };
+  }
+
+  const swapped = setHomeOp(config, pool.get(newHomeId) as Location);
+  return { ...swapped, rings: newRings };
 }
 
 // new locations go first in `rings` so they land on the outermost ring

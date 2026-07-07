@@ -33,6 +33,7 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
       onSetMode={vi.fn()}
       onShare={vi.fn()}
       onRemoveLocation={onRemoveLocation}
+      onReorder={vi.fn()}
     />,
   );
   return { onRemoveLocation };
@@ -92,5 +93,48 @@ describe('WorldClock remove button', () => {
     await user.keyboard('{Escape}');
 
     expect(onRemoveLocation).not.toHaveBeenCalled();
+  });
+});
+
+function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
+  render(
+    <WorldClock
+      now={NOW}
+      home={HOME}
+      rings={[SF]}
+      meetings={[]}
+      mode={mode}
+      onSetMode={vi.fn()}
+      onShare={vi.fn()}
+      onRemoveLocation={vi.fn()}
+      onReorder={onReorder}
+      modePanelContent={<div>Form</div>}
+    />,
+  );
+}
+
+describe('WorldClock manage-locations list', () => {
+  it('lists home first, then rings, while in edit mode', () => {
+    renderClockWithPanel('edit');
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('Tel Aviv');
+    expect(rows[1].textContent).toContain('San Francisco');
+  });
+
+  it('calls onReorder with the current home+rings ids when a row is moved', async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn();
+    renderClockWithPanel('edit', onReorder);
+
+    await user.click(screen.getByRole('button', { name: 'Move San Francisco up' }));
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(onReorder).toHaveBeenCalledWith(['san-francisco', 'tel-aviv']);
+  });
+
+  it('is not rendered outside edit mode, even with a mode panel present', () => {
+    renderClockWithPanel('schedule');
+    expect(screen.queryByRole('listitem')).toBeNull();
   });
 });

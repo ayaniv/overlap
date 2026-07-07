@@ -42,6 +42,13 @@
   padding: 8px;
 }
 
+.iconButtonActive {
+  composes: iconButton;
+  border-color: #38bdf8;
+  color: #f5f6f8;
+  background: rgba(56, 189, 248, 0.12);
+}
+
 /* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
 @media (orientation: portrait) {
   .cluster {

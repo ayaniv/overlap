@@ -19,6 +19,7 @@ import type { Point } from './geometry';
 import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
+import { ManageLocationsList } from './ManageLocationsList';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
@@ -55,6 +56,7 @@ export type WorldClockProps = {
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
   onRemoveLocation: (id: string) => void;
+  onReorder: (orderedIds: string[]) => void;
   modePanelContent?: ReactNode;
   toastMessage?: string | null;
   previewOffsetMs?: number;
@@ -71,6 +73,7 @@ export function WorldClock({
   onSetMode,
   onShare,
   onRemoveLocation,
+  onReorder,
   modePanelContent,
   toastMessage = null,
   previewOffsetMs = 0,
@@ -91,6 +94,9 @@ export function WorldClock({
     [rings, home],
   );
   const totalRings = orderedLocations.length;
+  // manage-locations list reads inside->outside (home first), the reverse of
+  // orderedLocations (which renders outside->inside for the SVG rings)
+  const manageListLocations = useMemo(() => [...orderedLocations].reverse(), [orderedLocations]);
 
   const ringViews = useMemo(
     () =>
@@ -171,7 +177,14 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
-      {mode !== 'view' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
+      {mode !== 'view' && modePanelContent && (
+        <div className={styles.modePanel}>
+          {modePanelContent}
+          {mode === 'edit' && (
+            <ManageLocationsList locations={manageListLocations} onReorder={onReorder} onRemove={onRemoveLocation} />
+          )}
+        </div>
+      )}
       <Toast message={toastMessage} />
 
       <div

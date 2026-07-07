@@ -17,7 +17,7 @@ const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
 
 function App() {
   const now = useNow();
-  const { config, addLocation, removeLocation, addMeeting } = useClockConfig();
+  const { config, addLocation, removeLocation, addMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
@@ -76,6 +76,7 @@ function App() {
       onSetMode={setMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
+      onReorder={reorder}
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={mode === 'schedule' ? scrubOffsetMs : 0}
