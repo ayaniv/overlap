@@ -50,3 +50,9 @@ export function withDatePart(value: string, timeSource: Date): Date | null {
 export function formatLocalTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+// compact label for a duration-picker button: whole hours read as "1h", everything
+// else (including sub-hour amounts) reads as minutes, e.g. 45 -> "45m"
+export function formatDurationLabel(minutes: number): string {
+  return minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`;
+}

@@ -79,6 +79,46 @@
   font-variant-numeric: tabular-nums;
 }
 
+.durationRow {
+  display: flex;
+  gap: 6px;
+}
+
+.durationButton,
+.durationButtonActive {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.durationButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+}
+
+.durationButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.durationButtonActive {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  color: #f5f6f8;
+}
+
+.durationButton:disabled,
+.durationButtonActive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .hint {
   margin: -4px 0 0;
   font-size: 11px;

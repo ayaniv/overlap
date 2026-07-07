@@ -115,7 +115,8 @@ describe('ScheduleForm scrub gate', () => {
     vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
     renderForm({ isEnabled: false });
 
-    expect((screen.getByLabelText('Meeting title') as HTMLInputElement).disabled).toBe(true);
+    const titleInput = screen.getByLabelText('Meeting title') as HTMLInputElement;
+    expect(titleInput.closest('fieldset')?.disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Schedule' }).getAttribute('title')).toBe('Scrub the rings to pick a time');
   });
 });

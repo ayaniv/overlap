@@ -118,9 +118,10 @@ export async function createCalendarEvent(
   accessToken: string,
   title: string,
   startISO: string,
+  durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
-  const payload = buildEventPayload(title, startISO);
+  const payload = buildEventPayload(title, startISO, durationMinutes);
   const response = await fetchImpl(EVENTS_ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -135,12 +136,16 @@ export async function createCalendarEvent(
 
 // orchestrates sign-in + event creation; every step logs on failure, and this rethrows
 // so the schedule UI can show an inline error without duplicating the message
-export async function scheduleMeetingOnGoogleCalendar(title: string, startISO: string): Promise<void> {
+export async function scheduleMeetingOnGoogleCalendar(
+  title: string,
+  startISO: string,
+  durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
+): Promise<void> {
   const clientId = getGoogleClientId();
   if (!clientId) {
     throw new Error('overlap: Google Calendar is not configured (missing VITE_GOOGLE_CLIENT_ID)');
   }
   const oauth2 = await loadGoogleIdentityServices();
   const accessToken = await requestAccessToken(clientId, oauth2);
-  await createCalendarEvent(accessToken, title, startISO);
+  await createCalendarEvent(accessToken, title, startISO, durationMinutes);
 }

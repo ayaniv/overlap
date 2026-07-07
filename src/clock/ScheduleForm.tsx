@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
-import { isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
-import { buildMeeting, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
+import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
+import { buildMeeting, formatDurationLabel, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
 import type { Meeting } from './types';
 import styles from './ScheduleForm.module.css';
 
 const AUTO_RETURN_DELAY_MS = 3000;
 
 const SCRUB_GATE_TOOLTIP = 'Scrub the rings to pick a time';
+
+const DURATION_OPTIONS_MINUTES = [15, 30, 45, 60];
 
 export type ScheduleFormProps = {
   previewInstant: Date;
@@ -39,6 +41,7 @@ function handleWhenClick(event: MouseEvent<HTMLInputElement>) {
 // Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
 export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel, isEnabled }: ScheduleFormProps) {
   const [title, setTitle] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(DEFAULT_MEETING_DURATION_MINUTES);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const isConfigured = isGoogleCalendarConfigured();
@@ -69,7 +72,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     setError(null);
     setStatus('pending');
     try {
-      await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString());
+      await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
       onScheduled(buildMeeting(title, previewInstant, existingMeetingIds));
       setStatus('success');
     } catch (err) {
@@ -141,6 +144,26 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
               <span className={styles.timeReadout}>{formatLocalTime(previewInstant)}</span>
             </div>
           </label>
+        </div>
+
+        <div className={styles.field}>
+          {/* a plain div, not a <label> — it labels a button group, not one form control */}
+          <div className={styles.hoursLabel}>
+            Duration
+            <div className={styles.durationRow} role="group" aria-label="Meeting duration">
+              {DURATION_OPTIONS_MINUTES.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  className={minutes === durationMinutes ? styles.durationButtonActive : styles.durationButton}
+                  aria-pressed={minutes === durationMinutes}
+                  onClick={() => setDurationMinutes(minutes)}
+                >
+                  {formatDurationLabel(minutes)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </fieldset>
 

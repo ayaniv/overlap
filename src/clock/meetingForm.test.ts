@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMeeting, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
+import { buildMeeting, formatDurationLabel, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
 
 describe('validateMeetingTitle', () => {
   it('requires a non-blank title', () => {
@@ -60,5 +60,18 @@ describe('formatLocalTime', () => {
 
   it('pads single-digit hour/minute', () => {
     expect(formatLocalTime(new Date(2026, 0, 15, 4, 7))).toBe('04:07');
+  });
+});
+
+describe('formatDurationLabel', () => {
+  it('reads sub-hour amounts as minutes', () => {
+    expect(formatDurationLabel(15)).toBe('15m');
+    expect(formatDurationLabel(30)).toBe('30m');
+    expect(formatDurationLabel(45)).toBe('45m');
+  });
+
+  it('reads whole hours as "Nh"', () => {
+    expect(formatDurationLabel(60)).toBe('1h');
+    expect(formatDurationLabel(120)).toBe('2h');
   });
 });

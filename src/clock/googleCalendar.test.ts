@@ -81,17 +81,33 @@ describe('requestAccessToken', () => {
 describe('createCalendarEvent', () => {
   it('posts the event payload and resolves on a 2xx response', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
-    await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', fetchImpl);
+    await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl);
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://www.googleapis.com/calendar/v3/calendars/primary/events',
       expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }) }),
     );
   });
 
+  it('respects a custom duration in the posted payload', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 45, fetchImpl);
+    const [, options] = fetchImpl.mock.calls[0];
+    const body = JSON.parse(options.body as string);
+    expect(body.end.dateTime).toBe('2026-01-01T10:45:00.000Z');
+  });
+
+  it('defaults to a 30-minute event when no duration is given', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', undefined, fetchImpl);
+    const [, options] = fetchImpl.mock.calls[0];
+    const body = JSON.parse(options.body as string);
+    expect(body.end.dateTime).toBe('2026-01-01T10:30:00.000Z');
+  });
+
   it('throws and logs when the API responds with a non-2xx status', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 403, text: () => Promise.resolve('forbidden') });
-    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', fetchImpl)).rejects.toThrow(
+    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl)).rejects.toThrow(
       'failed to create the calendar event',
     );
     expect(errorSpy).toHaveBeenCalledWith('overlap: Google Calendar event creation failed', 403, 'forbidden');
@@ -99,7 +115,7 @@ describe('createCalendarEvent', () => {
 
   it('propagates a network-level rejection', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
-    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', fetchImpl)).rejects.toThrow('network down');
+    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl)).rejects.toThrow('network down');
   });
 });
 
@@ -175,5 +191,47 @@ describe('scheduleMeetingOnGoogleCalendar', () => {
     await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).rejects.toThrow(
       'Google Calendar is not configured',
     );
+  });
+
+  it('resolves once sign-in and event creation both succeed', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).resolves.toBeUndefined();
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }) }),
+    );
+  });
+
+  it('rejects and logs when event creation fails after a successful sign-in', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve('boom') });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).rejects.toThrow(
+      'failed to create the calendar event',
+    );
+    expect(errorSpy).toHaveBeenCalledWith('overlap: Google Calendar event creation failed', 500, 'boom');
+  });
+
+  it('rejects and never touches the network when sign-in fails', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const oauth2 = fakeOAuth2((callback) => callback({ error: 'access_denied' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn();
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).rejects.toThrow('access_denied');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 });
