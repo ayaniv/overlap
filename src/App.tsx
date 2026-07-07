@@ -6,6 +6,7 @@ import type { ShareOutcome } from './clock/share';
 import { useRingScrub } from './clock/useRingScrub';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
+import type { RingScrubBind } from './clock/useRingScrub';
 import { useClockConfig } from './hooks/useClockConfig';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
@@ -21,6 +22,10 @@ function App() {
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
+  // gates the schedule form: the user must scrub the rings (drag or arrow keys) at
+  // least once per schedule-mode visit before they can submit — forces a deliberate
+  // time pick via the app's core gesture instead of silently defaulting to "now"
+  const [hasScrubbed, setHasScrubbed] = useState(false);
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
@@ -35,10 +40,13 @@ function App() {
   const exitScheduleMode = useCallback(() => setMode('view'), []);
 
   // the ring-scrub preview offset only makes sense while actively scheduling; drop it
-  // whenever schedule mode isn't active so re-entering (or switching to edit/share) starts
-  // from "now" again
+  // (and the scrub-gate) whenever schedule mode isn't active so re-entering (or
+  // switching to edit/share) starts fresh from "now" again
   useEffect(() => {
-    if (mode !== 'schedule') resetScrub();
+    if (mode !== 'schedule') {
+      resetScrub();
+      setHasScrubbed(false);
+    }
   }, [mode, resetScrub]);
 
   const previewInstant = useMemo(() => new Date(now.getTime() + scrubOffsetMs), [now, scrubOffsetMs]);
@@ -46,6 +54,23 @@ function App() {
   const handleChangeInstant = useCallback(
     (instant: Date) => setOffsetMs(instant.getTime() - now.getTime()),
     [setOffsetMs, now],
+  );
+
+  const markScrubbed = useCallback(() => setHasScrubbed(true), []);
+
+  const scrubBindWithGate: RingScrubBind = useMemo(
+    () => ({
+      ...scrubBind,
+      onPointerDown: (event) => {
+        markScrubbed();
+        scrubBind.onPointerDown(event);
+      },
+      onKeyDown: (event) => {
+        markScrubbed();
+        scrubBind.onKeyDown(event);
+      },
+    }),
+    [scrubBind, markScrubbed],
   );
 
   const modePanelContent =
@@ -63,6 +88,7 @@ function App() {
         existingMeetingIds={config.meetings.map((meeting) => meeting.id)}
         onScheduled={addMeeting}
         onCancel={exitScheduleMode}
+        isEnabled={hasScrubbed}
       />
     ) : undefined;
 
@@ -79,7 +105,7 @@ function App() {
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={mode === 'schedule' ? scrubOffsetMs : 0}
-      scrubBind={mode === 'schedule' ? scrubBind : undefined}
+      scrubBind={mode === 'schedule' ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
     />
   );
