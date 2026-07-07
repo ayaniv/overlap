@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { ScheduleForm } from './clock/ScheduleForm';
-import { copyShareLink } from './clock/share';
+import { shareLink } from './clock/share';
+import type { ShareOutcome } from './clock/share';
 import { useRingScrub } from './clock/useRingScrub';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
@@ -9,8 +10,10 @@ import { useClockConfig } from './hooks/useClockConfig';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
 
-const SHARE_SUCCESS_MESSAGE = 'Link copied';
-const SHARE_FAILURE_MESSAGE = "Couldn't copy link";
+const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
+  copied: 'Link copied',
+  failed: "Couldn't copy link",
+};
 
 function App() {
   const now = useNow();
@@ -20,8 +23,11 @@ function App() {
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
 
   const handleShare = useCallback(() => {
-    void copyShareLink(navigator.clipboard, window.location.href).then((didCopy) => {
-      showToast(didCopy ? SHARE_SUCCESS_MESSAGE : SHARE_FAILURE_MESSAGE);
+    void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
+      // "shared" (native share sheet shown) and "cancelled" (user dismissed it)
+      // get no toast — the OS UI already gave feedback, or there's nothing to report
+      const message = SHARE_TOAST_MESSAGE[outcome];
+      if (message) showToast(message);
     });
   }, [showToast]);
 
