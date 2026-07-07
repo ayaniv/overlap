@@ -7,8 +7,8 @@ export type ControlClusterProps = {
   onShare: () => void;
 };
 
-// top-right entry points for edit/schedule modes + share; M2/M3/M4 wire up the
-// actual center-content and share behavior behind these same callbacks
+// top-right entry points for edit/schedule modes + share; the mode panel and
+// share behavior are wired up by the caller behind these same callbacks
 export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
 

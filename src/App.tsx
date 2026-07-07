@@ -42,12 +42,13 @@ function App() {
     [setOffsetMs, now],
   );
 
-  const centerContent =
+  const modePanelContent =
     mode === 'edit' ? (
       <AddLocationForm
         existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
+        existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
-        onCancel={exitEditMode}
+        onDone={exitEditMode}
       />
     ) : mode === 'schedule' ? (
       <ScheduleForm
@@ -69,7 +70,7 @@ function App() {
       onSetMode={setMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
-      centerContent={centerContent}
+      modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={mode === 'schedule' ? scrubOffsetMs : 0}
       scrubBind={mode === 'schedule' ? scrubBind : undefined}

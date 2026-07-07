@@ -6,8 +6,11 @@ export function setHomeOp(config: ClockConfig, home: Location): ClockConfig {
   return { ...config, home };
 }
 
+// new locations go first in `rings` so they land on the outermost ring
+// (WorldClock draws rings[0] outermost, home innermost) — existing rings'
+// radii are unaffected, only the outer edge grows
 export function addLocationOp(config: ClockConfig, location: Location): ClockConfig {
-  return { ...config, rings: [...config.rings, location] };
+  return { ...config, rings: [location, ...config.rings] };
 }
 
 export function removeLocationOp(config: ClockConfig, id: string): ClockConfig {
