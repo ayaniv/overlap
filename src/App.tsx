@@ -24,12 +24,13 @@ function App() {
 
   const exitEditMode = useCallback(() => setMode('view'), []);
 
-  const centerContent =
+  const modePanelContent =
     mode === 'edit' ? (
       <AddLocationForm
         existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
+        existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
-        onCancel={exitEditMode}
+        onDone={exitEditMode}
       />
     ) : undefined;
 
@@ -43,7 +44,7 @@ function App() {
       onSetMode={setMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
-      centerContent={centerContent}
+      modePanelContent={modePanelContent}
       toastMessage={toastMessage}
     />
   );
