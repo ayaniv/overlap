@@ -90,11 +90,26 @@ describe('AddLocationForm', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/pick a city/i);
   });
 
-  it('calls onDone when Done is clicked', async () => {
+  it('shows Cancel and calls onDone before anything has been added', async () => {
     const user = userEvent.setup();
     const onDone = vi.fn();
     render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={onDone} />);
 
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches to Done (still calling onDone) once a location has been added', async () => {
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={onDone} />);
+
+    await pickTokyo(user);
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Done' }));
 
     expect(onDone).toHaveBeenCalledTimes(1);

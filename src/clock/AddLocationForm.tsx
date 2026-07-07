@@ -35,6 +35,7 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: 
   const [workStart, setWorkStart] = useState(DEFAULT_WORK_START);
   const [workEnd, setWorkEnd] = useState(DEFAULT_WORK_END);
   const [error, setError] = useState<string | null>(null);
+  const [hasAdded, setHasAdded] = useState(false);
 
   const suggestions = useMemo(() => (selectedCity ? [] : searchCities(query)), [query, selectedCity]);
 
@@ -70,6 +71,7 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: 
       return;
     }
     onAdd(buildNewLocation(input, existingIds));
+    setHasAdded(true);
     resetForm([...existingColors, color]);
   };
 
@@ -176,7 +178,7 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: 
 
       <div className={styles.actions}>
         <button type="button" className={styles.doneButton} onClick={onDone}>
-          Done
+          {hasAdded ? 'Done' : 'Cancel'}
         </button>
         <button type="submit" className={styles.addButton}>
           Add
