@@ -20,7 +20,7 @@ export type AddLocationFormProps = {
   existingIds: string[];
   existingColors: string[];
   onAdd: (location: Location) => void;
-  onCancel: () => void;
+  onDone: () => void;
 };
 
 const FALLBACK_SWATCH_COLOR = '#000000';
@@ -28,7 +28,7 @@ const FALLBACK_SWATCH_COLOR = '#000000';
 // renders inside the edit-mode panel anchored next to the Edit button: typeahead
 // city search that becomes an editable label once a city is picked, color
 // (swatches + free hex + native picker), and per-location work hours.
-export function AddLocationForm({ existingIds, existingColors, onAdd, onCancel }: AddLocationFormProps) {
+export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: AddLocationFormProps) {
   const [query, setQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityEntry | null>(null);
   const [color, setColor] = useState<string>(() => pickAvailableColor(existingColors));
@@ -175,8 +175,8 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onCancel }
       )}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.cancelButton} onClick={onCancel}>
-          Cancel
+        <button type="button" className={styles.doneButton} onClick={onDone}>
+          Done
         </button>
         <button type="submit" className={styles.addButton}>
           Add
