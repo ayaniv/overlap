@@ -10,6 +10,7 @@ import {
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
+  MS_PER_HOUR,
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
@@ -49,6 +50,10 @@ const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 const LABEL_DOT_GAP = 18;
+// the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
+// used only as the ARIA slider's advertised range, since the underlying offset itself
+// isn't clamped
+const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -198,6 +203,9 @@ export function WorldClock({
         role={isScrubbable ? 'slider' : undefined}
         aria-label={isScrubbable ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
         aria-valuenow={isScrubbable ? previewOffsetMs : undefined}
+        aria-valuemin={isScrubbable ? -SCRUB_RANGE_MS : undefined}
+        aria-valuemax={isScrubbable ? SCRUB_RANGE_MS : undefined}
+        aria-valuetext={isScrubbable ? `Home time ${homeTime.label}` : undefined}
         {...(isScrubbable ? scrubBind : undefined)}
       >
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}

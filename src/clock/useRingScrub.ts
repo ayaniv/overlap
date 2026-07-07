@@ -19,11 +19,8 @@ export type UseRingScrubResult = {
   bind: RingScrubBind;
 };
 
-function angleFromPointerEvent(event: ReactPointerEvent<HTMLElement>): number {
-  const rect = event.currentTarget.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  return angleFromCenterOffset(event.clientX - centerX, event.clientY - centerY);
+function angleFromClientPoint(centerX: number, centerY: number, clientX: number, clientY: number): number {
+  return angleFromCenterOffset(clientX - centerX, clientY - centerY);
 }
 
 // lets the user drag anywhere on the clock face to preview a different meeting time:
@@ -33,12 +30,23 @@ function angleFromPointerEvent(event: ReactPointerEvent<HTMLElement>): number {
 export function useRingScrub(): UseRingScrubResult {
   const [previewOffsetMs, setPreviewOffsetMs] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef<{ angle: number; offsetMs: number } | null>(null);
+  // the clock face doesn't move mid-drag, so the bounding rect is read once on
+  // pointerdown and reused for every pointermove, instead of forcing a layout
+  // reflow on every move event
+  const dragStart = useRef<{ centerX: number; centerY: number; angle: number; offsetMs: number } | null>(null);
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       event.currentTarget.setPointerCapture(event.pointerId);
-      dragStart.current = { angle: angleFromPointerEvent(event), offsetMs: previewOffsetMs };
+      const rect = event.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      dragStart.current = {
+        centerX,
+        centerY,
+        angle: angleFromClientPoint(centerX, centerY, event.clientX, event.clientY),
+        offsetMs: previewOffsetMs,
+      };
       setIsDragging(true);
     },
     [previewOffsetMs],
@@ -46,9 +54,10 @@ export function useRingScrub(): UseRingScrubResult {
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (!dragStart.current) return;
-    const angle = angleFromPointerEvent(event);
-    const delta = angleDelta(dragStart.current.angle, angle);
-    setPreviewOffsetMs(dragStart.current.offsetMs + offsetMsFromAngle(delta));
+    const { centerX, centerY, angle: startAngle, offsetMs: startOffsetMs } = dragStart.current;
+    const angle = angleFromClientPoint(centerX, centerY, event.clientX, event.clientY);
+    const delta = angleDelta(startAngle, angle);
+    setPreviewOffsetMs(startOffsetMs + offsetMsFromAngle(delta));
   }, []);
 
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLElement>) => {

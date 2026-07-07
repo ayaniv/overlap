@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorldClock } from './WorldClock';
+import { MS_PER_HOUR } from './geometry';
+import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 
 // useSweepAngle reads window.matchMedia, which jsdom doesn't implement
@@ -37,6 +39,13 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
   );
   return { onRemoveLocation };
 }
+
+const SCRUB_BIND: RingScrubBind = {
+  onPointerDown: vi.fn(),
+  onPointerMove: vi.fn(),
+  onPointerUp: vi.fn(),
+  onKeyDown: vi.fn(),
+};
 
 describe('WorldClock remove button', () => {
   it('shows no remove buttons in view mode', () => {
@@ -92,5 +101,35 @@ describe('WorldClock remove button', () => {
     await user.keyboard('{Escape}');
 
     expect(onRemoveLocation).not.toHaveBeenCalled();
+  });
+});
+
+describe('WorldClock scrub slider', () => {
+  it('has no slider role when scrubBind is not provided', () => {
+    renderClock('view');
+    expect(screen.queryByRole('slider')).toBeNull();
+  });
+
+  it('exposes a complete ARIA slider when scrubBind is provided', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        previewOffsetMs={2 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(2 * MS_PER_HOUR));
+    expect(slider.getAttribute('aria-valuemin')).toBe(String(-24 * MS_PER_HOUR));
+    expect(slider.getAttribute('aria-valuemax')).toBe(String(24 * MS_PER_HOUR));
+    expect(slider.getAttribute('aria-valuetext')).toBeTruthy();
   });
 });
