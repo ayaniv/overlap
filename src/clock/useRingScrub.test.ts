@@ -100,19 +100,40 @@ describe('useRingScrub', () => {
     expect(result.current.isDragging).toBe(false);
   });
 
-  it('steps by exactly one hour per ArrowRight/ArrowLeft press', () => {
+  it('steps by exactly one minute per ArrowRight/ArrowLeft press', () => {
     const { result } = renderHook(() => useRingScrub());
     const preventDefault = vi.fn();
+    const oneMinuteMs = MS_PER_HOUR / 60;
 
     act(() =>
       result.current.bind.onKeyDown({ key: 'ArrowRight', preventDefault } as unknown as Parameters<
         ReturnType<typeof useRingScrub>['bind']['onKeyDown']
       >[0]),
     );
-    expect(result.current.previewOffsetMs).toBe(MS_PER_HOUR);
+    expect(result.current.previewOffsetMs).toBe(oneMinuteMs);
 
     act(() =>
       result.current.bind.onKeyDown({ key: 'ArrowLeft', preventDefault } as unknown as Parameters<
+        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
+      >[0]),
+    );
+    expect(result.current.previewOffsetMs).toBe(0);
+    expect(preventDefault).toHaveBeenCalledTimes(2);
+  });
+
+  it('steps by exactly one hour per ArrowUp/ArrowDown press', () => {
+    const { result } = renderHook(() => useRingScrub());
+    const preventDefault = vi.fn();
+
+    act(() =>
+      result.current.bind.onKeyDown({ key: 'ArrowUp', preventDefault } as unknown as Parameters<
+        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
+      >[0]),
+    );
+    expect(result.current.previewOffsetMs).toBe(MS_PER_HOUR);
+
+    act(() =>
+      result.current.bind.onKeyDown({ key: 'ArrowDown', preventDefault } as unknown as Parameters<
         ReturnType<typeof useRingScrub>['bind']['onKeyDown']
       >[0]),
     );

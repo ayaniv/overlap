@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMeeting,
+  findMeetingAtInstant,
   formatDurationLabel,
   formatLocalTime,
   formatScheduledSummary,
@@ -31,6 +32,57 @@ describe('buildMeeting', () => {
   it('disambiguates the id against existing meeting ids', () => {
     const meeting = buildMeeting('Sync', instant, ['meeting-1', 'meeting-2']);
     expect(meeting.id).toBe('meeting-3');
+  });
+
+  it('stores the Google Calendar event id when given one', () => {
+    const meeting = buildMeeting('Sync', instant, [], 'evt-abc');
+    expect(meeting.googleEventId).toBe('evt-abc');
+  });
+
+  it('omits googleEventId when none is given', () => {
+    const meeting = buildMeeting('Sync', instant, []);
+    expect(meeting.googleEventId).toBeUndefined();
+  });
+});
+
+describe('findMeetingAtInstant', () => {
+  const meeting1 = { id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync' };
+  const meeting2 = { id: 'm2', startISO: '2026-01-01T14:00:00.000Z', title: 'Standup' };
+  const meetings = [meeting1, meeting2];
+  const toleranceMs = 5 * 60_000;
+
+  it('matches a meeting whose instant is exactly the given instant', () => {
+    expect(findMeetingAtInstant(meetings, new Date(meeting1.startISO), toleranceMs)).toEqual(meeting1);
+  });
+
+  it('matches a meeting within the tolerance window', () => {
+    const instant = new Date(new Date(meeting1.startISO).getTime() + 2 * 60_000);
+    expect(findMeetingAtInstant(meetings, instant, toleranceMs)).toEqual(meeting1);
+  });
+
+  it('does not match a meeting outside the tolerance window', () => {
+    const instant = new Date(new Date(meeting1.startISO).getTime() + 10 * 60_000);
+    expect(findMeetingAtInstant(meetings, instant, toleranceMs)).toBeUndefined();
+  });
+
+  it('returns undefined when there is no meeting nearby', () => {
+    expect(findMeetingAtInstant(meetings, new Date('2026-06-01T00:00:00.000Z'), toleranceMs)).toBeUndefined();
+  });
+
+  it('returns undefined for an empty meetings list', () => {
+    expect(findMeetingAtInstant([], new Date(), toleranceMs)).toBeUndefined();
+  });
+
+  it('skips a meeting with an unparseable startISO and logs nothing (parseMeetingInstant already handles that)', () => {
+    const invalid = { id: 'bad', startISO: 'not-a-date', title: 'Broken' };
+    expect(findMeetingAtInstant([invalid], new Date(), toleranceMs)).toBeUndefined();
+  });
+
+  it('picks the closest match when two meetings are both within tolerance', () => {
+    const close = { id: 'close', startISO: '2026-01-01T10:01:00.000Z', title: 'Close' };
+    const closer = { id: 'closer', startISO: '2026-01-01T10:00:30.000Z', title: 'Closer' };
+    const instant = new Date('2026-01-01T10:00:00.000Z');
+    expect(findMeetingAtInstant([close, closer], instant, toleranceMs)).toEqual(closer);
   });
 });
 

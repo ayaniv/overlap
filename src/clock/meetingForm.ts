@@ -1,3 +1,4 @@
+import { parseMeetingInstant } from './geometry';
 import type { Meeting } from './types';
 
 // validates form input before it becomes a Meeting; returns a user-facing error
@@ -19,8 +20,29 @@ function buildMeetingId(existingIds: string[]): string {
 }
 
 // callers must run validateMeetingTitle first
-export function buildMeeting(title: string, instant: Date, existingIds: string[]): Meeting {
-  return { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
+export function buildMeeting(title: string, instant: Date, existingIds: string[], googleEventId?: string): Meeting {
+  const meeting: Meeting = { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
+  return googleEventId ? { ...meeting, googleEventId } : meeting;
+}
+
+// matches `instant` against `meetings` by actual time proximity (within
+// `toleranceMs`), not exact equality — scrubbing (especially a continuous drag)
+// rarely lands on the exact millisecond a meeting was scheduled at. Returns the
+// closest match within tolerance, so two meetings a minute apart don't flicker
+// between each other as the preview moves.
+export function findMeetingAtInstant(meetings: Meeting[], instant: Date, toleranceMs: number): Meeting | undefined {
+  let closest: Meeting | undefined;
+  let closestDeltaMs = Infinity;
+  for (const meeting of meetings) {
+    const meetingInstant = parseMeetingInstant(meeting.startISO);
+    if (!meetingInstant) continue;
+    const deltaMs = Math.abs(meetingInstant.getTime() - instant.getTime());
+    if (deltaMs <= toleranceMs && deltaMs < closestDeltaMs) {
+      closest = meeting;
+      closestDeltaMs = deltaMs;
+    }
+  }
+  return closest;
 }
 
 const padTwoDigits = (value: number) => String(value).padStart(2, '0');

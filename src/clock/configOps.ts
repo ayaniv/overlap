@@ -63,3 +63,7 @@ export function updateLocationOp(config: ClockConfig, id: string, patch: Partial
 export function addMeetingOp(config: ClockConfig, meeting: Meeting): ClockConfig {
   return { ...config, meetings: [...config.meetings, meeting] };
 }
+
+export function removeMeetingOp(config: ClockConfig, id: string): ClockConfig {
+  return { ...config, meetings: config.meetings.filter((meeting) => meeting.id !== id) };
+}

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { isGoogleCalendarConnected } from './clock/googleCalendar';
+import { findMeetingAtInstant } from './clock/meetingForm';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
@@ -9,6 +10,7 @@ import { WorldClock } from './clock/WorldClock';
 import type { Meeting, Mode } from './clock/types';
 import type { RingScrubBind } from './clock/useRingScrub';
 import { useClockConfig } from './hooks/useClockConfig';
+import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
 
@@ -18,10 +20,15 @@ const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
 };
 
 const MARK_SCRUBBED_DEBOUNCE_MS = 300;
+// how close the scrub preview needs to land to an existing meeting's instant to
+// surface it in the schedule panel — a window, not exact equality, since scrubbing
+// (especially a continuous drag) rarely lands on the exact millisecond a meeting
+// was scheduled at
+const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
   const now = useNow();
-  const { config, addLocation, removeLocation, addMeeting, reorder } = useClockConfig();
+  const { config, addLocation, removeLocation, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
@@ -32,6 +39,11 @@ function App() {
   // so previewing a time doesn't require opening — or keeping open — the panel first
   const [hasScrubbed, setHasScrubbed] = useState(false);
   const canScrub = mode !== 'edit';
+  // on the portrait/mobile layout (M5) the clock already dominates the narrow
+  // viewport, so scrubbing there stays a quiet "what if" preview only — the
+  // schedule panel opens exclusively via an explicit tap on ControlCluster's
+  // Schedule button. Landscape/desktop keeps the auto-open behavior below.
+  const isPortrait = useIsPortrait();
   // isGoogleCalendarConnected() reads localStorage; read it once on mount rather
   // than on every render (App re-renders every second via useNow's tick) — it only
   // ever changes at the one moment a schedule attempt succeeds, so handleScheduled
@@ -88,6 +100,16 @@ function App() {
     [setOffsetMs, now],
   );
 
+  // surfaces an already-scheduled meeting in the schedule panel when the preview
+  // lands on it — gated the same way meeting dots are (isGoogleCalendarConnected):
+  // `meetings` rides along in the shareable config, so a share-link viewer who's
+  // never signed in on this device shouldn't see the owner's meeting details either
+  const matchedMeeting = isConnectedToGoogleCalendar
+    ? findMeetingAtInstant(config.meetings, previewInstant, MEETING_MATCH_TOLERANCE_MS)
+    : undefined;
+
+  const handleDeleteMeeting = useCallback((id: string) => removeMeeting(id), [removeMeeting]);
+
   // scrubbing is the entry point into scheduling: starting a drag (or pressing an
   // arrow key) from view mode opens the schedule panel automatically, so the user
   // sees the form fill in live as they pick a time instead of having to scrub first
@@ -99,9 +121,12 @@ function App() {
     const timestamp = Date.now();
     if (timestamp - lastMarkScrubbedRef.current < MARK_SCRUBBED_DEBOUNCE_MS) return;
     lastMarkScrubbedRef.current = timestamp;
+    // hasScrubbed is set regardless of orientation, so a user who scrubs in portrait
+    // and then explicitly opens Schedule doesn't hit the scrub-gate again
     setHasScrubbed(true);
+    if (isPortrait) return;
     setMode((current) => (current === 'view' ? 'schedule' : current));
-  }, []);
+  }, [isPortrait]);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
     () => ({
@@ -134,6 +159,8 @@ function App() {
         onScheduled={handleScheduled}
         onCancel={exitToView}
         isEnabled={hasScrubbed}
+        matchedMeeting={matchedMeeting}
+        onDeleteMeeting={handleDeleteMeeting}
       />
     ) : undefined;
 

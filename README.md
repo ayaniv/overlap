@@ -2,11 +2,11 @@
 
 [![Live demo](https://img.shields.io/badge/live%20demo-overlap--clock.vercel.app-4c9a6b)](https://overlap-clock.vercel.app)
 
-A radial multi-timezone "meeting planner" clock. Five cities are drawn as concentric
-rings around a central local time; each ring shows a colored arc for that city's working
-hours with a dot at its current moment. A shared **NOW** axis points straight up, so
-overlapping arcs near the top mean everyone is currently in working hours — answering
-_"When can everyone meet today?"_ at a glance.
+A radial multi-timezone clock. Five cities are drawn as concentric rings around a
+central local time; each ring shows a colored arc for that city's working hours with
+a dot at its current moment. A shared **NOW** axis points straight up, so overlapping
+arcs near the top mean everyone is currently in working hours — answering
+_"See shared hours instantly"_ at a glance.
 
 Built from a Claude Design reference (`World Clock v4`) — React + Vite + TypeScript,
 all graphics rendered as SVG from `Intl.DateTimeFormat`, no timezone/date libraries.

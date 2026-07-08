@@ -20,7 +20,12 @@ function isLocation(value: unknown): value is Location {
 function isMeeting(value: unknown): value is Meeting {
   if (typeof value !== 'object' || value === null) return false;
   const meeting = value as Record<string, unknown>;
-  return typeof meeting.id === 'string' && typeof meeting.startISO === 'string' && typeof meeting.title === 'string';
+  return (
+    typeof meeting.id === 'string' &&
+    typeof meeting.startISO === 'string' &&
+    typeof meeting.title === 'string' &&
+    (meeting.googleEventId === undefined || typeof meeting.googleEventId === 'string')
+  );
 }
 
 export function isValidClockConfig(value: unknown): value is ClockConfig {

@@ -171,18 +171,6 @@
   border-radius: 50%;
 }
 
-.separator {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #3a3e46;
-}
-
-.legend {
-  color: #6c7079;
-  letter-spacing: 0.3px;
-}
-
 .srOnly {
   position: absolute;
   width: 1px;

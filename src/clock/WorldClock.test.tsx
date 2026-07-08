@@ -173,6 +173,65 @@ describe('WorldClock scrub slider', () => {
     expect(slider.getAttribute('aria-valuemax')).toBe(String(24 * MS_PER_HOUR));
     expect(slider.getAttribute('aria-valuetext')).toBeTruthy();
   });
+
+  it('clamps aria-valuenow to aria-valuemin/aria-valuemax, since the raw offset itself is never clamped', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={100 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(24 * MS_PER_HOUR));
+  });
+
+  it('clamps a large negative offset to aria-valuemin', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={-100 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(-24 * MS_PER_HOUR));
+  });
+});
+
+describe('WorldClock copy', () => {
+  it('shows the current top-of-page branding and an accurate status line, without a global working-hours legend', () => {
+    renderClock('view');
+
+    expect(screen.getByText('See shared hours instantly')).toBeTruthy();
+    expect(screen.getByText((_, node) => node?.textContent === 'Overlap Clock')).toBeTruthy();
+    // per-location working hours are per-ring, so no single "Home working hours" line
+    expect(screen.queryByText(/Home working hours/)).toBeNull();
+  });
+
+  it('phrases the status line as "N of M teams are available now"', () => {
+    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT)
+    const matches = screen.getAllByText(/teams are available now|No teams available right now/);
+    expect(matches.length).toBeGreaterThan(0);
+  });
 });
 
 const MEETING: Meeting = { id: 'meeting-1', title: 'Sync', startISO: '2026-01-01T13:00:00.000Z' };

@@ -2,9 +2,69 @@
   position: absolute;
   top: 38px;
   right: 44px;
+  height: 34px;
+  pointer-events: auto;
+}
+
+/* both rest at the same top-right anchor: the actions row fades/scales in behind
+   the toggle's resting spot, and the toggle slides 300px left to vacate it */
+.actions {
+  position: absolute;
+  top: 0;
+  right: 0;
   display: flex;
   gap: 10px;
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cluster[data-expanded] .actions {
+  opacity: 1;
+  transform: scale(1);
   pointer-events: auto;
+}
+
+.toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.6);
+  color: #c4c8cf;
+  cursor: pointer;
+  transition: transform 0.25s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.toggle:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.cluster[data-expanded] .toggle {
+  transform: translateX(-300px);
+}
+
+.toggleLineTop,
+.toggleLineBottom {
+  transition: transform 0.25s ease;
+  transform-origin: 8px 8px;
+}
+
+.toggle[aria-expanded='true'] .toggleLineTop {
+  transform: translateY(3px) rotate(45deg);
+}
+
+.toggle[aria-expanded='true'] .toggleLineBottom {
+  transform: translateY(-3px) rotate(-45deg);
 }
 
 .button {
@@ -56,6 +116,9 @@
   .cluster {
     top: 20px;
     right: 16px;
+  }
+
+  .actions {
     gap: 6px;
   }
 
@@ -66,8 +129,10 @@
   }
 
   .iconButton,
-  .iconButtonActive {
+  .iconButtonActive,
+  .toggle {
     width: 28px;
+    height: 28px;
     padding: 6px;
   }
 }

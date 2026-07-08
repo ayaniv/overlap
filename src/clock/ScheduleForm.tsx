@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
-import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
+import {
+  DEFAULT_MEETING_DURATION_MINUTES,
+  deleteMeetingFromGoogleCalendar,
+  isGoogleCalendarConfigured,
+  scheduleMeetingOnGoogleCalendar,
+} from './googleCalendar';
+import { parseMeetingInstant } from './geometry';
 import {
   buildMeeting,
   formatDurationLabel,
@@ -27,9 +33,14 @@ export type ScheduleFormProps = {
   onCancel: () => void;
   // gated behind having scrubbed the rings at least once this visit — see App.tsx
   isEnabled: boolean;
+  // set when the previewed instant lands on (within tolerance of) an already-scheduled
+  // meeting — see findMeetingAtInstant in App.tsx
+  matchedMeeting?: Meeting;
+  onDeleteMeeting: (id: string) => void;
 };
 
 type Status = 'idle' | 'pending' | 'success' | 'error';
+type DeleteStatus = 'idle' | 'pending' | 'error';
 
 // opens the native calendar on click, not just on the small calendar-icon affordance a
 // plain <input type="date"> otherwise requires
@@ -47,17 +58,28 @@ function handleWhenClick(event: MouseEvent<HTMLInputElement>) {
 // a date picker for the day (kept in sync with the ring-drag preview via onChangeInstant;
 // the time-of-day itself is read-only here — it's set by scrubbing, not typed), and a
 // Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
-export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel, isEnabled }: ScheduleFormProps) {
+export function ScheduleForm({
+  previewInstant,
+  onChangeInstant,
+  existingMeetingIds,
+  onScheduled,
+  onCancel,
+  isEnabled,
+  matchedMeeting,
+  onDeleteMeeting,
+}: ScheduleFormProps) {
   const [title, setTitle] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_MEETING_DURATION_MINUTES);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<DeleteStatus>('idle');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isConfigured = isGoogleCalendarConfigured();
-  // guards against a stale result: Cancel doesn't (can't) abort the in-flight
-  // Google sign-in/event-creation call itself — Google Identity Services exposes no
-  // way to abort a popup mid-flow — but it does stop that stale result from silently
-  // adding the meeting to local config or flipping the UI after the user has already
-  // dismissed the panel
+  // guards against a stale result: Cancel doesn't (can't) abort an in-flight Google
+  // sign-in/event-creation/event-deletion call itself — Google Identity Services
+  // exposes no way to abort a popup mid-flow — but it does stop that stale result
+  // from silently mutating local config or flipping the UI after the user has
+  // already dismissed the panel
   const isCancelledRef = useRef(false);
 
   useEffect(() => {
@@ -66,9 +88,36 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     return () => clearTimeout(timer);
   }, [status, onCancel]);
 
+  // scrubbing to a different instant (or off the matched meeting entirely) drops
+  // any delete-attempt state from the previous instant
+  useEffect(() => {
+    setDeleteStatus('idle');
+    setDeleteError(null);
+  }, [matchedMeeting?.id]);
+
   const handleCancel = () => {
     isCancelledRef.current = true;
     onCancel();
+  };
+
+  const handleDeleteMeeting = async () => {
+    if (!matchedMeeting) return;
+    setDeleteError(null);
+    setDeleteStatus('pending');
+    try {
+      // a meeting with no googleEventId (pre-migration, or synced in from someone
+      // else's share link) is still removable locally — just skip the Calendar call
+      if (matchedMeeting.googleEventId) {
+        await deleteMeetingFromGoogleCalendar(matchedMeeting.googleEventId);
+      }
+      if (isCancelledRef.current) return;
+      onDeleteMeeting(matchedMeeting.id);
+    } catch (err) {
+      if (isCancelledRef.current) return;
+      console.error('overlap: failed to delete the meeting', err);
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete the meeting.');
+      setDeleteStatus('error');
+    }
   };
 
   const handleDateChange = (value: string) => {
@@ -91,9 +140,9 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     setError(null);
     setStatus('pending');
     try {
-      await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
+      const googleEventId = await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
       if (isCancelledRef.current) return;
-      onScheduled(buildMeeting(title, previewInstant, existingMeetingIds));
+      onScheduled(buildMeeting(title, previewInstant, existingMeetingIds, googleEventId));
       setStatus('success');
     } catch (err) {
       if (isCancelledRef.current) return;
@@ -212,6 +261,34 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
           {status === 'pending' ? 'Scheduling…' : 'Schedule'}
         </button>
       </div>
+
+      {matchedMeeting && (
+        <div className={styles.meetingBanner}>
+          <div className={styles.meetingBannerHeading}>Already on the calendar</div>
+          <div className={styles.meetingBannerTitle}>{matchedMeeting.title}</div>
+          <div className={styles.meetingBannerTime}>
+            {formatScheduledSummary(parseMeetingInstant(matchedMeeting.startISO) ?? previewInstant)}
+          </div>
+          {!matchedMeeting.googleEventId && (
+            <p className={styles.meetingBannerNote}>Not linked to Google Calendar — deleting only removes it here.</p>
+          )}
+          {deleteError && (
+            <div className={styles.error} role="alert">
+              {deleteError}
+            </div>
+          )}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.deleteButton}
+              onClick={handleDeleteMeeting}
+              disabled={deleteStatus === 'pending'}
+            >
+              {deleteStatus === 'pending' ? 'Deleting…' : 'Delete meeting'}
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

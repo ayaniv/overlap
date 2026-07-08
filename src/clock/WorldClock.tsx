@@ -56,8 +56,6 @@ const LABEL_DOT_GAP = 18;
 // isn't clamped
 const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
-const padTwoDigits = (value: number) => String(value).padStart(2, '0');
-
 export type WorldClockProps = {
   now: Date;
   home: Location;
@@ -203,21 +201,25 @@ export function WorldClock({
 
   const homeTime = getCityTime(effectiveNow, home.timezoneId);
   const homeDateLabel = getCityDateLabel(effectiveNow, home.timezoneId);
+  // previewOffsetMs itself is never clamped (a long drag or a burst of arrow-key
+  // presses can carry it past a single day), but the ARIA slider's advertised range
+  // is +/-24h — aria-valuenow must stay within aria-valuemin/aria-valuemax or it's an
+  // invalid slider for assistive tech
+  const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
-  const statusText = availableCount === 0 ? 'No teams free right now' : `${availableCount} of ${totalCount} teams free now`;
+  const statusText = availableCount === 0 ? 'No teams available right now' : `${availableCount} of ${totalCount} teams are available now`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
-  const workLabel = `${padTwoDigits(home.workStart)}:00–${padTwoDigits(home.workEnd % 24)}:00`;
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
   return (
-    <section className={styles.stage} aria-label="World clock meeting planner">
+    <section className={styles.stage} aria-label="World clock — shared working hours across timezones">
       <div className={styles.context} aria-hidden="true">
-        <div className={styles.eyebrow}>MEETING&nbsp;PLANNER</div>
-        <div className={styles.headline}>When can everyone meet today?</div>
+        <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
+        <div className={styles.headline}>See shared hours instantly</div>
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
@@ -242,8 +244,12 @@ export function WorldClock({
         data-scrubbing={isScrubbing || undefined}
         tabIndex={isScrubbable ? 0 : undefined}
         role={isScrubbable ? 'slider' : undefined}
-        aria-label={isScrubbable ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
-        aria-valuenow={isScrubbable ? previewOffsetMs : undefined}
+        aria-label={
+          isScrubbable
+            ? 'Drag, or use Left/Right for minutes and Up/Down for hours, to preview a different meeting time'
+            : undefined
+        }
+        aria-valuenow={isScrubbable ? clampedScrubValueMs : undefined}
         aria-valuemin={isScrubbable ? -SCRUB_RANGE_MS : undefined}
         aria-valuemax={isScrubbable ? SCRUB_RANGE_MS : undefined}
         aria-valuetext={isScrubbable ? `Home time ${homeTime.label}` : undefined}
@@ -441,8 +447,6 @@ export function WorldClock({
           />
           {statusText}
         </div>
-        <span className={styles.separator} />
-        <div className={styles.legend}>Home working hours {workLabel} · local</div>
       </div>
 
       <p className={styles.srOnly} role="status">
