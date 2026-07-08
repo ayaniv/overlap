@@ -32,32 +32,31 @@ export function useRingScrub(): UseRingScrubResult {
   const [isDragging, setIsDragging] = useState(false);
   // the clock face doesn't move mid-drag, so the bounding rect is read once on
   // pointerdown and reused for every pointermove, instead of forcing a layout
-  // reflow on every move event
-  const dragStart = useRef<{ centerX: number; centerY: number; angle: number; offsetMs: number } | null>(null);
+  // reflow on every move event. `angle` tracks the *last* sample, not the drag's
+  // start — angleDelta only returns a value in (-180, 180], so measuring every
+  // move against a fixed start angle would snap backwards the moment a continuous
+  // drag swept more than half a turn away from where it began. Measuring against
+  // the previous sample instead keeps each step small enough that the shortest-path
+  // wrap is always the correct (and only) interpretation, so multi-turn drags
+  // accumulate correctly.
+  const dragStart = useRef<{ centerX: number; centerY: number; angle: number } | null>(null);
 
-  const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLElement>) => {
-      event.currentTarget.setPointerCapture(event.pointerId);
-      const rect = event.currentTarget.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      dragStart.current = {
-        centerX,
-        centerY,
-        angle: angleFromClientPoint(centerX, centerY, event.clientX, event.clientY),
-        offsetMs: previewOffsetMs,
-      };
-      setIsDragging(true);
-    },
-    [previewOffsetMs],
-  );
+  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    dragStart.current = { centerX, centerY, angle: angleFromClientPoint(centerX, centerY, event.clientX, event.clientY) };
+    setIsDragging(true);
+  }, []);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (!dragStart.current) return;
-    const { centerX, centerY, angle: startAngle, offsetMs: startOffsetMs } = dragStart.current;
+    const { centerX, centerY, angle: lastAngle } = dragStart.current;
     const angle = angleFromClientPoint(centerX, centerY, event.clientX, event.clientY);
-    const delta = angleDelta(startAngle, angle);
-    setPreviewOffsetMs(startOffsetMs + offsetMsFromAngle(delta));
+    const delta = angleDelta(lastAngle, angle);
+    dragStart.current.angle = angle;
+    setPreviewOffsetMs((ms) => ms + offsetMsFromAngle(delta));
   }, []);
 
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLElement>) => {
