@@ -1,6 +1,6 @@
 export type CityTime = { hour: number; minute: number; frac: number; label: string };
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (value: number) => String(value).padStart(2, '0');
 
 export function getCityTime(date: Date, timeZoneId: string): CityTime {
   const parts = new Intl.DateTimeFormat('en-GB', {

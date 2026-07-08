@@ -9,11 +9,11 @@ export function validateMeetingTitle(title: string): string | null {
 
 // kebab-numbered id disambiguated against existing meeting ids, mirroring buildLocationId
 function buildMeetingId(existingIds: string[]): string {
-  let n = existingIds.length + 1;
-  let id = `meeting-${n}`;
+  let suffix = existingIds.length + 1;
+  let id = `meeting-${suffix}`;
   while (existingIds.includes(id)) {
-    n++;
-    id = `meeting-${n}`;
+    suffix++;
+    id = `meeting-${suffix}`;
   }
   return id;
 }
@@ -23,7 +23,7 @@ export function buildMeeting(title: string, instant: Date, existingIds: string[]
   return { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (value: number) => String(value).padStart(2, '0');
 
 // formats a Date as the value a <input type="date"> expects, in local time
 export function toDateInputValue(date: Date): string {

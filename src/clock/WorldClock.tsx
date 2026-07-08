@@ -55,7 +55,7 @@ const LABEL_DOT_GAP = 18;
 // isn't clamped
 const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (value: number) => String(value).padStart(2, '0');
 
 export type WorldClockProps = {
   now: Date;
