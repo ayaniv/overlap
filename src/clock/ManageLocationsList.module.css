@@ -101,3 +101,27 @@
   background: rgba(251, 113, 133, 0.12);
   color: #fb7185;
 }
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.closeButton {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.6);
+  color: #c4c8cf;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.closeButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}

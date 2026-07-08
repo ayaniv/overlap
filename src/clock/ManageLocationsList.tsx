@@ -8,6 +8,7 @@ export type ManageLocationsListProps = {
   locations: Array<Location & { isHome: boolean }>;
   onReorder: (orderedIds: string[]) => void;
   onRemove: (id: string) => void;
+  onClose: () => void;
 };
 
 // counts how many of the other rows' current centers sit above `pointerY`,
@@ -33,7 +34,7 @@ function withMovedId(order: string[], draggedId: string, dropIndex: number): str
 // its grip handle to reorder; the list reorders live as it crosses a
 // neighbor, and dragging a ring past the home slot promotes it to home
 // (mirrors dragging a city into the home slot per the plan).
-export function ManageLocationsList({ locations, onReorder, onRemove }: ManageLocationsListProps) {
+export function ManageLocationsList({ locations, onReorder, onRemove, onClose }: ManageLocationsListProps) {
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
@@ -121,6 +122,11 @@ export function ManageLocationsList({ locations, onReorder, onRemove }: ManageLo
           );
         })}
       </ul>
+      <div className={styles.actions}>
+        <button type="button" className={styles.closeButton} onClick={onClose}>
+          Close
+        </button>
+      </div>
     </div>
   );
 }

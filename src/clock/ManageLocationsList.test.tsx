@@ -60,7 +60,7 @@ function drag(handle: HTMLElement, fromY: number, toY: number) {
 
 describe('ManageLocationsList', () => {
   it('renders one row per location, inside->outside, with a home icon on the first row only', () => {
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={vi.fn()} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={vi.fn()} onClose={vi.fn()} />);
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     expect(within(rows[0]).getByLabelText('Home')).toBeTruthy();
@@ -72,7 +72,7 @@ describe('ManageLocationsList', () => {
 
   it('has no remove button on the home row, and a working remove button on other rows', () => {
     const onRemove = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={onRemove} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={onRemove} onClose={vi.fn()} />);
 
     expect(screen.queryByRole('button', { name: 'Remove Tel Aviv' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Remove San Francisco' }));
@@ -83,7 +83,7 @@ describe('ManageLocationsList', () => {
 
   it('dragging a ring down past its outward neighbor swaps them, keeping home in place', () => {
     const onReorder = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />);
 
     // San Francisco (row 1) dragged past New York's (row 2) center
     drag(dragHandleFor('San Francisco'), rowCenter(1), rowCenter(2) + 1);
@@ -94,7 +94,7 @@ describe('ManageLocationsList', () => {
 
   it('dragging a ring up past home promotes it to home', () => {
     const onReorder = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />);
 
     // San Francisco (row 1) dragged above Tel Aviv's (row 0) center
     drag(dragHandleFor('San Francisco'), rowCenter(1), 0);
@@ -105,7 +105,7 @@ describe('ManageLocationsList', () => {
 
   it('does not call onReorder when the drag ends back at the original position', () => {
     const onReorder = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />);
 
     drag(dragHandleFor('San Francisco'), rowCenter(1), rowCenter(1));
 
@@ -114,12 +114,21 @@ describe('ManageLocationsList', () => {
 
   it('does not call onReorder for a plain click with no pointer movement', () => {
     const onReorder = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} />);
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />);
 
     const handle = dragHandleFor('San Francisco');
     fireEvent.pointerDown(handle, { clientY: rowCenter(1), pointerId: 1 });
     fireEvent.pointerUp(handle, { clientY: rowCenter(1), pointerId: 1 });
 
     expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it('renders a Close button that calls onClose when clicked', () => {
+    const onClose = vi.fn();
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={vi.fn()} onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

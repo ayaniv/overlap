@@ -225,7 +225,12 @@ export function WorldClock({
         <div className={styles.modePanel}>
           {modePanelContent}
           {mode === 'edit' && (
-            <ManageLocationsList locations={manageListLocations} onReorder={onReorder} onRemove={onRemoveLocation} />
+            <ManageLocationsList
+              locations={manageListLocations}
+              onReorder={onReorder}
+              onRemove={onRemoveLocation}
+              onClose={() => onSetMode('view')}
+            />
           )}
         </div>
       )}
