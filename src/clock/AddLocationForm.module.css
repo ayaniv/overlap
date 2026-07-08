@@ -223,3 +223,18 @@
 .addButton:hover {
   background: rgba(56, 189, 248, 0.2);
 }
+
+/* iOS Safari auto-zooms the page on focusing any text input with a computed
+   font-size under 16px (to make the text legible while typing), and is
+   supposed to zoom back out on blur — but doesn't reliably do so here, since
+   these inputs stay mounted/focused across a successful Add (only their value
+   resets), leaving the page stuck zoomed in. Bumping to 16px on mobile stops
+   the zoom from ever triggering, sidestepping the unreliable un-zoom-on-blur
+   behavior entirely. Desktop keeps the tighter sizes above (no zoom risk). */
+@media (orientation: portrait) {
+  .textInput,
+  .hexInput,
+  .hoursInput {
+    font-size: 16px;
+  }
+}
