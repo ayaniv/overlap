@@ -1,18 +1,74 @@
-import { describe, expect, it } from 'vitest';
-import { addLocationOp, addMeetingOp, removeLocationOp, setHomeOp, updateLocationOp } from './configOps';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { addLocationOp, addMeetingOp, removeLocationOp, reorderLocationsOp, setHomeOp, updateLocationOp } from './configOps';
 import type { ClockConfig, Location } from './types';
 
 const HOME: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 };
 const SF: Location = { id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 };
 const NY: Location = { id: 'new-york', label: 'New York', timezoneId: 'America/New_York', color: '#FBBF4B', workStart: 9, workEnd: 18 };
+const LONDON: Location = { id: 'london', label: 'London', timezoneId: 'Europe/London', color: '#34D399', workStart: 9, workEnd: 18 };
 
 const BASE_CONFIG: ClockConfig = { home: HOME, rings: [SF], meetings: [] };
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('setHomeOp', () => {
-  it('replaces the home location', () => {
-    const next = setHomeOp(BASE_CONFIG, NY);
+  it('swaps home and rings: the chosen ring becomes home, and the outgoing home slides into that ring\'s old slot', () => {
+    const config: ClockConfig = { ...BASE_CONFIG, rings: [SF, NY] };
+    const next = setHomeOp(config, NY);
     expect(next.home).toEqual(NY);
-    expect(next.rings).toBe(BASE_CONFIG.rings);
+    expect(next.rings).toEqual([SF, HOME]);
+  });
+
+  it('is a no-op when asked to set home to the already-current home', () => {
+    const next = setHomeOp(BASE_CONFIG, HOME);
+    expect(next).toBe(BASE_CONFIG);
+  });
+
+  it('logs an error and is a no-op when given a location that is not an existing ring', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const next = setHomeOp(BASE_CONFIG, NY); // NY isn't in BASE_CONFIG.rings ([SF])
+    expect(next).toBe(BASE_CONFIG);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reorderLocationsOp', () => {
+  const config: ClockConfig = { ...BASE_CONFIG, rings: [LONDON, SF, NY] };
+
+  it('reorders rings only when the first id (home) is unchanged', () => {
+    const next = reorderLocationsOp(config, [HOME.id, NY.id, SF.id, LONDON.id]);
+    expect(next.home).toEqual(HOME);
+    expect(next.rings).toEqual([LONDON, SF, NY]);
+  });
+
+  it('promotes the dragged-in location to home and slides the outgoing home into rings', () => {
+    // NY moves into the first (home) slot; the rest keep their relative inside->outside order
+    const next = reorderLocationsOp(config, [NY.id, SF.id, HOME.id, LONDON.id]);
+    expect(next.home).toEqual(NY);
+    expect(next.rings).toEqual([LONDON, HOME, SF]);
+  });
+
+  it('logs an error and is a no-op when the id list is the wrong length', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const next = reorderLocationsOp(config, [HOME.id, SF.id]);
+    expect(next).toBe(config);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs an error and is a no-op when the id list has a duplicate', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const next = reorderLocationsOp(config, [HOME.id, SF.id, SF.id, LONDON.id]);
+    expect(next).toBe(config);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs an error and is a no-op when the id list contains an unknown id', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const next = reorderLocationsOp(config, [HOME.id, SF.id, NY.id, 'not-a-real-id']);
+    expect(next).toBe(config);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 });
 

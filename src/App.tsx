@@ -21,7 +21,7 @@ const MARK_SCRUBBED_DEBOUNCE_MS = 300;
 
 function App() {
   const now = useNow();
-  const { config, addLocation, removeLocation, addMeeting } = useClockConfig();
+  const { config, addLocation, removeLocation, addMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
@@ -147,6 +147,7 @@ function App() {
       onSetMode={changeMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
+      onReorder={reorder}
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={canScrub ? scrubOffsetMs : 0}

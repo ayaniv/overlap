@@ -35,6 +35,7 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
       onSetMode={vi.fn()}
       onShare={vi.fn()}
       onRemoveLocation={onRemoveLocation}
+      onReorder={vi.fn()}
     />,
   );
   return { onRemoveLocation };
@@ -47,60 +48,53 @@ const SCRUB_BIND: RingScrubBind = {
   onKeyDown: vi.fn(),
 };
 
-describe('WorldClock remove button', () => {
-  it('shows no remove buttons in view mode', () => {
-    renderClock('view');
-    expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
-  });
+// removing a location is now exclusively a ManageLocationsList affordance
+// (see ManageLocationsList.test.tsx) — WorldClock no longer renders its own
+// on-ring remove control
 
-  it('shows a remove button for a non-home ring in edit mode', () => {
-    renderClock('edit');
-    expect(screen.getByRole('button', { name: 'Remove San Francisco' })).toBeTruthy();
-  });
+function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
+  render(
+    <WorldClock
+      now={NOW}
+      home={HOME}
+      rings={[SF]}
+      meetings={[]}
+      mode={mode}
+      onSetMode={vi.fn()}
+      onShare={vi.fn()}
+      onRemoveLocation={vi.fn()}
+      onReorder={onReorder}
+      modePanelContent={<div>Form</div>}
+    />,
+  );
+}
 
-  it('never shows a remove button for the home ring, even in edit mode', () => {
-    renderClock('edit');
-    expect(screen.queryByRole('button', { name: 'Remove Tel Aviv' })).toBeNull();
-  });
-
-  it('calls onRemoveLocation with the ring id when clicked', async () => {
+describe('WorldClock manage-locations list', () => {
+  it('lists home first, then rings, once the Manage locations accordion section is opened', async () => {
     const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
+    renderClockWithPanel('edit');
 
-    await user.click(screen.getByRole('button', { name: 'Remove San Francisco' }));
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
 
-    expect(onRemoveLocation).toHaveBeenCalledTimes(1);
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('Tel Aviv');
+    expect(rows[1].textContent).toContain('San Francisco');
   });
 
-  it('calls onRemoveLocation on Enter', async () => {
+  it('threads onReorder through to the list (reorder mechanics covered by ManageLocationsList.test.tsx)', async () => {
     const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
+    const onReorder = vi.fn();
+    renderClockWithPanel('edit', onReorder);
 
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
 
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
+    expect(screen.getByRole('button', { name: 'Reorder San Francisco' })).toBeTruthy();
   });
 
-  it('calls onRemoveLocation on Space', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard(' ');
-
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
-  });
-
-  it('does not call onRemoveLocation on unrelated keys', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard('{Escape}');
-
-    expect(onRemoveLocation).not.toHaveBeenCalled();
+  it('is not rendered outside edit mode, even with a mode panel present', () => {
+    renderClockWithPanel('schedule');
+    expect(screen.queryByRole('listitem')).toBeNull();
   });
 });
 
@@ -121,6 +115,7 @@ describe('WorldClock scrub slider', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         previewOffsetMs={2 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -148,6 +143,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -172,6 +168,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -203,6 +200,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -221,6 +219,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         previewOffsetMs={24 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -241,6 +240,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
         isGoogleCalendarConnected={false}
       />,
     );
@@ -259,6 +259,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
       />,
     );
 
