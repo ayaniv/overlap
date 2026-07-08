@@ -123,17 +123,24 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
 }
 
 describe('WorldClock manage-locations list', () => {
-  it('lists home first, then rings, while in edit mode', () => {
+  it('lists home first, then rings, once the Manage locations accordion section is opened', async () => {
+    const user = userEvent.setup();
     renderClockWithPanel('edit');
+
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
+
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('Tel Aviv');
     expect(rows[1].textContent).toContain('San Francisco');
   });
 
-  it('threads onReorder through to the list (reorder mechanics covered by ManageLocationsList.test.tsx)', () => {
+  it('threads onReorder through to the list (reorder mechanics covered by ManageLocationsList.test.tsx)', async () => {
+    const user = userEvent.setup();
     const onReorder = vi.fn();
     renderClockWithPanel('edit', onReorder);
+
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
 
     expect(screen.getByRole('button', { name: 'Reorder San Francisco' })).toBeTruthy();
   });

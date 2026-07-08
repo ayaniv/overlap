@@ -78,7 +78,6 @@ export function ManageLocationsList({ locations, onReorder, onRemove, onClose }:
 
   return (
     <div className={styles.panel}>
-      <div className={styles.heading}>Manage locations</div>
       <ul className={styles.list}>
         {displayOrder.map((id) => {
           const location = locationsById.get(id);

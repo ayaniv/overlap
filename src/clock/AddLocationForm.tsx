@@ -77,8 +77,6 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: 
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      <div className={styles.heading}>Add location</div>
-
       <div className={styles.field}>
         <input
           className={styles.textInput}

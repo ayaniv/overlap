@@ -24,6 +24,7 @@ import {
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
+import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
 import { Toast } from './Toast';
@@ -221,19 +222,22 @@ export function WorldClock({
       </div>
 
       <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
-      {mode !== 'view' && modePanelContent && (
+      {mode === 'edit' && modePanelContent && (
         <div className={styles.modePanel}>
-          {modePanelContent}
-          {mode === 'edit' && (
-            <ManageLocationsList
-              locations={manageListLocations}
-              onReorder={onReorder}
-              onRemove={onRemoveLocation}
-              onClose={() => onSetMode('view')}
-            />
-          )}
+          <ConfigPanel
+            addLocationContent={modePanelContent}
+            manageLocationsContent={
+              <ManageLocationsList
+                locations={manageListLocations}
+                onReorder={onReorder}
+                onRemove={onRemoveLocation}
+                onClose={() => onSetMode('view')}
+              />
+            }
+          />
         </div>
       )}
+      {mode === 'schedule' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
       <Toast message={toastMessage} />
 
       <div
