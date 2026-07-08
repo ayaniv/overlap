@@ -50,3 +50,24 @@
   width: 34px;
   padding: 8px;
 }
+
+/* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
+@media (orientation: portrait) {
+  .cluster {
+    top: 20px;
+    right: 16px;
+    gap: 6px;
+  }
+
+  .button,
+  .buttonActive {
+    padding: 6px 11px;
+    font-size: 11px;
+  }
+
+  .iconButton,
+  .iconButtonActive {
+    width: 28px;
+    padding: 6px;
+  }
+}
