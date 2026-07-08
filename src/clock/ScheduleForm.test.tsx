@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ScheduleForm } from './ScheduleForm';
 import * as googleCalendar from './googleCalendar';
+import { formatScheduledSummary } from './meetingForm';
 
 vi.mock('./googleCalendar', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./googleCalendar')>();
@@ -77,6 +78,8 @@ describe('ScheduleForm submission', () => {
     );
     expect(onScheduled.mock.calls[0][0]).toMatchObject({ title: 'Sync', startISO: PREVIEW_INSTANT.toISOString() });
     expect(screen.getByRole('status').textContent).toMatch(/added/i);
+    // the date/time actually scheduled, not just a bare confirmation
+    expect(screen.getByText(formatScheduledSummary(PREVIEW_INSTANT))).toBeTruthy();
   });
 
   it('shows an inline, retryable error when scheduling fails', async () => {

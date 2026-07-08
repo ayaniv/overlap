@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
-import { buildMeeting, formatDurationLabel, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
+import {
+  buildMeeting,
+  formatDurationLabel,
+  formatLocalTime,
+  formatScheduledSummary,
+  toDateInputValue,
+  validateMeetingTitle,
+  withDatePart,
+} from './meetingForm';
 import type { Meeting } from './types';
 import styles from './ScheduleForm.module.css';
 
@@ -118,6 +126,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
         <p className={styles.successNote} role="status">
           ✓ added
         </p>
+        <p className={styles.successDetail}>{formatScheduledSummary(previewInstant)}</p>
       </div>
     );
   }

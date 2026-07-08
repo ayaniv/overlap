@@ -23,11 +23,11 @@ export function buildMeeting(title: string, instant: Date, existingIds: string[]
   return { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
 }
 
-const pad = (value: number) => String(value).padStart(2, '0');
+const padTwoDigits = (value: number) => String(value).padStart(2, '0');
 
 // formats a Date as the value a <input type="date"> expects, in local time
 export function toDateInputValue(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
 }
 
 const DATE_INPUT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -48,11 +48,26 @@ export function withDatePart(value: string, timeSource: Date): Date | null {
 // HH:MM in the browser's local time — a read-only readout next to the date picker,
 // since the time itself is set by scrubbing the rings, not typed
 export function formatLocalTime(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${padTwoDigits(date.getHours())}:${padTwoDigits(date.getMinutes())}`;
 }
 
 // compact label for a duration-picker button: whole hours read as "1h", everything
 // else (including sub-hour amounts) reads as minutes, e.g. 45 -> "45m"
 export function formatDurationLabel(minutes: number): string {
   return minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`;
+}
+
+// "Wed, Jan 1 · 09:45" — the scheduled instant, shown in the post-submit success note
+// so the confirmation states what was actually booked, not just that something was
+export function formatScheduledSummary(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).formatToParts(date);
+  let weekday = '';
+  let month = '';
+  let day = '';
+  for (const part of parts) {
+    if (part.type === 'weekday') weekday = part.value;
+    if (part.type === 'month') month = part.value;
+    if (part.type === 'day') day = part.value;
+  }
+  return `${weekday}, ${month} ${day} · ${formatLocalTime(date)}`;
 }
