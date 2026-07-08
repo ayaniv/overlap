@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
 
@@ -8,63 +10,116 @@ export type ManageLocationsListProps = {
   onRemove: (id: string) => void;
 };
 
+// counts how many of the other rows' current centers sit above `pointerY`,
+// which is exactly the dragged row's target index among them
+function dropIndexFor(pointerY: number, draggedId: string, order: string[], rows: Map<string, HTMLLIElement>): number {
+  let dropIndex = 0;
+  for (const id of order) {
+    if (id === draggedId) continue;
+    const rect = rows.get(id)?.getBoundingClientRect();
+    if (rect && pointerY > rect.top + rect.height / 2) dropIndex++;
+  }
+  return dropIndex;
+}
+
+function withMovedId(order: string[], draggedId: string, dropIndex: number): string[] {
+  const rest = order.filter((id) => id !== draggedId);
+  rest.splice(dropIndex, 0, draggedId);
+  return rest;
+}
+
 // renders below AddLocationForm in the config panel: one row per location
-// currently on the clock (home + every ring), inside->outside. Up/down moves
-// a row toward/away from center; moving a ring into the first slot promotes
-// it to home (mirrors dragging a city into the home slot per the plan).
+// currently on the clock (home + every ring), inside->outside. Drag a row by
+// its grip handle to reorder; the list reorders live as it crosses a
+// neighbor, and dragging a ring past the home slot promotes it to home
+// (mirrors dragging a city into the home slot per the plan).
 export function ManageLocationsList({ locations, onReorder, onRemove }: ManageLocationsListProps) {
-  const move = (index: number, delta: 1 | -1) => {
-    const target = index + delta;
-    if (target < 0 || target >= locations.length) return;
-    const orderedIds = locations.map((location) => location.id);
-    [orderedIds[index], orderedIds[target]] = [orderedIds[target], orderedIds[index]];
-    onReorder(orderedIds);
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
+
+  const originalOrder = locations.map((location) => location.id);
+  const locationsById = new Map(locations.map((location) => [location.id, location]));
+  const displayOrder = liveOrder ?? originalOrder;
+
+  const setRowRef = (id: string) => (el: HTMLLIElement | null) => {
+    if (el) rowRefs.current.set(id, el);
+    else rowRefs.current.delete(id);
+  };
+
+  const handlePointerDown = (id: string) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggedId(id);
+    setLiveOrder(originalOrder);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!draggedId) return;
+    setLiveOrder((current) => {
+      const order = current ?? originalOrder;
+      const dropIndex = dropIndexFor(event.clientY, draggedId, order, rowRefs.current);
+      return withMovedId(order, draggedId, dropIndex);
+    });
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (liveOrder && liveOrder.some((id, index) => id !== originalOrder[index])) {
+      onReorder(liveOrder);
+    }
+    setDraggedId(null);
+    setLiveOrder(null);
   };
 
   return (
     <div className={styles.panel}>
       <div className={styles.heading}>Manage locations</div>
       <ul className={styles.list}>
-        {locations.map((location, index) => (
-          <li key={location.id} className={styles.row}>
-            <span className={styles.swatch} style={{ background: location.color }} aria-hidden="true" />
-            {location.isHome && (
-              <svg className={styles.homeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-label="Home">
-                <path d="M3 11l9-8 9 8" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 10v10h14V10" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-            <span className={styles.label}>{location.label}</span>
-            <button
-              type="button"
-              className={styles.moveButton}
-              aria-label={`Move ${location.label} up`}
-              disabled={index === 0}
-              onClick={() => move(index, -1)}
-            >
-              ▲
-            </button>
-            <button
-              type="button"
-              className={styles.moveButton}
-              aria-label={`Move ${location.label} down`}
-              disabled={index === locations.length - 1}
-              onClick={() => move(index, 1)}
-            >
-              ▼
-            </button>
-            {!location.isHome && (
+        {displayOrder.map((id) => {
+          const location = locationsById.get(id);
+          if (!location) return null;
+          return (
+            <li key={id} ref={setRowRef(id)} className={id === draggedId ? styles.rowDragging : styles.row}>
               <button
                 type="button"
-                className={styles.removeButton}
-                aria-label={`Remove ${location.label}`}
-                onClick={() => onRemove(location.id)}
+                className={styles.dragHandle}
+                aria-label={`Reorder ${location.label}`}
+                onPointerDown={handlePointerDown(id)}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
               >
-                ×
+                <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="3" r="1.4" />
+                  <circle cx="9" cy="3" r="1.4" />
+                  <circle cx="3" cy="8" r="1.4" />
+                  <circle cx="9" cy="8" r="1.4" />
+                  <circle cx="3" cy="13" r="1.4" />
+                  <circle cx="9" cy="13" r="1.4" />
+                </svg>
               </button>
-            )}
-          </li>
-        ))}
+              <span className={styles.swatch} style={{ background: location.color }} aria-hidden="true" />
+              {location.isHome && (
+                <svg className={styles.homeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-label="Home">
+                  <path d="M3 11l9-8 9 8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 10v10h14V10" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              <span className={styles.label}>{location.label}</span>
+              {!location.isHome && (
+                <button
+                  type="button"
+                  className={styles.removeButton}
+                  aria-label={`Remove ${location.label}`}
+                  onClick={() => onRemove(location.id)}
+                >
+                  ×
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
