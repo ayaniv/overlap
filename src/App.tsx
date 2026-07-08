@@ -92,11 +92,11 @@ function App() {
 
   const exitToView = useCallback(() => changeMode('view'), [changeMode]);
 
-  // not memoized: `now` ticks every second already, and unlike WorldClock's
-  // effectiveNow, nothing downstream (ScheduleForm isn't memoized, and only ever
-  // reads this via .toISOString()/formatLocalTime()/etc., never as a useMemo dep)
-  // depends on this being a stable object reference
-  const previewInstant = new Date(now.getTime() + scrubOffsetMs);
+  // memoized (mirrors WorldClock's effectiveNow) so matchedMeeting below only
+  // recomputes when the previewed instant actually moves, not on every render —
+  // App re-renders ~1x/sec via `now`'s own tick (useNow), and without this,
+  // `new Date(...)` would produce a fresh object every time, defeating that memo
+  const previewInstant = useMemo(() => new Date(now.getTime() + scrubOffsetMs), [now, scrubOffsetMs]);
 
   const handleChangeInstant = useCallback(
     (instant: Date) => setOffsetMs(instant.getTime() - now.getTime()),
@@ -106,10 +106,14 @@ function App() {
   // surfaces an already-scheduled meeting in the schedule panel when the preview
   // lands on it — gated the same way meeting dots are (isGoogleCalendarConnected):
   // `meetings` rides along in the shareable config, so a share-link viewer who's
-  // never signed in on this device shouldn't see the owner's meeting details either
-  const matchedMeeting = isConnectedToGoogleCalendar
-    ? findMeetingAtInstant(config.meetings, previewInstant, MEETING_MATCH_TOLERANCE_MS)
-    : undefined;
+  // never signed in on this device shouldn't see the owner's meeting details either.
+  // Memoized because this otherwise re-scans config.meetings on every render,
+  // including the once-a-second clock tick.
+  const matchedMeeting = useMemo(
+    () =>
+      isConnectedToGoogleCalendar ? findMeetingAtInstant(config.meetings, previewInstant, MEETING_MATCH_TOLERANCE_MS) : undefined,
+    [isConnectedToGoogleCalendar, config.meetings, previewInstant],
+  );
 
   const handleDeleteMeeting = useCallback((id: string) => removeMeeting(id), [removeMeeting]);
 

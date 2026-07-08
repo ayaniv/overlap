@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
+import type { ClockConfig } from './clock/types';
 
 // useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read
 // window.matchMedia, which jsdom doesn't implement; `portrait` lets individual
@@ -127,5 +129,69 @@ describe('App — scrubbing auto-opens the schedule panel only outside portrait'
 
     const titleInput = screen.getByLabelText('Meeting title') as HTMLInputElement;
     expect(titleInput.closest('fieldset')?.disabled).toBe(false);
+  });
+});
+
+// matchedMeeting is computed via useMemo (App.tsx) keyed on the previewed instant —
+// these exercise that it still recomputes correctly as the scrub preview moves,
+// rather than getting stuck on a stale value (the main risk a bad memo dependency
+// list would introduce).
+describe('App — matchedMeeting reflects an already-scheduled meeting as the scrub preview moves', () => {
+  function seedConfigWithMeeting(startISO: string): void {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      meetings: [{ id: 'm1', title: 'Design sync', startISO }],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+  }
+
+  beforeEach(() => {
+    window.localStorage.setItem('overlap:google-connected:v1', 'true');
+  });
+
+  it('surfaces the meeting once the preview lands within the match tolerance', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
+    const user = userEvent.setup();
+    render(<App />);
+
+    const slider = screen.getByRole('slider');
+    slider.focus();
+    for (let step = 0; step < 3; step += 1) {
+      await user.keyboard('{ArrowUp}');
+    }
+
+    expect(screen.getByText('Design sync')).toBeTruthy();
+  });
+
+  it('stops surfacing the meeting once scrubbed back out of the match tolerance', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
+    const user = userEvent.setup();
+    render(<App />);
+
+    const slider = screen.getByRole('slider');
+    slider.focus();
+    for (let step = 0; step < 3; step += 1) {
+      await user.keyboard('{ArrowUp}');
+    }
+    expect(screen.getByText('Design sync')).toBeTruthy();
+
+    await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
+
+    expect(screen.queryByText('Design sync')).toBeNull();
+  });
+
+  it('does not surface the meeting when this browser has never connected to Google Calendar', async () => {
+    window.localStorage.removeItem('overlap:google-connected:v1');
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
+    const user = userEvent.setup();
+    render(<App />);
+
+    const slider = screen.getByRole('slider');
+    slider.focus();
+    for (let step = 0; step < 3; step += 1) {
+      await user.keyboard('{ArrowUp}');
+    }
+
+    expect(screen.queryByText('Design sync')).toBeNull();
   });
 });

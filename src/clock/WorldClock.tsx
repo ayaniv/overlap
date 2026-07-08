@@ -46,6 +46,9 @@ const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
+// clarifies what the colored ring segments mean — otherwise nothing on
+// screen ties "colored arc" to "that location's local working hours"
+const RING_COLOR_LEGEND_TEXT = '• In colors — local working hours';
 const LABEL_DOT_GAP = 18;
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
 // used only as the ARIA slider's advertised range, since the underlying offset itself
@@ -416,10 +419,11 @@ export function WorldClock({
           />
           {statusText}
         </div>
+        <div className={styles.legendText}>{RING_COLOR_LEGEND_TEXT}</div>
       </div>
 
       <p className={styles.srOnly} role="status">
-        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
+        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}. {RING_COLOR_LEGEND_TEXT}.
       </p>
     </section>
   );

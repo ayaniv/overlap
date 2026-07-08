@@ -175,6 +175,10 @@
   color: #d6d9de;
 }
 
+.legendText {
+  color: #7b808a;
+}
+
 .statusDot {
   width: 8px;
   height: 8px;
@@ -197,10 +201,12 @@
    centered in the viewport (the stage's default flex centering) with the
    widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
 @media (orientation: portrait) {
-  /* the top context copy and bottom status row are desktop-only chrome; on a
-     narrow portrait screen we drop them so the clock itself can dominate (M5) */
-  .context,
-  .statusRow {
+  /* the top-left context copy is desktop-only chrome; on a narrow portrait
+     screen we drop it so the clock itself can dominate (M5). The bottom
+     status row stays (reflowed below) — it's the only place identifying
+     each location's working-hours state, and hiding it entirely left phone
+     users with no way to see it (M8). */
+  .context {
     display: none;
   }
 
@@ -211,5 +217,24 @@
   .modePanel {
     top: 60px;
     right: 16px;
+  }
+
+  .statusRow {
+    bottom: 20px;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* the ambient idle-fade (data-chrome-hidden) is a deliberate desktop
+     "wall display" affordance backed by continuous mouse movement; on
+     mobile there's no equivalent passive activity signal, so the same fade
+     reads as the status row randomly disappearing rather than an ambient
+     effect. Keep it persistently visible on portrait/mobile instead (M8). */
+  .stage[data-chrome-hidden] .statusRow {
+    opacity: 1;
   }
 }
