@@ -1,0 +1,29 @@
+.toast {
+  position: absolute;
+  top: 84px;
+  right: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.92);
+  color: #f5f6f8;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: toastIn 0.15s ease;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
