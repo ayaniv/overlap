@@ -43,10 +43,12 @@
 }
 
 .iconButtonActive {
-  composes: iconButton;
-  border-color: #38bdf8;
-  color: #f5f6f8;
-  background: rgba(56, 189, 248, 0.12);
+  composes: buttonActive;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  padding: 8px;
 }
 
 /* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
@@ -63,7 +65,8 @@
     font-size: 11px;
   }
 
-  .iconButton {
+  .iconButton,
+  .iconButtonActive {
     width: 28px;
     padding: 6px;
   }

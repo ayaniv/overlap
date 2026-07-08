@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
 
@@ -9,7 +10,10 @@ export type ControlClusterProps = {
 
 // top-right entry points for edit/schedule modes + share; the mode panel and
 // share behavior are wired up by the caller behind these same callbacks
-export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
+//
+// memoized because it doesn't receive `now`: without this it re-renders every
+// second along with WorldClock's once-a-second tick, for no visual benefit
+export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
 
   return (
@@ -29,11 +33,18 @@ export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps
       </button>
       <button
         type="button"
-        className={mode === 'schedule' ? styles.buttonActive : styles.button}
+        className={mode === 'schedule' ? styles.iconButtonActive : styles.iconButton}
         aria-pressed={mode === 'schedule'}
         onClick={() => toggleMode('schedule')}
+        aria-label="Schedule"
+        title="Schedule"
       >
-        Schedule
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
       </button>
       <button type="button" className={styles.iconButton} onClick={onShare} aria-label="Share" title="Share">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -44,4 +55,4 @@ export function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps
       </button>
     </div>
   );
-}
+});

@@ -4,16 +4,23 @@ import {
   angleFromCenterOffset,
   bezelBaseRadius,
   bezelTicks,
+  DEGREES_PER_HOUR,
   directionChevrons,
   handAngle,
   hexToRgba,
+  labelArcHalfLength,
   meetingAngle,
   offsetMsFromAngle,
   outermostRingRadius,
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
-  strikeTopRadius,
+  sweepHandDotRadius,
+  sweepHandInnerRadius,
+  sweepHandOuterRadius,
+  topMarkerInnerRadius,
+  topMarkerOuterRadius,
+  topMarkerPoints,
 } from './geometry';
 
 describe('pointOnCircle', () => {
@@ -53,7 +60,7 @@ describe('ringRadius', () => {
   });
 });
 
-describe('outermostRingRadius / bezelBaseRadius / strikeTopRadius', () => {
+describe('outermostRingRadius / bezelBaseRadius / topMarkerOuterRadius', () => {
   it('track the outermost ring radius as it grows', () => {
     expect(outermostRingRadius(5)).toBe(392);
     expect(outermostRingRadius(6)).toBe(450);
@@ -61,11 +68,25 @@ describe('outermostRingRadius / bezelBaseRadius / strikeTopRadius', () => {
 
   it('sit at a fixed margin beyond the outermost ring', () => {
     expect(bezelBaseRadius(5)).toBe(392 + 54);
-    expect(strikeTopRadius(5)).toBe(392 + 54 + 10);
+    expect(topMarkerOuterRadius(5)).toBe(392 + 54 + 20);
   });
 
   it('shrink back down when there are fewer rings', () => {
     expect(bezelBaseRadius(2)).toBeLessThan(bezelBaseRadius(5));
+    expect(topMarkerOuterRadius(2)).toBeLessThan(topMarkerOuterRadius(5));
+  });
+});
+
+describe('sweep hand radii', () => {
+  it('sit at a fixed margin around the bezel, same as the old fixed-radius hand', () => {
+    expect(sweepHandInnerRadius(5)).toBe(392 + 54 - 8);
+    expect(sweepHandOuterRadius(5)).toBe(392 + 54 + 14);
+    expect(sweepHandDotRadius(5)).toBe(392 + 54 + 16);
+  });
+
+  it('track the bezel as the ring stack grows or shrinks, instead of floating at a fixed radius', () => {
+    expect(sweepHandOuterRadius(6)).toBeGreaterThan(sweepHandOuterRadius(5));
+    expect(sweepHandOuterRadius(2)).toBeLessThan(sweepHandOuterRadius(5));
   });
 });
 
@@ -112,6 +133,41 @@ describe('directionChevrons', () => {
   });
 });
 
+describe('labelArcHalfLength', () => {
+  it('scales linearly with radius, so a fixed pixel gap around the dot stays constant across rings', () => {
+    expect(labelArcHalfLength(100)).toBeCloseTo(109.96, 1);
+    expect(labelArcHalfLength(200)).toBeCloseTo(2 * labelArcHalfLength(100));
+  });
+});
+
+describe('topMarkerPoints', () => {
+  it('is a triangle centered on x=500 with its apex pointing inward (toward center)', () => {
+    const points = topMarkerPoints(5).split(' ').map((pair) => pair.split(',').map(Number));
+    expect(points).toHaveLength(3);
+    const [left, right, apex] = points;
+    expect(left).toEqual([488, 34]);
+    expect(right).toEqual([512, 34]);
+    expect(apex[0]).toBe(500);
+    expect(apex[1]).toBeCloseTo(54.78, 1);
+    expect(apex[1]).toBeGreaterThan(left[1]);
+  });
+
+  it('is equilateral: all three sides have the same length', () => {
+    const [left, right, apex] = topMarkerPoints(5)
+      .split(' ')
+      .map((pair) => pair.split(',').map(Number));
+    const distance = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const base = distance(left, right);
+    expect(distance(left, apex)).toBeCloseTo(base, 0);
+    expect(distance(right, apex)).toBeCloseTo(base, 0);
+  });
+
+  it('grows outward with the ring stack, same as the bezel it sits just outside of', () => {
+    expect(topMarkerOuterRadius(6)).toBeGreaterThan(topMarkerOuterRadius(5));
+    expect(topMarkerInnerRadius(6)).toBeGreaterThan(topMarkerInnerRadius(5));
+  });
+});
+
 describe('hexToRgba', () => {
   it('converts a hex color to rgba', () => {
     expect(hexToRgba('#34D399', 0.7)).toBe('rgba(52, 211, 153, 0.7)');
@@ -125,13 +181,20 @@ describe('meetingAngle', () => {
     expect(meetingAngle(now, now)).toBe(0);
   });
 
-  it('is positive 15°/hour for a future meeting', () => {
-    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(15);
-    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(60);
+  it('is negative 15°/hour for a future meeting — hasn\'t swept up to NOW yet', () => {
+    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(-15);
+    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(-60);
   });
 
-  it('is negative 15°/hour for a past meeting', () => {
-    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(-15);
+  it('is positive 15°/hour for a past meeting — already swept past NOW', () => {
+    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(15);
+  });
+
+  it('matches the sign convention of workingHoursArcPath (currentFrac - eventFrac)', () => {
+    // a boundary 3 hours in the future (e.g. workEnd relative to now) gets the same
+    // negative angle as a meeting 3 hours in the future
+    const threeHoursFuture = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    expect(meetingAngle(threeHoursFuture, now)).toBe((0 - 3) * DEGREES_PER_HOUR);
   });
 });
 

@@ -9,11 +9,33 @@ export const DEFAULT_MEETING_DURATION_MINUTES = 30;
 // Services' token-client popup flow directly from the browser.
 export function getGoogleClientId(): string | undefined {
   const id = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  return typeof id === 'string' && id.trim() ? id : undefined;
+  return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 }
 
 export function isGoogleCalendarConfigured(): boolean {
   return Boolean(getGoogleClientId());
+}
+
+const CONNECTED_STORAGE_KEY = 'overlap:google-connected:v1';
+
+// distinct from isGoogleCalendarConfigured (a build-time env var): this is a runtime
+// "has this browser signed in before" flag, so a meeting synced into a share link's
+// config doesn't leak its dot to a viewer who never authenticated on their own device
+export function isGoogleCalendarConnected(): boolean {
+  try {
+    return window.localStorage.getItem(CONNECTED_STORAGE_KEY) === 'true';
+  } catch (err) {
+    console.error('overlap: failed to read Google Calendar connection state', err);
+    return false;
+  }
+}
+
+function markGoogleCalendarConnected(): void {
+  try {
+    window.localStorage.setItem(CONNECTED_STORAGE_KEY, 'true');
+  } catch (err) {
+    console.error('overlap: failed to persist Google Calendar connection state', err);
+  }
 }
 
 export type EventPayload = {
@@ -101,6 +123,7 @@ export function requestAccessToken(clientId: string, oauth2: GoogleOAuth2): Prom
           reject(err);
           return;
         }
+        markGoogleCalendarConnected();
         resolve(response.access_token);
       },
       error_callback: (error) => {
@@ -118,9 +141,10 @@ export async function createCalendarEvent(
   accessToken: string,
   title: string,
   startISO: string,
+  durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
-  const payload = buildEventPayload(title, startISO);
+  const payload = buildEventPayload(title, startISO, durationMinutes);
   const response = await fetchImpl(EVENTS_ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -135,12 +159,16 @@ export async function createCalendarEvent(
 
 // orchestrates sign-in + event creation; every step logs on failure, and this rethrows
 // so the schedule UI can show an inline error without duplicating the message
-export async function scheduleMeetingOnGoogleCalendar(title: string, startISO: string): Promise<void> {
+export async function scheduleMeetingOnGoogleCalendar(
+  title: string,
+  startISO: string,
+  durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
+): Promise<void> {
   const clientId = getGoogleClientId();
   if (!clientId) {
     throw new Error('overlap: Google Calendar is not configured (missing VITE_GOOGLE_CLIENT_ID)');
   }
   const oauth2 = await loadGoogleIdentityServices();
   const accessToken = await requestAccessToken(clientId, oauth2);
-  await createCalendarEvent(accessToken, title, startISO);
+  await createCalendarEvent(accessToken, title, startISO, durationMinutes);
 }
