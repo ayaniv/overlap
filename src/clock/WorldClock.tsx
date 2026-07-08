@@ -30,7 +30,7 @@ import { ManageLocationsList } from './ManageLocationsList';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import styles from './WorldClock.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
@@ -41,12 +41,6 @@ const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
 const MEETING_DOT_COLOR = '#F472B6';
-const REMOVE_BUTTON_RADIUS = 11;
-const REMOVE_BUTTON_CROSS_OFFSET = 4;
-const REMOVE_BUTTON_BG_COLOR = '#1C1F27';
-const REMOVE_BUTTON_BORDER_COLOR = '#565B64';
-const REMOVE_BUTTON_CROSS_COLOR = '#C4C8CF';
-const REMOVE_BUTTON_CROSS_WIDTH = 1.6;
 const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
@@ -193,15 +187,6 @@ export function WorldClock({
   const fadeLineId = `${idPrefix}-fade-line`;
   const fadeLineTopY = topMarkerApexY(totalRings);
 
-  // the remove button is an SVG <g>, not a native <button>, so Enter/Space
-  // need an explicit handler to match native button keyboard behavior
-  const handleRemoveKeyDown = (event: KeyboardEvent<SVGGElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onRemoveLocation(id);
-    }
-  };
-
   const homeTime = getCityTime(effectiveNow, home.timezoneId);
   const homeDateLabel = getCityDateLabel(effectiveNow, home.timezoneId);
 
@@ -256,8 +241,7 @@ export function WorldClock({
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
 
-        {/* only decorative when there's no interactive content (the remove buttons, in edit mode) inside it */}
-        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden={mode !== 'edit'}>
+        <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden="true">
           <defs>
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
               <feGaussianBlur stdDeviation="6" />
@@ -306,61 +290,16 @@ export function WorldClock({
           {/* subtle guide from the triangle down to the center readout, behind all the dots */}
           <line x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER} stroke={`url(#${fadeLineId})`} strokeWidth={1.5} />
 
-          {ringViews.map((ring) => {
-            // in edit mode, non-home rings swap their status dot for a remove
-            // button at the exact same spot (dotPosition is already the
-            // natural gap between the name and the time)
-            if (mode === 'edit' && !ring.location.isHome) {
-              return (
-                <g
-                  key={`remove-${ring.location.id}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Remove ${ring.location.label}`}
-                  className={styles.removeButton}
-                  onClick={() => onRemoveLocation(ring.location.id)}
-                  onKeyDown={(event) => handleRemoveKeyDown(event, ring.location.id)}
-                >
-                  <circle
-                    cx={ring.dotPosition.x.toFixed(2)}
-                    cy={ring.dotPosition.y.toFixed(2)}
-                    r={REMOVE_BUTTON_RADIUS}
-                    fill={REMOVE_BUTTON_BG_COLOR}
-                    stroke={REMOVE_BUTTON_BORDER_COLOR}
-                    strokeWidth={1.5}
-                  />
-                  <line
-                    x1={(ring.dotPosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y1={(ring.dotPosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    x2={(ring.dotPosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y2={(ring.dotPosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    stroke={REMOVE_BUTTON_CROSS_COLOR}
-                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1={(ring.dotPosition.x - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y1={(ring.dotPosition.y + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    x2={(ring.dotPosition.x + REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    y2={(ring.dotPosition.y - REMOVE_BUTTON_CROSS_OFFSET).toFixed(2)}
-                    stroke={REMOVE_BUTTON_CROSS_COLOR}
-                    strokeWidth={REMOVE_BUTTON_CROSS_WIDTH}
-                    strokeLinecap="round"
-                  />
-                </g>
-              );
-            }
-            return (
-              <circle
-                key={`dot-${ring.location.id}`}
-                cx={ring.dotPosition.x.toFixed(2)}
-                cy={ring.dotPosition.y.toFixed(2)}
-                r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
-                fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
-                style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
-              />
-            );
-          })}
+          {ringViews.map((ring) => (
+            <circle
+              key={`dot-${ring.location.id}`}
+              cx={ring.dotPosition.x.toFixed(2)}
+              cy={ring.dotPosition.y.toFixed(2)}
+              r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
+              fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
+              style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
+            />
+          ))}
 
           {meetingDots.map(({ meeting, position }) => (
             <circle
