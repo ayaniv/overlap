@@ -22,7 +22,7 @@ import {
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
-import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
+import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
 import { Toast } from './Toast';
@@ -136,18 +136,23 @@ export function WorldClock({
   // reference frame, not a fixed screen position, so scrubbing sweeps it around
   // exactly like the rest of the dial — it represents the meeting's fixed instant
   // relative to whatever moment the dial is currently previewing
+  // only shows a meeting's dot on the calendar day it actually falls on (home
+  // timezone) — the angle alone repeats every 24h, so without this a meeting a day
+  // (or more) away would otherwise draw right on top of one happening today
   const meetingDots = useMemo(() => {
     const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    const viewedDateKey = getCityDateKey(effectiveNow, home.timezoneId);
     for (const meeting of meetings) {
       const instant = parseMeetingInstant(meeting.startISO);
       if (!instant) {
         console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
         continue;
       }
+      if (getCityDateKey(instant, home.timezoneId) !== viewedDateKey) continue;
       dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
     }
     return dots;
-  }, [meetings, homeRadius, effectiveNow]);
+  }, [meetings, homeRadius, effectiveNow, home.timezoneId]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);

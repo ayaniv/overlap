@@ -187,4 +187,42 @@ describe('WorldClock meeting dot', () => {
     const unscrubbed = pointOnCircle(homeRadius, meetingAngle(new Date(MEETING.startISO), NOW));
     expect(expected.x).not.toBeCloseTo(unscrubbed.x, 1);
   });
+
+  const MEETING_TOMORROW: Meeting = { id: 'meeting-2', title: 'Later', startISO: '2026-01-02T13:00:00.000Z' };
+
+  it('hides the dot when the meeting falls on a different date (home timezone) than the one being viewed', () => {
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING_TOMORROW]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('circle[r="6"]')).toBeNull();
+  });
+
+  it('shows the dot once scrubbed forward onto the meeting\'s date', () => {
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING_TOMORROW]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        previewOffsetMs={24 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    expect(container.querySelector('circle[r="6"]')).toBeTruthy();
+  });
 });

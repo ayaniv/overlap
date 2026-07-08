@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
+import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 
 describe('getCityTime', () => {
   it('reads the correct local hour for a given IANA timezone', () => {
@@ -19,6 +19,18 @@ describe('getCityDateLabel', () => {
   it('formats as "WEEKDAY DD MON" uppercased', () => {
     const label = getCityDateLabel(new Date('2026-07-02T12:00:00.000Z'), 'Asia/Jerusalem');
     expect(label).toBe('THU 02 JUL');
+  });
+});
+
+describe('getCityDateKey', () => {
+  it('formats as YYYY-MM-DD in the given timezone', () => {
+    expect(getCityDateKey(new Date('2026-07-02T12:00:00.000Z'), 'Asia/Jerusalem')).toBe('2026-07-02');
+  });
+
+  it('crosses a day boundary that UTC alone would not', () => {
+    // 23:30 UTC on Jul 1 is already Jul 2 in Asia/Jerusalem (UTC+3 in July)
+    expect(getCityDateKey(new Date('2026-07-01T23:30:00.000Z'), 'Asia/Jerusalem')).toBe('2026-07-02');
+    expect(getCityDateKey(new Date('2026-07-01T23:30:00.000Z'), 'UTC')).toBe('2026-07-01');
   });
 });
 

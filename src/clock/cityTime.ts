@@ -43,6 +43,12 @@ export function getCityDateLabel(date: Date, timeZoneId: string): string {
   return `${weekday} ${day} ${month}`.toUpperCase();
 }
 
+// comparable YYYY-MM-DD key for "same calendar day" checks in a given timezone
+// (en-CA formats as YYYY-MM-DD directly, unlike getCityDateLabel's display string)
+export function getCityDateKey(date: Date, timeZoneId: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timeZoneId, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
 export function isWithinWorkingHours(frac: number, workStart: number, workEnd: number): boolean {
   return frac >= workStart && frac < workEnd;
 }
