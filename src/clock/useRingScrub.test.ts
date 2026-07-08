@@ -100,45 +100,44 @@ describe('useRingScrub', () => {
     expect(result.current.isDragging).toBe(false);
   });
 
-  it('steps by exactly one minute per ArrowRight/ArrowLeft press', () => {
+  function keyEvent(key: string, shiftKey = false, preventDefault = vi.fn()) {
+    return { key, shiftKey, preventDefault } as unknown as Parameters<ReturnType<typeof useRingScrub>['bind']['onKeyDown']>[0];
+  }
+
+  it('steps by exactly one minute per plain ArrowUp/ArrowDown press', () => {
     const { result } = renderHook(() => useRingScrub());
     const preventDefault = vi.fn();
     const oneMinuteMs = MS_PER_HOUR / 60;
 
-    act(() =>
-      result.current.bind.onKeyDown({ key: 'ArrowRight', preventDefault } as unknown as Parameters<
-        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
-      >[0]),
-    );
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowUp', false, preventDefault)));
     expect(result.current.previewOffsetMs).toBe(oneMinuteMs);
 
-    act(() =>
-      result.current.bind.onKeyDown({ key: 'ArrowLeft', preventDefault } as unknown as Parameters<
-        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
-      >[0]),
-    );
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowDown', false, preventDefault)));
     expect(result.current.previewOffsetMs).toBe(0);
     expect(preventDefault).toHaveBeenCalledTimes(2);
   });
 
-  it('steps by exactly one hour per ArrowUp/ArrowDown press', () => {
+  it('steps by exactly one hour per Shift+ArrowUp/ArrowDown press', () => {
     const { result } = renderHook(() => useRingScrub());
     const preventDefault = vi.fn();
 
-    act(() =>
-      result.current.bind.onKeyDown({ key: 'ArrowUp', preventDefault } as unknown as Parameters<
-        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
-      >[0]),
-    );
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowUp', true, preventDefault)));
     expect(result.current.previewOffsetMs).toBe(MS_PER_HOUR);
 
-    act(() =>
-      result.current.bind.onKeyDown({ key: 'ArrowDown', preventDefault } as unknown as Parameters<
-        ReturnType<typeof useRingScrub>['bind']['onKeyDown']
-      >[0]),
-    );
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowDown', true, preventDefault)));
     expect(result.current.previewOffsetMs).toBe(0);
     expect(preventDefault).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores ArrowLeft/ArrowRight — only Up/Down (with optional Shift) scrub via keyboard', () => {
+    const { result } = renderHook(() => useRingScrub());
+    const preventDefault = vi.fn();
+
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowRight', false, preventDefault)));
+    act(() => result.current.bind.onKeyDown(keyEvent('ArrowLeft', false, preventDefault)));
+
+    expect(result.current.previewOffsetMs).toBe(0);
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 
   it('reset() clears the offset back to zero', () => {

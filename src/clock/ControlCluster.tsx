@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { CloseIcon } from './icons/CloseIcon';
 import { CogwheelIcon } from './icons/CogwheelIcon';
 import { MenuIcon } from './icons/MenuIcon';
@@ -11,6 +11,11 @@ export type ControlClusterProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
+  // controlled rather than local state: starting a scrub (App.tsx) forces this
+  // open even if the user never clicked the toggle, so the newly-active Schedule
+  // button is visible instead of hidden behind a still-collapsed menu
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 };
 
 // top-right entry points for edit/schedule modes + share; the mode panel and
@@ -28,8 +33,7 @@ export type ControlClusterProps = {
 //
 // memoized because it doesn't receive `now`: without this it re-renders every
 // second along with WorldClock's once-a-second tick, for no visual benefit
-export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare }: ControlClusterProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare, isExpanded, onExpandedChange }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
   const actionTabIndex = isExpanded ? 0 : -1;
 
@@ -37,11 +41,9 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
   // Schedule) is currently open — collapsing the entry points but leaving a
   // panel open behind them would be a dead end with no visible way back
   const handleToggleClick = () => {
-    setIsExpanded((wasExpanded) => {
-      const isNowExpanded = !wasExpanded;
-      if (!isNowExpanded) onSetMode('view');
-      return isNowExpanded;
-    });
+    const isNowExpanded = !isExpanded;
+    onExpandedChange(isNowExpanded);
+    if (!isNowExpanded) onSetMode('view');
   };
 
   return (

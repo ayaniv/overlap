@@ -31,7 +31,7 @@ afterEach(() => {
 async function scrubForward(user: ReturnType<typeof userEvent.setup>) {
   const slider = screen.getByRole('slider');
   slider.focus();
-  await user.keyboard('{ArrowRight}');
+  await user.keyboard('{ArrowUp}');
 }
 
 // ControlCluster starts collapsed behind the hamburger toggle (M7); open it before
@@ -84,6 +84,17 @@ describe('App — scrubbing auto-opens the schedule panel only outside portrait'
     expect(screen.getByText('Schedule meeting')).toBeTruthy();
   });
 
+  it('also expands the ControlCluster menu on the first scrub in landscape, so the active Schedule button is visible', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('false');
+
+    await scrubForward(user);
+
+    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('does not auto-open the schedule panel on scrub in portrait', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
@@ -93,6 +104,16 @@ describe('App — scrubbing auto-opens the schedule panel only outside portrait'
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.queryByText('Schedule meeting')).toBeNull();
+  });
+
+  it('does not auto-open the ControlCluster menu on scrub in portrait either', async () => {
+    stubMatchMedia(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubForward(user);
+
+    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('false');
   });
 
   it('a portrait scrub still counts toward hasScrubbed, so explicitly opening Schedule afterward is not gated', async () => {

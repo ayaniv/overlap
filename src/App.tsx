@@ -39,6 +39,9 @@ function App() {
   // so previewing a time doesn't require opening — or keeping open — the panel first
   const [hasScrubbed, setHasScrubbed] = useState(false);
   const canScrub = mode !== 'edit';
+  // ControlCluster's menu is otherwise self-contained (toggled by its own X
+  // button), but starting a scrub should reveal it too — see markScrubbed below
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   // on the portrait/mobile layout (M5) the clock already dominates the narrow
   // viewport, so scrubbing there stays a quiet "what if" preview only — the
   // schedule panel opens exclusively via an explicit tap on ControlCluster's
@@ -126,6 +129,9 @@ function App() {
     setHasScrubbed(true);
     if (isPortrait) return;
     setMode((current) => (current === 'view' ? 'schedule' : current));
+    // reveal the ControlCluster menu too, in case it's still collapsed — otherwise
+    // the schedule panel opens with no visible (highlighted) Schedule button
+    setIsMenuExpanded(true);
   }, [isPortrait]);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
@@ -173,6 +179,8 @@ function App() {
       mode={mode}
       onSetMode={changeMode}
       onShare={handleShare}
+      isMenuExpanded={isMenuExpanded}
+      onMenuExpandedChange={setIsMenuExpanded}
       onRemoveLocation={removeLocation}
       onReorder={reorder}
       modePanelContent={modePanelContent}

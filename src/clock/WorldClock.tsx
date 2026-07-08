@@ -59,6 +59,8 @@ export type WorldClockProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
+  isMenuExpanded: boolean;
+  onMenuExpandedChange: (isExpanded: boolean) => void;
   onRemoveLocation: (id: string) => void;
   onReorder: (orderedIds: string[]) => void;
   modePanelContent?: ReactNode;
@@ -80,6 +82,8 @@ export function WorldClock({
   mode,
   onSetMode,
   onShare,
+  isMenuExpanded,
+  onMenuExpandedChange,
   onRemoveLocation,
   onReorder,
   modePanelContent,
@@ -208,7 +212,13 @@ export function WorldClock({
         <div className={styles.headline}>See shared hours instantly</div>
       </div>
 
-      <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
+      <ControlCluster
+        mode={mode}
+        onSetMode={onSetMode}
+        onShare={onShare}
+        isExpanded={isMenuExpanded}
+        onExpandedChange={onMenuExpandedChange}
+      />
       {mode === 'edit' && modePanelContent && (
         <div className={styles.modePanel}>
           <ConfigPanel
@@ -235,7 +245,7 @@ export function WorldClock({
         role={isScrubbable ? 'slider' : undefined}
         aria-label={
           isScrubbable
-            ? 'Drag, or use Left/Right for minutes and Up/Down for hours, to preview a different meeting time'
+            ? 'Drag, or use Up/Down (Shift for hours) to preview a different meeting time'
             : undefined
         }
         aria-valuenow={isScrubbable ? clampedScrubValueMs : undefined}
