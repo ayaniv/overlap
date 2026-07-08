@@ -119,3 +119,9 @@ Scrubbing (or landing via keyboard) on a time that already has a meeting should 
 - New `deleteCalendarEvent(accessToken, eventId)` in `googleCalendar.ts` (`DELETE .../calendars/primary/events/{eventId}`), and a `removeMeetingOp(config, id)` in `configOps.ts` mirroring `removeLocationOp`, wired through `useClockConfig.ts`.
 - The banner's delete action needs its own sign-in (same GIS token flow as scheduling — deleting also requires OAuth) before calling `deleteCalendarEvent`, then `removeMeetingOp` on success; a meeting with no `googleEventId` (e.g. one from before this migration, or a share-link config from someone else) should still be removable locally, just skip the Google Calendar call and say so.
 **Deployable:** scrubbing onto a scheduled meeting shows its details in the schedule panel and lets you delete it from both the clock and Google Calendar.
+
+**Status/footer copy fixes**
+Two small copy issues in `WorldClock.tsx`'s footer row:
+- `statusText` (line ~203) reads `"{availableCount} of {totalCount} teams free now"` — change to **"{availableCount} of {totalCount} teams are available now"**.
+- The `legend` div (line ~427) reads `"Home working hours {workLabel} · local"`, implying a single shared working-hours policy — but work hours are per-location (each ring, set in M2's `AddLocationForm`), not global, so this footer is misleading as written. Needs a rework, not just a wording tweak: either drop it, or replace it with something that doesn't imply one shared schedule (e.g. only shown when relevant to what's actually being displayed, or dropped in favor of the per-ring working-hours arcs already visible on the dial itself, which already correctly show each location's own hours).
+**Deployable:** accurate footer copy that doesn't imply a single global working-hours policy.
