@@ -207,6 +207,7 @@ function App() {
         existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
         onDone={exitToView}
+        isPortrait={isPortrait}
       />
     ) : mode === 'schedule' ? (
       <ScheduleForm

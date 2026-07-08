@@ -115,3 +115,56 @@ describe('AddLocationForm', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
+
+// mobile: picking a suggestion adds it right away with default color/hours,
+// skipping the customize-then-confirm step (redundant taps on a screen this
+// size, per feedback) — desktop's flow above is unaffected
+describe('AddLocationForm isPortrait (mobile immediate add)', () => {
+  it('adds the location immediately on picking a suggestion, with default color and hours, no Add tap needed', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} isPortrait />);
+
+    await pickTokyo(user);
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'Tokyo', timezoneId: 'Asia/Tokyo', workStart: DEFAULT_WORK_START, workEnd: DEFAULT_WORK_END }),
+    );
+    expect(PALETTE).toContain(onAdd.mock.calls[0][0].color);
+  });
+
+  it('does not render color swatches, hex input, hours, or the Cancel/Add/Done row', async () => {
+    const user = userEvent.setup();
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={vi.fn()} isPortrait />);
+
+    expect(screen.queryByLabelText('Hex color')).toBeNull();
+    expect(screen.queryByRole('button', { name: `Color ${PALETTE[0]}` })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+
+    await pickTokyo(user);
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
+  });
+
+  it('clears the search box after adding, ready for the next pick', async () => {
+    const user = userEvent.setup();
+    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={vi.fn()} isPortrait />);
+
+    await pickTokyo(user);
+
+    expect((screen.getByLabelText('Search city') as HTMLInputElement).value).toBe('');
+  });
+
+  it('supports adding a second location right after the first, with no manual reset step', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<AddLocationForm existingIds={['tokyo']} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} isPortrait />);
+
+    await user.type(screen.getByLabelText('Search city'), 'London');
+    await user.click(await screen.findByRole('button', { name: /London/ }));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd.mock.calls[0][0].label).toBe('London');
+  });
+});

@@ -159,6 +159,7 @@ export function WorldClock({
       onReorder={onReorder}
       onRemove={onRemoveLocation}
       onClose={() => onSetMode('view')}
+      hideCloseButton={isPortrait}
     />
   );
 

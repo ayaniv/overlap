@@ -134,6 +134,14 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
     expect(onSetMode).toHaveBeenCalledWith('view');
   });
 
+  // the header's own "Done" is the only exit affordance here — ManageLocationsList's
+  // own Close button (still shown on desktop, see below) would be a redundant second
+  it('omits ManageLocationsList\'s own Close button, since the header Done already covers it', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  });
+
   it('still uses the desktop accordion ConfigPanel when isPortrait is false (default)', () => {
     renderClockWithPanel('edit');
 

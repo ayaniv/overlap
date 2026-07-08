@@ -131,4 +131,12 @@ describe('ManageLocationsList', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // mobile's MobileConfigView already has its own persistent "Done" header —
+  // hideCloseButton drops this list's own Close so there's only one way to exit
+  it('omits the Close button when hideCloseButton is set', () => {
+    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={vi.fn()} onClose={vi.fn()} hideCloseButton />);
+
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  });
 });
