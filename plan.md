@@ -37,6 +37,21 @@ Rename dir `~/Dev/time-spinner` → `~/Dev/overlap`; `gh repo rename overlap`; u
 `src/clock/useRingScrub.ts` (pointer drag rotates rings → `previewOffsetMs` at **15°/hour**; `WorldClock` renders `now = liveNow + offset`; arrow-key a11y); date input; `src/clock/googleCalendar.ts` (GIS script, token flow, scope `calendar.events`, `VITE_GOOGLE_CLIENT_ID`, `signIn`→`createEvent` v3 primary cal, 30min default). Fills schedule-mode slot; success → "V added" 3s → auto-return; failure inline; unset client id → gated note. On success `addMeeting` → **marker dot** on home ring at `angle=(meetingInstant−now)h×15°` (rotates toward NOW).
 **Deployable:** schedule meetings (Google-gated) + persistent marker dots.
 
+### M4 addendum — scrub UX overhaul, connection gating, dot correctness
+Landed on `claude/overlap-m4` well beyond the paragraph above, via live user feedback across the build session (still inside the M4 boundary — no M5 work started):
+- Schedule form gated behind having scrubbed the rings at least once this visit (`<fieldset disabled>` + tooltip) — forces a deliberate time pick instead of silently defaulting to "now".
+- "When" changed from `datetime-local` to **date-only** (`type="date"`, `showPicker()` on click); time-of-day is set exclusively by scrubbing and shown as a read-only readout next to the date field.
+- Scrubbing decoupled from schedule mode: drag/arrow-keys work in `'view'` mode too, and starting a scrub **auto-opens** the schedule panel — the gesture itself is the entry point into scheduling, not a prerequisite for it.
+- Added a **duration picker** (15/30/45/60min pills, `ScheduleForm.tsx`), replacing the fixed 30min default; threaded through `createCalendarEvent`/`scheduleMeetingOnGoogleCalendar`.
+- `meetingAngle()` had an inverted sign vs. every other angle on the dial (`workingHoursArcPath`, chevrons); fixed so future meetings sweep clockwise toward NOW like the rest of the dial, matching the "rotates toward NOW" behavior specced above.
+- Meeting dots now read `effectiveNow` (the live scrub-preview instant), not real `now` — so a dot stays visually attached to the ring and sweeps as you scrub, instead of freezing on screen while the ring rotates under it.
+- Meeting dots are only drawn on their actual calendar date (home timezone, via a new `getCityDateKey` in `cityTime.ts`) — the angle alone repeats every 24h, so a meeting a day away used to render on top of today's hour.
+- Meeting dots are gated behind a new runtime `isGoogleCalendarConnected()` flag (`overlap:google-connected:v1` in localStorage, set on a successful OAuth sign-in) — distinct from the build-time `isGoogleCalendarConfigured()` check. `meetings` rides along in the shareable config (URL hash), so without this a share-link viewer who'd never signed in themselves could see the owner's scheduled meetings.
+- `useRingScrub.ts`: fixed a wraparound bug where a continuous multi-turn drag (moving a finger all the way around the ring, not just back-and-forth on one side) snapped the offset backward — `angleDelta` only returns `(-180°,180°]`, and the hook was measuring every move against the drag's fixed *start* angle instead of the previous sample. Also caches `getBoundingClientRect()` once on `pointerdown` instead of every `pointermove`.
+- `role="slider"` on the clock face now sets `aria-valuemin`/`aria-valuemax`/`aria-valuetext` alongside `aria-valuenow` (was previously incomplete for assistive tech).
+- Schedule button is icon-only (calendar SVG), matching the icon-only Share button from the same-day M3 rewrite it merged in.
+**Deployable:** merged into `claude/overlap-m4`; PR #4 (base `main`) open.
+
 ### Addendum (pre-M5) — Clock marker & dial polish
 Unplanned, landed on `claude/overlap-clock-marker` (PR #5) ahead of M5, touching the same `WorldClock.tsx`/`geometry.ts` files M5 will also touch (see merge-conflict hotspots below) — M5 should rebase onto this first.
 - Removed the NOW crossing-line + pill capsule; replaced with a filled **equilateral triangle** marker fixed at 12 o'clock (`topMarkerPoints()` in `geometry.ts`), replacing bezel tick #0.
