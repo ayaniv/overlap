@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
+import { isGoogleCalendarConnected } from './clock/googleCalendar';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
@@ -122,6 +123,7 @@ function App() {
       previewOffsetMs={canScrub ? scrubOffsetMs : 0}
       scrubBind={canScrub ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
+      isGoogleCalendarConnected={isGoogleCalendarConnected()}
     />
   );
 }

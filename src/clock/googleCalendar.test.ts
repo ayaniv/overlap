@@ -4,6 +4,7 @@ import {
   createCalendarEvent,
   getGoogleClientId,
   isGoogleCalendarConfigured,
+  isGoogleCalendarConnected,
   requestAccessToken,
   scheduleMeetingOnGoogleCalendar,
 } from './googleCalendar';
@@ -13,6 +14,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  window.localStorage.clear();
 });
 
 describe('getGoogleClientId / isGoogleCalendarConfigured', () => {
@@ -59,11 +61,19 @@ describe('requestAccessToken', () => {
     await expect(requestAccessToken('client-id', oauth2)).resolves.toBe('tok-123');
   });
 
+  it('marks Google Calendar as connected on a successful sign-in', async () => {
+    expect(isGoogleCalendarConnected()).toBe(false);
+    const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
+    await requestAccessToken('client-id', oauth2);
+    expect(isGoogleCalendarConnected()).toBe(true);
+  });
+
   it('rejects and logs when the token response has no access token', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const oauth2 = fakeOAuth2((callback) => callback({ error: 'access_denied' }));
     await expect(requestAccessToken('client-id', oauth2)).rejects.toThrow('access_denied');
     expect(errorSpy).toHaveBeenCalled();
+    expect(isGoogleCalendarConnected()).toBe(false);
   });
 
   it('rejects and logs when the sign-in popup is closed/blocked', async () => {
@@ -74,6 +84,27 @@ describe('requestAccessToken', () => {
       }),
     };
     await expect(requestAccessToken('client-id', oauth2)).rejects.toThrow('popup_closed');
+    expect(errorSpy).toHaveBeenCalled();
+    expect(isGoogleCalendarConnected()).toBe(false);
+  });
+});
+
+describe('isGoogleCalendarConnected', () => {
+  it('is false when nothing has been persisted yet', () => {
+    expect(isGoogleCalendarConnected()).toBe(false);
+  });
+
+  it('is true once the connected flag has been persisted', () => {
+    window.localStorage.setItem('overlap:google-connected:v1', 'true');
+    expect(isGoogleCalendarConnected()).toBe(true);
+  });
+
+  it('logs and returns false if localStorage throws', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(isGoogleCalendarConnected()).toBe(false);
     expect(errorSpy).toHaveBeenCalled();
   });
 });

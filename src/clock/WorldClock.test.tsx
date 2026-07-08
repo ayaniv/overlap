@@ -148,6 +148,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        isGoogleCalendarConnected
       />,
     );
 
@@ -173,6 +174,7 @@ describe('WorldClock meeting dot', () => {
         onRemoveLocation={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
+        isGoogleCalendarConnected
       />,
     );
 
@@ -201,6 +203,7 @@ describe('WorldClock meeting dot', () => {
         onSetMode={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
+        isGoogleCalendarConnected
       />,
     );
 
@@ -220,9 +223,45 @@ describe('WorldClock meeting dot', () => {
         onRemoveLocation={vi.fn()}
         previewOffsetMs={24 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
+        isGoogleCalendarConnected
       />,
     );
 
     expect(container.querySelector('circle[r="6"]')).toBeTruthy();
+  });
+
+  it('hides every meeting dot when not connected to Google Calendar, even on the right date', () => {
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        isGoogleCalendarConnected={false}
+      />,
+    );
+
+    expect(container.querySelector('circle[r="6"]')).toBeNull();
+  });
+
+  it('defaults to hidden when isGoogleCalendarConnected is not passed at all', () => {
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('circle[r="6"]')).toBeNull();
   });
 });

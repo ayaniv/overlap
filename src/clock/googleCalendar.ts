@@ -16,6 +16,28 @@ export function isGoogleCalendarConfigured(): boolean {
   return Boolean(getGoogleClientId());
 }
 
+const CONNECTED_STORAGE_KEY = 'overlap:google-connected:v1';
+
+// distinct from isGoogleCalendarConfigured (a build-time env var): this is a runtime
+// "has this browser signed in before" flag, so a meeting synced into a share link's
+// config doesn't leak its dot to a viewer who never authenticated on their own device
+export function isGoogleCalendarConnected(): boolean {
+  try {
+    return window.localStorage.getItem(CONNECTED_STORAGE_KEY) === 'true';
+  } catch (err) {
+    console.error('overlap: failed to read Google Calendar connection state', err);
+    return false;
+  }
+}
+
+function markGoogleCalendarConnected(): void {
+  try {
+    window.localStorage.setItem(CONNECTED_STORAGE_KEY, 'true');
+  } catch (err) {
+    console.error('overlap: failed to persist Google Calendar connection state', err);
+  }
+}
+
 export type EventPayload = {
   summary: string;
   start: { dateTime: string };
@@ -101,6 +123,7 @@ export function requestAccessToken(clientId: string, oauth2: GoogleOAuth2): Prom
           reject(err);
           return;
         }
+        markGoogleCalendarConnected();
         resolve(response.access_token);
       },
       error_callback: (error) => {

@@ -71,6 +71,10 @@ export type WorldClockProps = {
   previewOffsetMs?: number;
   scrubBind?: RingScrubBind;
   isScrubbing?: boolean;
+  // gates meeting dots: `meetings` is mirrored into the shareable URL hash, so
+  // without this a share-link viewer who never signed in themselves would still
+  // see the owner's scheduled-meeting dots
+  isGoogleCalendarConnected?: boolean;
 };
 
 export function WorldClock({
@@ -87,6 +91,7 @@ export function WorldClock({
   previewOffsetMs = 0,
   scrubBind,
   isScrubbing = false,
+  isGoogleCalendarConnected = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -141,6 +146,9 @@ export function WorldClock({
   // (or more) away would otherwise draw right on top of one happening today
   const meetingDots = useMemo(() => {
     const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    // `meetings` rides along in the shareable config (URL hash/localStorage), so a
+    // viewer who hasn't signed in on this device shouldn't see the owner's dots
+    if (!isGoogleCalendarConnected) return dots;
     const viewedDateKey = getCityDateKey(effectiveNow, home.timezoneId);
     for (const meeting of meetings) {
       const instant = parseMeetingInstant(meeting.startISO);
@@ -152,7 +160,7 @@ export function WorldClock({
       dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
     }
     return dots;
-  }, [meetings, homeRadius, effectiveNow, home.timezoneId]);
+  }, [meetings, homeRadius, effectiveNow, home.timezoneId, isGoogleCalendarConnected]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
