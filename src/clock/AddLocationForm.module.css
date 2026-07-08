@@ -224,17 +224,50 @@
   background: rgba(56, 189, 248, 0.2);
 }
 
-/* iOS Safari auto-zooms the page on focusing any text input with a computed
-   font-size under 16px (to make the text legible while typing), and is
-   supposed to zoom back out on blur — but doesn't reliably do so here, since
-   these inputs stay mounted/focused across a successful Add (only their value
-   resets), leaving the page stuck zoomed in. Bumping to 16px on mobile stops
-   the zoom from ever triggering, sidestepping the unreliable un-zoom-on-blur
-   behavior entirely. Desktop keeps the tighter sizes above (no zoom risk). */
 @media (orientation: portrait) {
+  /* iOS Safari auto-zooms the page on focusing any text input with a computed
+     font-size under 16px (to make the text legible while typing), and is
+     supposed to zoom back out on blur — but doesn't reliably do so here, since
+     these inputs stay mounted/focused across a successful Add (only their
+     value resets), leaving the page stuck zoomed in. Bumping to 16px on
+     mobile stops the zoom from ever triggering, sidestepping the unreliable
+     un-zoom-on-blur behavior. Desktop keeps the tighter sizes above. */
   .textInput,
   .hexInput,
   .hoursInput {
     font-size: 16px;
+  }
+
+  /* mobile touch targets: no hover state to fall back on there, so these need
+     generous tap areas — Apple's 44px minimum for the pill buttons/color
+     picker, and comfortably larger than the desktop swatches/inputs. */
+  .textInput {
+    padding: 12px 11px;
+  }
+
+  .hexInput {
+    padding: 12px 9px;
+  }
+
+  .hoursInput {
+    padding: 12px 9px;
+  }
+
+  .swatch,
+  .swatchActive {
+    width: 32px;
+    height: 32px;
+  }
+
+  .colorPicker {
+    width: 40px;
+    height: 40px;
+  }
+
+  .doneButton,
+  .addButton {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 15px;
   }
 }

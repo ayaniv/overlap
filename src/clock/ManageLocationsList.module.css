@@ -116,3 +116,33 @@
   border-color: #565b64;
   color: #f5f6f8;
 }
+
+/* mobile touch targets: no hover state to fall back on there, so the drag
+   handle (a continuous drag gesture, most sensitive to a cramped hit area)
+   and remove button need Apple's 44px minimum, not the desktop-density 22px */
+@media (orientation: portrait) {
+  .row {
+    padding: 8px;
+  }
+
+  .dragHandle,
+  .removeButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dragHandle svg {
+    width: 18px;
+    height: 24px;
+  }
+
+  .removeButton {
+    font-size: 20px;
+  }
+
+  .closeButton {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 15px;
+  }
+}

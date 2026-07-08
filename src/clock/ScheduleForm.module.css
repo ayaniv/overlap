@@ -271,12 +271,30 @@
   cursor: default;
 }
 
-/* see AddLocationForm.module.css's identical rule: iOS Safari auto-zooms on
-   focusing a text input under 16px and doesn't reliably zoom back out, so
-   mobile gets the title/date inputs (both .textInput) bumped to 16px to avoid
-   triggering it in the first place */
 @media (orientation: portrait) {
+  /* see AddLocationForm.module.css's identical rule: iOS Safari auto-zooms on
+     focusing a text input under 16px and doesn't reliably zoom back out, so
+     mobile gets the title/date inputs (both .textInput) bumped to 16px to
+     avoid triggering it in the first place */
   .textInput {
+    padding: 12px 11px;
     font-size: 16px;
+  }
+
+  /* mobile touch targets: no hover state to fall back on there, so these need
+     generous tap areas — Apple's 44px minimum, up from the desktop pill's
+     ~30px and the duration row's ~28px */
+  .cancelButton,
+  .addButton,
+  .deleteButton {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 15px;
+  }
+
+  .durationButton,
+  .durationButtonActive {
+    min-height: 44px;
+    font-size: 13px;
   }
 }
