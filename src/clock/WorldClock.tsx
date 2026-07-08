@@ -48,7 +48,7 @@ const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
-const RING_COLOR_LEGEND_TEXT = 'In colors — local working hours';
+const RING_COLOR_LEGEND_TEXT = 'local working hours';
 const LABEL_DOT_GAP = 18;
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
 // used only as the ARIA slider's advertised range, since the underlying offset itself
@@ -76,6 +76,11 @@ export type WorldClockProps = {
   // without this a share-link viewer who never signed in themselves would still
   // see the owner's scheduled-meeting dots
   isGoogleCalendarConnected?: boolean;
+  // mobile scrub action bar (portrait-only, see .scrubActionBar): opens the same
+  // schedule panel desktop auto-opens on scrub start, and resets the preview back
+  // to now, respectively
+  onScheduleFromScrub?: () => void;
+  onBackToNow?: () => void;
 };
 
 export function WorldClock({
@@ -96,6 +101,8 @@ export function WorldClock({
   scrubBind,
   isScrubbing = false,
   isGoogleCalendarConnected = false,
+  onScheduleFromScrub,
+  onBackToNow,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -210,9 +217,19 @@ export function WorldClock({
   // invalid slider for assistive tech
   const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
+  // mobile-only (see .scrubActionBar's default display:none, lifted in the portrait
+  // media query): on desktop `mode` flips to 'schedule' the instant a scrub starts
+  // (App.tsx's markScrubbed), so this is never true there in practice. On portrait
+  // it's the only surfaced affordance while previewing — mode stays 'view' until the
+  // user explicitly taps "Schedule" here (or ControlCluster's icon).
+  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
+
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
-  const statusText = availableCount === 0 ? 'No teams available right now' : `${availableCount} of ${totalCount} teams are available now`;
+  // single short line (was two stacked lines): the colored dot still carries the
+  // available/none signal on its own, so the count + legend can share one line
+  // instead of needing a whole sentence to spell out "none available"
+  const statusText = `${availableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
 
@@ -223,6 +240,7 @@ export function WorldClock({
       className={styles.stage}
       aria-label="World clock — shared working hours across timezones"
       data-chrome-hidden={isChromeHidden || undefined}
+      data-scrub-bar-visible={isScrubActionBarVisible || undefined}
     >
       <div className={styles.context} aria-hidden="true">
         <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
@@ -412,19 +430,31 @@ export function WorldClock({
       </div>
 
       <div className={styles.statusRow} aria-hidden="true">
-        <div className={styles.statusText}>
-          <span
-            className={styles.statusDot}
-            style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
-          />
-          {statusText}
-        </div>
-        <span className={styles.legendBullet} />
-        <div className={styles.legendText}>{RING_COLOR_LEGEND_TEXT}</div>
+        <span
+          className={styles.statusDot}
+          style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
+        />
+        <span className={styles.statusText}>{statusText}</span>
       </div>
 
+      {/* mobile-only (see .scrubActionBar): the desktop equivalent of this pair —
+          Cancel/Schedule — already lives in ScheduleForm's auto-opened panel, since
+          desktop drops straight into schedule mode on scrub start (App.tsx's
+          markScrubbed). Portrait keeps scrubbing a quiet preview instead, so this bar
+          is the only surfaced way to act on it: commit via Schedule, or back out. */}
+      {isScrubActionBarVisible && (
+        <div className={styles.scrubActionBar}>
+          <button type="button" className={styles.scrubBarButton} onClick={onBackToNow}>
+            Back to now
+          </button>
+          <button type="button" className={styles.scrubBarButtonPrimary} onClick={onScheduleFromScrub}>
+            Schedule
+          </button>
+        </div>
+      )}
+
       <p className={styles.srOnly} role="status">
-        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}. {RING_COLOR_LEGEND_TEXT}.
+        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
     </section>
   );

@@ -117,6 +117,24 @@ function App() {
 
   const handleDeleteMeeting = useCallback((id: string) => removeMeeting(id), [removeMeeting]);
 
+  // shared by the desktop auto-open (markScrubbed below) and the mobile scrub
+  // action bar's "Schedule" tap (WorldClock's onScheduleFromScrub) — both just
+  // want the schedule panel open with its trigger visibly active
+  const openScheduleModePanel = useCallback(() => {
+    setMode((current) => (current === 'view' ? 'schedule' : current));
+    // reveal the ControlCluster menu too, in case it's still collapsed — otherwise
+    // the schedule panel opens with no visible (highlighted) Schedule button
+    setIsMenuExpanded(true);
+  }, []);
+
+  // mobile scrub action bar's "Back to now" tap — only rendered while mode is
+  // still 'view' (see WorldClock's isScrubActionBarVisible), so unlike exitToView
+  // there's no panel/mode to unwind here, just the preview offset itself
+  const handleBackToNow = useCallback(() => {
+    resetScrub();
+    setHasScrubbed(false);
+  }, [resetScrub]);
+
   // scrubbing is the entry point into scheduling: starting a drag (or pressing an
   // arrow key) from view mode opens the schedule panel automatically, so the user
   // sees the form fill in live as they pick a time instead of having to scrub first
@@ -131,12 +149,12 @@ function App() {
     // hasScrubbed is set regardless of orientation, so a user who scrubs in portrait
     // and then explicitly opens Schedule doesn't hit the scrub-gate again
     setHasScrubbed(true);
+    // on mobile/portrait, scrubbing stays a quiet "what if" preview (see isPortrait's
+    // doc comment above) — the schedule panel opens only via an explicit tap, either
+    // ControlCluster's Schedule icon or the scrub action bar's "Schedule" button
     if (isPortrait) return;
-    setMode((current) => (current === 'view' ? 'schedule' : current));
-    // reveal the ControlCluster menu too, in case it's still collapsed — otherwise
-    // the schedule panel opens with no visible (highlighted) Schedule button
-    setIsMenuExpanded(true);
-  }, [isPortrait]);
+    openScheduleModePanel();
+  }, [isPortrait, openScheduleModePanel]);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
     () => ({
@@ -193,6 +211,8 @@ function App() {
       scrubBind={canScrub ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
       isGoogleCalendarConnected={isConnectedToGoogleCalendar}
+      onScheduleFromScrub={openScheduleModePanel}
+      onBackToNow={handleBackToNow}
     />
   );
 }

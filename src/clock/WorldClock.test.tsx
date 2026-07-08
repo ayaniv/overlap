@@ -192,15 +192,102 @@ describe('WorldClock copy', () => {
     expect(screen.queryByText(/Home working hours/)).toBeNull();
   });
 
-  it('phrases the status line as "N of M teams are available now"', () => {
-    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT)
-    const matches = screen.getAllByText(/teams are available now|No teams available right now/);
-    expect(matches.length).toBeGreaterThan(0);
+  it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {
+    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT); home (Tel Aviv) is in hours
+    expect(screen.getByText('1/2 teams available • local working hours')).toBeTruthy();
   });
 
-  it('explains what the ring colors mean, alongside the status line', () => {
-    renderClock('view', [SF]);
-    expect(screen.getAllByText(/local working hours/).length).toBeGreaterThan(0);
+  it('recomputes the count from the actual ring list instead of a hardcoded total', () => {
+    const SYDNEY: Location = { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 };
+    renderClock('view', [SF, SYDNEY]); // SF and Sydney are both out of hours at NOW; only home is in hours
+    expect(screen.getByText('1/3 teams available • local working hours')).toBeTruthy();
+  });
+});
+
+// mobile scrub action bar (Fix 2): the only surfaced schedule/cancel affordance while
+// portrait scrubbing keeps mode at 'view' (see App.tsx's markScrubbed) — CSS hides it
+// on desktop (WorldClock.module.css's .scrubActionBar), so these tests exercise the
+// underlying render/wiring logic, independent of viewport.
+describe('WorldClock mobile scrub action bar', () => {
+  function renderScrubbedClock(onScheduleFromScrub = vi.fn(), onBackToNow = vi.fn(), previewOffsetMs = MS_PER_HOUR) {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={previewOffsetMs}
+        scrubBind={SCRUB_BIND}
+        onScheduleFromScrub={onScheduleFromScrub}
+        onBackToNow={onBackToNow}
+      />,
+    );
+    return { onScheduleFromScrub, onBackToNow };
+  }
+
+  // ControlCluster already renders its own icon button with aria-label="Schedule"
+  // (always in the DOM, just visually collapsed), so these queries match by visible
+  // text instead of accessible name to target only the scrub bar's own button
+  it('is absent before any scrub (previewOffsetMs is 0)', () => {
+    renderScrubbedClock(vi.fn(), vi.fn(), 0);
+    expect(screen.queryByText('Schedule')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Back to now' })).toBeNull();
+  });
+
+  it('surfaces Schedule and Back to now once scrubbed, in view mode', () => {
+    renderScrubbedClock();
+    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to now' })).toBeTruthy();
+  });
+
+  it('calls onScheduleFromScrub when Schedule is tapped', async () => {
+    const user = userEvent.setup();
+    const { onScheduleFromScrub } = renderScrubbedClock();
+
+    await user.click(screen.getByText('Schedule'));
+
+    expect(onScheduleFromScrub).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onBackToNow when Back to now is tapped', async () => {
+    const user = userEvent.setup();
+    const { onBackToNow } = renderScrubbedClock();
+
+    await user.click(screen.getByRole('button', { name: 'Back to now' }));
+
+    expect(onBackToNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('is hidden once schedule mode is entered, deferring to ScheduleForm’s own Cancel/Schedule', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="schedule"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+        onScheduleFromScrub={vi.fn()}
+        onBackToNow={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Schedule')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Back to now' })).toBeNull();
   });
 });
 
