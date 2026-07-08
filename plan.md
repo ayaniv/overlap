@@ -138,3 +138,22 @@ Two small copy issues in `WorldClock.tsx`'s footer row:
 - Needs a reactive portrait/orientation read (e.g. a small `useIsPortrait` hook keying off the same `(orientation: portrait)` media query the M5 CSS uses via `matchMedia` + a `change` listener, mirroring `useSweepAngle`'s one-off `matchMedia` read but kept live since orientation can change at runtime) so `markScrubbed` can skip the `setMode` call when portrait.
 - `hasScrubbed` should still be set on every scrub regardless of orientation, so a user who scrubs in portrait and then explicitly opens Schedule doesn't hit the scrub-gate again.
 **Deployable:** scrubbing the clock in portrait no longer auto-opens the schedule panel; it still opens via the Schedule button, and desktop/landscape is unaffected.
+
+### M8 — Bug fixes
+
+**[Mobile] Menu button not clickable**
+On mobile the menu/entry button can't be tapped — probably a **z-index** issue (something is overlaying it and swallowing the tap). Fix so the button is reliably clickable on mobile.
+
+**[Mobile] Bring back the location text**
+On mobile the location text currently **vanishes after ~8s**. Restore it — it conveys useful info and the user is fine keeping it visible (either keep it persistent, or bring it back after the fade). Applies to mobile.
+
+**[UX / color legend] Explain what the ring colors mean**
+Users don't understand what the colored arcs represent. Add a clarifying note to the **bottom status text**, e.g. `• In colors — local working hours` (the colored ring segments = each location's local working hours). Wording can be refined during implementation.
+
+**[Performance] Memoize `findMeetingAtInstant`**
+It re-runs on **every render** (App re-renders ~1×/sec via the clock tick) instead of being memoized — `src/App.tsx:110-111`. Negligible in practice (meetings list is small), but wrap in `useMemo` keyed on `[config.meetings, previewInstant]` to remove the repeated scan.
+
+**[Code quality] `useIsPortrait` double `matchMedia` call (optional)**
+`window.matchMedia(PORTRAIT_QUERY)` is called twice — once in the `useState` lazy initializer and once in the effect — `src/hooks/useIsPortrait.ts:9,12`. Both calls are needed for correctness (initializer avoids a mount-time flash; the effect needs its own handle for the listener), so this is a **minor redundancy, not a bug** — note it as optional cleanup.
+
+**Deployable:** mobile menu button is reliably tappable, mobile location text stays visible/reappears, the bottom status text explains the ring colors, and `findMeetingAtInstant` no longer re-scans on every render.

@@ -175,6 +175,18 @@
   color: #d6d9de;
 }
 
+.legendBullet,
+.legendText {
+  color: #7b808a;
+}
+
+/* purely decorative separator (the whole .statusRow is aria-hidden already)
+   between statusText and legendText — its own empty flex item so it centers
+   in the middle of .statusRow's `gap` rather than hugging one side of it */
+.legendBullet::before {
+  content: '•';
+}
+
 .statusDot {
   width: 8px;
   height: 8px;
@@ -197,10 +209,25 @@
    centered in the viewport (the stage's default flex centering) with the
    widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
 @media (orientation: portrait) {
-  /* the top context copy and bottom status row are desktop-only chrome; on a
-     narrow portrait screen we drop them so the clock itself can dominate (M5) */
-  .context,
-  .statusRow {
+  /* the top-left context copy and bottom status row used to be dropped
+     entirely (display:none) on portrait so the clock could dominate the
+     narrow screen (M5); reflowed instead so phone users can still read them
+     (M8) — matching plan.md's original M5 intent ("top-left context,
+     top-right cluster, bottom status reflow"). The headline (marketing
+     tagline) is dropped here rather than shrunk to fit: unlike the eyebrow
+     label or the status row, it's not functional info, and at any readable
+     size it either wraps into the ring labels below it or runs wide enough
+     to reach the clock's NOW triangle marker at the horizontal center. */
+  .context {
+    top: 20px;
+    left: 16px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+  }
+
+  .headline {
     display: none;
   }
 
@@ -211,5 +238,23 @@
   .modePanel {
     top: 60px;
     right: 16px;
+  }
+
+  .statusRow {
+    bottom: 20px;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* the status row wraps onto its own line here (flex-direction: column
+     above), so the legend's leading "• " separator — meant to split it from
+     the status text on the same line — reads oddly as a standalone line's
+     first character; drop it */
+  .legendBullet {
+    display: none;
   }
 }

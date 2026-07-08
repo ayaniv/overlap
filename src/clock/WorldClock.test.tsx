@@ -197,6 +197,11 @@ describe('WorldClock copy', () => {
     const matches = screen.getAllByText(/teams are available now|No teams available right now/);
     expect(matches.length).toBeGreaterThan(0);
   });
+
+  it('explains what the ring colors mean, alongside the status line', () => {
+    renderClock('view', [SF]);
+    expect(screen.getAllByText(/local working hours/).length).toBeGreaterThan(0);
+  });
 });
 
 const MEETING: Meeting = { id: 'meeting-1', title: 'Sync', startISO: '2026-01-01T13:00:00.000Z' };
