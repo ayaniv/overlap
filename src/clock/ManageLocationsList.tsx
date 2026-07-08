@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import DragHandleIcon from './icons/drag-handle.svg?react';
-import HomeIcon from './icons/home.svg?react';
+import { DragHandleIcon } from './icons/DragHandleIcon';
+import { HomeIcon } from './icons/HomeIcon';
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import ChevronIcon from './icons/chevron.svg?react';
+import { ChevronIcon } from './icons/ChevronIcon';
 import styles from './ConfigPanel.module.css';
 
 export type ConfigPanelProps = {

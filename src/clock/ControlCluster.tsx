@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import CogwheelIcon from './icons/cogwheel.svg?react';
-import ScheduleIcon from './icons/schedule.svg?react';
-import ShareIcon from './icons/share.svg?react';
+import { CogwheelIcon } from './icons/CogwheelIcon';
+import { ScheduleIcon } from './icons/ScheduleIcon';
+import { ShareIcon } from './icons/ShareIcon';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
 
