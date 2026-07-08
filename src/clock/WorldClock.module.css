@@ -39,6 +39,9 @@
   position: relative;
   width: min(86vmin, 700px);
   aspect-ratio: 1 / 1;
+  /* portrait rule below sizes this past the stage's own width; without this
+     the flex row's default shrink-to-fit clamps it back down (M5) */
+  flex-shrink: 0;
 }
 
 .svg {
@@ -190,4 +193,25 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* portrait/mobile: scale the clock up so it dominates the narrow screen,
+   centered in the viewport (the stage's default flex centering) with the
+   widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
+@media (orientation: portrait) {
+  /* the top context copy and bottom status row are desktop-only chrome; on a
+     narrow portrait screen we drop them so the clock itself can dominate (M5) */
+  .context,
+  .statusRow {
+    display: none;
+  }
+
+  .clockContainer {
+    width: min(165vw, 760px);
+  }
+
+  .modePanel {
+    top: 60px;
+    right: 16px;
+  }
 }
