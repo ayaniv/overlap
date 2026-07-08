@@ -55,7 +55,7 @@ const LABEL_DOT_GAP = 18;
 // isn't clamped
 const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
-const pad = (value: number) => String(value).padStart(2, '0');
+const padTwoDigits = (value: number) => String(value).padStart(2, '0');
 
 export type WorldClockProps = {
   now: Date;
@@ -145,21 +145,23 @@ export function WorldClock({
   // timezone) — the angle alone repeats every 24h, so without this a meeting a day
   // (or more) away would otherwise draw right on top of one happening today
   const meetingDots = useMemo(() => {
-    const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    const visibleMeetingDots: Array<{ meeting: Meeting; position: Point }> = [];
     // `meetings` rides along in the shareable config (URL hash/localStorage), so a
     // viewer who hasn't signed in on this device shouldn't see the owner's dots
-    if (!isGoogleCalendarConnected) return dots;
+    if (!isGoogleCalendarConnected) return visibleMeetingDots;
     const viewedDateKey = getCityDateKey(effectiveNow, home.timezoneId);
     for (const meeting of meetings) {
       const instant = parseMeetingInstant(meeting.startISO);
       if (!instant) {
         console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
-        continue;
+      } else {
+        const isOnViewedDate = getCityDateKey(instant, home.timezoneId) === viewedDateKey;
+        if (isOnViewedDate) {
+          visibleMeetingDots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
+        }
       }
-      if (getCityDateKey(instant, home.timezoneId) !== viewedDateKey) continue;
-      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
     }
-    return dots;
+    return visibleMeetingDots;
   }, [meetings, homeRadius, effectiveNow, home.timezoneId, isGoogleCalendarConnected]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
@@ -194,7 +196,7 @@ export function WorldClock({
   const statusText = availableCount === 0 ? 'No teams free right now' : `${availableCount} of ${totalCount} teams free now`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
-  const workLabel = `${pad(home.workStart)}:00–${pad(home.workEnd % 24)}:00`;
+  const workLabel = `${padTwoDigits(home.workStart)}:00–${padTwoDigits(home.workEnd % 24)}:00`;
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
