@@ -127,8 +127,8 @@
 
 /* the row's inline editor (color/hours/set-as-home), revealed by tapping
    .rowToggle — mirrors AddLocationForm's equivalent controls (duplicated
-   rather than shared across CSS modules, matching how ScheduleForm's near-
-   identical button styles are already duplicated rather than shared) */
+   rather than shared across CSS modules, matching this codebase's existing
+   convention of self-contained, per-component CSS modules) */
 .expanded {
   display: flex;
   flex-direction: column;
@@ -271,8 +271,8 @@
 /* mobile touch targets: no hover state to fall back on there, so the drag
    handle (a continuous drag gesture, most sensitive to a cramped hit area)
    and remove button need Apple's 44px minimum, not the desktop-density 22px.
-   Same iOS-zoom-on-focus fix as AddLocationForm/ScheduleForm for the hex/
-   hours inputs (font-size < 16px triggers it). */
+   Same iOS-zoom-on-focus fix as AddLocationForm's inputs for the hex/hours
+   fields here (font-size < 16px triggers it). */
 @media (orientation: portrait) {
   .rowMain {
     padding: 8px;

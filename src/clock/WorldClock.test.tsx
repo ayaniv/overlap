@@ -103,7 +103,7 @@ describe('WorldClock manage-locations list', () => {
   });
 
   it('is not rendered outside edit mode, even with a mode panel present', () => {
-    renderClockWithPanel('schedule');
+    renderClockWithPanel('view');
     expect(screen.queryByRole('listitem')).toBeNull();
   });
 });
@@ -154,12 +154,6 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
     expect(screen.queryByRole('listitem')).toBeNull(); // collapsed by default, behind the accordion
   });
 
-  it('does not affect the schedule panel — modePanelContent renders directly regardless of isPortrait', () => {
-    renderClockWithPanel('schedule', vi.fn(), { isPortrait: true });
-
-    expect(screen.getByText('Form')).toBeTruthy();
-    expect(screen.queryByText('Manage clock')).toBeNull();
-  });
 });
 
 describe('WorldClock scrub slider', () => {
@@ -343,14 +337,14 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
     expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('is hidden once schedule mode is entered, deferring to ScheduleForm’s own Cancel/Schedule', () => {
+  it('is hidden while in edit mode, even with a nonzero preview offset', () => {
     render(
       <WorldClock
         now={NOW}
         home={HOME}
         rings={[SF]}
         meetings={[]}
-        mode="schedule"
+        mode="edit"
         onSetMode={vi.fn()}
         isMenuExpanded={false}
         onMenuExpandedChange={vi.fn()}
@@ -573,7 +567,7 @@ describe('WorldClock ambient idle mode', () => {
         home={HOME}
         rings={[SF]}
         meetings={[]}
-        mode="schedule"
+        mode="edit"
         onSetMode={vi.fn()}
         isMenuExpanded={false}
         onMenuExpandedChange={vi.fn()}

@@ -132,19 +132,25 @@
   padding: 8px;
 }
 
-/* mobile quick-schedule swap (see ControlCluster.tsx's scrubActions branch):
-   replaces the icon menu with two plain-flow buttons instead of the toggle's
-   absolutely-positioned children, so the fixed 34px `.cluster` height (sized
-   for the icon-only menu) needs to expand to fit them here */
+/* quick-schedule swap (see ControlCluster.tsx's scrubActions branch): replaces
+   the icon menu with plain-flow buttons instead of the toggle's absolutely-
+   positioned children, so the fixed 34px `.cluster` height (sized for the
+   icon-only menu) needs to expand to fit them here. Wraps (rather than
+   growing indefinitely wide) when the optional third "Remove Meeting" button
+   is present, since this is right-anchored with no left boundary of its own. */
 .cluster[data-scrub-mode] {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   height: auto;
+  max-width: 220px;
 }
 
 .scrubCancelButton,
-.scrubScheduleButton {
+.scrubScheduleButton,
+.scrubRemoveMeetingButton {
   padding: 0 18px;
   min-height: 34px;
   border-radius: 999px;
@@ -177,8 +183,19 @@
   background: rgba(56, 189, 248, 0.24);
 }
 
+.scrubRemoveMeetingButton {
+  border: 1px solid #fb7185;
+  background: rgba(251, 113, 133, 0.12);
+  color: #f5f6f8;
+}
+
+.scrubRemoveMeetingButton:hover {
+  background: rgba(251, 113, 133, 0.2);
+}
+
 .scrubCancelButton:disabled,
-.scrubScheduleButton:disabled {
+.scrubScheduleButton:disabled,
+.scrubRemoveMeetingButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -217,8 +234,13 @@
     height: 20px;
   }
 
+  .cluster[data-scrub-mode] {
+    max-width: 260px;
+  }
+
   .scrubCancelButton,
-  .scrubScheduleButton {
+  .scrubScheduleButton,
+  .scrubRemoveMeetingButton {
     min-height: 48px;
     padding: 0 20px;
     font-size: 15px;

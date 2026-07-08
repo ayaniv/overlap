@@ -79,13 +79,18 @@ export type WorldClockProps = {
   // without this a share-link viewer who never signed in themselves would still
   // see the owner's scheduled-meeting dots
   isGoogleCalendarConnected?: boolean;
-  // mobile quick-schedule (portrait-only, see isScrubActionBarVisible): swaps
-  // ControlCluster's icon menu for "Cancel"/"Schedule" while previewing a
-  // scrub. Schedule fires immediately (no form) at the previewed time;
+  // quick-schedule (see isScrubActionBarVisible): swaps ControlCluster's icon
+  // menu for "Cancel"/"Schedule" while previewing a scrub, on any platform.
+  // Schedule fires immediately (no form) at the previewed time;
   // isQuickScheduling reflects the in-flight Google Calendar request.
   onQuickSchedule?: () => void;
   onBackToNow?: () => void;
   isQuickScheduling?: boolean;
+  // when the scrub preview lands on an already-scheduled meeting, ControlCluster
+  // shows a third "Remove Meeting" button alongside Cancel/Schedule
+  hasMatchedMeeting?: boolean;
+  onRemoveMeeting?: () => void;
+  isRemovingMeeting?: boolean;
   // Config mode on mobile renders a full-screen MobileConfigView instead of the
   // desktop floating ConfigPanel (see the modePanel block below) — the old panel
   // had no scroll container, so the keyboard could push its Add/Manage-locations
@@ -116,6 +121,9 @@ export function WorldClock({
   onQuickSchedule,
   onBackToNow,
   isQuickScheduling = false,
+  hasMatchedMeeting = false,
+  onRemoveMeeting,
+  isRemovingMeeting = false,
   isPortrait = false,
 }: WorldClockProps) {
   const idPrefix = useId();
@@ -244,10 +252,10 @@ export function WorldClock({
   // invalid slider for assistive tech
   const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
-  // mobile-only in practice: on desktop `mode` flips to 'schedule' the instant a
-  // scrub starts (App.tsx's markScrubbed), so this is never true there. On
-  // portrait, scrubbing stays a quiet preview instead — this swaps ControlCluster's
-  // icon menu for "Cancel"/"Schedule" for as long as that preview is live.
+  // true on any platform for as long as a scrub preview is live — scheduling
+  // has no separate mode/form to switch into anymore, so `mode` just stays
+  // 'view' throughout. Swaps ControlCluster's icon menu for Cancel/Schedule
+  // (and, if the preview lands on an existing meeting, Remove Meeting too).
   const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
@@ -281,7 +289,14 @@ export function WorldClock({
           onExpandedChange={onMenuExpandedChange}
           scrubActions={
             isScrubActionBarVisible
-              ? { onSchedule: () => onQuickSchedule?.(), onCancel: () => onBackToNow?.(), isScheduling: isQuickScheduling }
+              ? {
+                  onSchedule: () => onQuickSchedule?.(),
+                  onCancel: () => onBackToNow?.(),
+                  isScheduling: isQuickScheduling,
+                  matchedMeeting: hasMatchedMeeting
+                    ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting }
+                    : undefined,
+                }
               : undefined
           }
         />
@@ -299,7 +314,6 @@ export function WorldClock({
             <ConfigPanel addLocationContent={modePanelContent} manageLocationsContent={manageLocationsElement} />
           </div>
         ))}
-      {mode === 'schedule' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
       <Toast message={toastMessage} />
 
       <div

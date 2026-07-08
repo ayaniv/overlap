@@ -44,7 +44,6 @@ describe('ControlCluster collapse/expand', () => {
     const toggle = screen.getByRole('button', { name: 'Menu' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByRole('button', { name: 'Config' }).getAttribute('tabIndex')).toBe('-1');
-    expect(screen.getByRole('button', { name: 'Schedule' }).getAttribute('tabIndex')).toBe('-1');
     expect(screen.getByRole('button', { name: 'Share' }).getAttribute('tabIndex')).toBe('-1');
   });
 
@@ -57,7 +56,6 @@ describe('ControlCluster collapse/expand', () => {
     const toggle = screen.getByRole('button', { name: 'Menu' });
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('button', { name: 'Config' }).getAttribute('tabIndex')).toBe('0');
-    expect(screen.getByRole('button', { name: 'Schedule' }).getAttribute('tabIndex')).toBe('0');
     expect(screen.getByRole('button', { name: 'Share' }).getAttribute('tabIndex')).toBe('0');
   });
 
@@ -74,7 +72,7 @@ describe('ControlCluster collapse/expand', () => {
     expect(screen.getByRole('button', { name: 'Config' }).getAttribute('tabIndex')).toBe('-1');
   });
 
-  it('Config/Schedule/Share still invoke their callbacks once expanded', async () => {
+  it('Config/Share still invoke their callbacks once expanded', async () => {
     const user = userEvent.setup();
     const { onSetMode, onShare } = renderCluster();
 
@@ -82,11 +80,13 @@ describe('ControlCluster collapse/expand', () => {
     await user.click(screen.getByRole('button', { name: 'Config' }));
     expect(onSetMode).toHaveBeenCalledWith('edit');
 
-    await user.click(screen.getByRole('button', { name: 'Schedule' }));
-    expect(onSetMode).toHaveBeenCalledWith('schedule');
-
     await user.click(screen.getByRole('button', { name: 'Share' }));
     expect(onShare).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no Schedule icon — scheduling only happens via the scrubActions swap', () => {
+    renderCluster();
+    expect(screen.queryByRole('button', { name: 'Schedule' })).toBeNull();
   });
 
   it('toggling Config off again (already active) returns to view mode', async () => {
@@ -101,18 +101,18 @@ describe('ControlCluster collapse/expand', () => {
 
   it('closing the cluster (X) dismisses whichever panel is open, not just the button row', async () => {
     const user = userEvent.setup();
-    const { onSetMode } = renderCluster({ mode: 'schedule' });
+    const { onSetMode } = renderCluster({ mode: 'edit' });
     const toggle = screen.getByRole('button', { name: 'Menu' });
 
     await user.click(toggle); // expand
-    await user.click(toggle); // collapse — should also close the schedule panel
+    await user.click(toggle); // collapse — should also close the Config panel
 
     expect(onSetMode).toHaveBeenCalledWith('view');
   });
 
   it('opening the cluster does not itself change the mode', async () => {
     const user = userEvent.setup();
-    const { onSetMode } = renderCluster({ mode: 'schedule' });
+    const { onSetMode } = renderCluster({ mode: 'edit' });
 
     await user.click(screen.getByRole('button', { name: 'Menu' }));
 
@@ -141,11 +141,13 @@ describe('ControlCluster isExpanded (controlled prop)', () => {
   });
 });
 
-// mobile quick-schedule (App.tsx passes this while portrait-scrubbing, via
-// WorldClock's isScrubActionBarVisible): entirely replaces the Config/Schedule/
-// Share icon menu + hamburger toggle with two plain buttons
+// quick-schedule (App.tsx passes this while scrubbing, via WorldClock's
+// isScrubActionBarVisible, on any platform): entirely replaces the Config/
+// Share icon menu + hamburger toggle with Cancel/Schedule(/Remove Meeting)
 describe('ControlCluster scrubActions', () => {
-  function renderClusterWithScrubActions(overrides: Partial<{ isScheduling: boolean }> = {}) {
+  function renderClusterWithScrubActions(
+    overrides: Partial<{ isScheduling: boolean; matchedMeeting: { onRemove: () => void; isRemoving: boolean } }> = {},
+  ) {
     const onSchedule = vi.fn();
     const onCancel = vi.fn();
     render(
@@ -204,5 +206,37 @@ describe('ControlCluster scrubActions', () => {
     await user.click(screen.getByText('Scheduling…'));
 
     expect(onSchedule).not.toHaveBeenCalled();
+  });
+
+  it('has no Remove Meeting button when matchedMeeting is not set', () => {
+    renderClusterWithScrubActions();
+    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+  });
+
+  it('shows a Remove Meeting button alongside Cancel/Schedule when matchedMeeting is set', () => {
+    renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: false } });
+
+    expect(screen.getByText('Cancel')).toBeTruthy();
+    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+  });
+
+  it('calls matchedMeeting.onRemove when Remove Meeting is tapped', async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    renderClusterWithScrubActions({ matchedMeeting: { onRemove, isRemoving: false } });
+
+    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "Removing…" and disables all three buttons while matchedMeeting.isRemoving is true', () => {
+    renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: true } });
+
+    const removeButton = screen.getByText('Removing…') as HTMLButtonElement;
+    expect(removeButton.disabled).toBe(true);
+    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Schedule') as HTMLButtonElement).disabled).toBe(true);
   });
 });

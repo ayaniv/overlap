@@ -8,7 +8,7 @@ import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./clock/googleCalendar')>();
-  return { ...actual, scheduleMeetingOnGoogleCalendar: vi.fn() };
+  return { ...actual, scheduleMeetingOnGoogleCalendar: vi.fn(), deleteMeetingFromGoogleCalendar: vi.fn() };
 });
 
 // useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read
@@ -35,6 +35,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockReset();
+  vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockReset();
 });
 
 async function scrubForward(user: ReturnType<typeof userEvent.setup>) {
@@ -49,78 +50,22 @@ async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Menu' }));
 }
 
-describe('App — leaving schedule mode resets the scrub preview', () => {
-  it('resets the scrub offset after switching to Config mode and back, not just via the form\'s own Cancel', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await scrubForward(user);
-    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-
-    // this path bypasses ScheduleForm's own Cancel entirely — clicking the config
-    // cogwheel directly used to leave the scrub offset stuck, silently reapplied
-    // once back in view mode
-    await openClusterMenu(user);
-    await user.click(screen.getByRole('button', { name: 'Config' }));
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
-  });
-
-  it('resets the scrub offset when the Schedule icon toggles the panel closed', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await scrubForward(user);
-    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-
-    // the ControlCluster's Schedule icon-button, disambiguated from the form's own
-    // "Schedule" submit button (same accessible name) via its title attribute
-    await openClusterMenu(user);
-    await user.click(screen.getByTitle('Schedule'));
-
-    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
-  });
-});
-
-describe('App — scrubbing auto-opens the schedule panel only outside portrait', () => {
-  it('auto-opens the schedule panel on the first scrub in landscape/desktop', async () => {
+// scheduling has no separate mode/form/icon of its own anymore — scrubbing
+// always swaps ControlCluster's Config/Share icon menu for Cancel/Schedule,
+// on any platform (see WorldClock's isScrubActionBarVisible)
+describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any platform', () => {
+  it('swaps to Cancel/Schedule on the first scrub, in landscape/desktop', async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await scrubForward(user);
 
-    expect(screen.getByText('Schedule meeting')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
+    expect(screen.getByText('Cancel')).toBeTruthy();
+    expect(screen.getByText('Schedule')).toBeTruthy();
   });
 
-  it('also expands the ControlCluster menu on the first scrub in landscape, so the active Schedule button is visible', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('false');
-
-    await scrubForward(user);
-
-    expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe('true');
-  });
-
-  it('does not auto-open the schedule panel on scrub in portrait', async () => {
-    stubMatchMedia(true);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await scrubForward(user);
-
-    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-    expect(screen.queryByText('Schedule meeting')).toBeNull();
-  });
-
-  // superseded by ControlCluster's scrubActions swap (see "App — mobile
-  // quick-schedule" below): a portrait scrub no longer leaves the icon menu
-  // collapsed-but-present, it replaces it outright with Cancel/Schedule, so
-  // there's no longer an "explicitly open the still-collapsed menu after
-  // scrubbing" path to gate hasScrubbed against.
-  it('replaces the ControlCluster icon menu with Cancel/Schedule on scrub in portrait, instead of merely leaving it collapsed', async () => {
+  it('swaps to Cancel/Schedule on the first scrub in portrait too — same behavior as desktop', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
     render(<App />);
@@ -131,12 +76,35 @@ describe('App — scrubbing auto-opens the schedule panel only outside portrait'
     expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Schedule')).toBeTruthy();
   });
+
+  it('Cancel resets the scrub and restores the normal Config/Share menu', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubForward(user);
+    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
+
+    await user.click(screen.getByText('Cancel'));
+
+    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
+    expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
+  });
+
+  it('Config is unreachable while a scrub preview is active (no way to leave a stale preview stuck behind it)', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubForward(user);
+
+    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+  });
 });
 
 // matchedMeeting is computed via useMemo (App.tsx) keyed on the previewed instant —
 // these exercise that it still recomputes correctly as the scrub preview moves,
 // rather than getting stuck on a stale value (the main risk a bad memo dependency
-// list would introduce).
+// list would introduce). Surfaced now as ControlCluster's extra "Remove Meeting"
+// scrub button, not a title-bearing banner (see ControlCluster.test.tsx).
 describe('App — matchedMeeting reflects an already-scheduled meeting as the scrub preview moves', () => {
   function seedConfigWithMeeting(startISO: string): void {
     const config: ClockConfig = {
@@ -150,7 +118,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
     window.localStorage.setItem('overlap:google-connected:v1', 'true');
   });
 
-  it('surfaces the meeting once the preview lands within the match tolerance', async () => {
+  it('surfaces a Remove Meeting button once the preview lands within the match tolerance', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
     render(<App />);
@@ -161,10 +129,10 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
       await user.keyboard('{ArrowUp}');
     }
 
-    expect(screen.getByText('Design sync')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
   });
 
-  it('stops surfacing the meeting once scrubbed back out of the match tolerance', async () => {
+  it('stops surfacing Remove Meeting once scrubbed back out of the match tolerance', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
     render(<App />);
@@ -174,14 +142,14 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
     for (let step = 0; step < 3; step += 1) {
       await user.keyboard('{ArrowUp}');
     }
-    expect(screen.getByText('Design sync')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
 
     await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
 
-    expect(screen.queryByText('Design sync')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
   });
 
-  it('does not surface the meeting when this browser has never connected to Google Calendar', async () => {
+  it('does not surface Remove Meeting when this browser has never connected to Google Calendar', async () => {
     window.localStorage.removeItem('overlap:google-connected:v1');
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
@@ -193,26 +161,77 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
       await user.keyboard('{ArrowUp}');
     }
 
-    expect(screen.queryByText('Design sync')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
   });
 });
 
-// mobile quick-schedule: on portrait, scrubbing swaps ControlCluster's icon menu
-// for Cancel/Schedule (see WorldClock's isScrubActionBarVisible); Schedule skips
-// ScheduleForm entirely and schedules straight to Google Calendar
-describe('App — mobile quick-schedule (ControlCluster scrub buttons)', () => {
-  it('swaps in Cancel/Schedule instead of the icon menu once scrubbed in portrait', async () => {
-    stubMatchMedia(true);
+describe('App — Remove Meeting (ControlCluster scrub button)', () => {
+  function seedConfigWithMeeting(startISO: string, googleEventId?: string): void {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      meetings: [{ id: 'm1', title: 'Design sync', startISO, ...(googleEventId ? { googleEventId } : {}) }],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    window.localStorage.setItem('overlap:google-connected:v1', 'true');
+  }
+
+  async function scrubOntoMeeting(user: ReturnType<typeof userEvent.setup>) {
+    const slider = screen.getByRole('slider');
+    slider.focus();
+    for (let step = 0; step < 3; step += 1) {
+      await user.keyboard('{ArrowUp}');
+    }
+  }
+
+  it('deletes the Google Calendar event, removes the meeting, resets the scrub, and shows a toast', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
+    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(<App />);
 
-    await scrubForward(user);
+    await scrubOntoMeeting(user);
+    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
 
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+    await waitFor(() => expect(googleCalendar.deleteMeetingFromGoogleCalendar).toHaveBeenCalledWith('evt-1'));
+    await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
+    expect(await screen.findByText('Meeting removed')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
   });
 
+  it('removes a meeting with no googleEventId locally, without calling the Calendar API', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubOntoMeeting(user);
+    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+
+    await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
+    expect(googleCalendar.deleteMeetingFromGoogleCalendar).not.toHaveBeenCalled();
+    expect(await screen.findByText('Meeting removed')).toBeTruthy();
+  });
+
+  it('shows an error toast and keeps the scrub preview when the Calendar delete fails', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
+    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(new Error('boom'));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubOntoMeeting(user);
+    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+
+    expect(await screen.findByText('boom')).toBeTruthy();
+    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
+    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+  });
+});
+
+// quick-schedule: scrubbing swaps ControlCluster's icon menu for Cancel/
+// Schedule (see WorldClock's isScrubActionBarVisible) — on any
+// platform, see the describe block above; these exercise the actual
+// schedule/cancel logic behind those buttons, straight to Google Calendar,
+// with no form in between
+describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
   it('schedules a 30-minute meeting with an auto-generated overlap title, then resets the scrub and shows a toast', async () => {
     stubMatchMedia(true);
     vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockResolvedValue('evt-1');
