@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { copyShareLink, shareLink } from './share';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const SAMPLE_HREF = 'https://overlap.vercel.app/#c=abc123';
 
@@ -15,7 +19,6 @@ describe('copyShareLink', () => {
     const writeText = vi.fn().mockRejectedValue(new Error('permission denied'));
     await expect(copyShareLink({ writeText }, SAMPLE_HREF)).resolves.toBe(false);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
   });
 
   it('returns false and logs an error when the clipboard write throws synchronously', async () => {
@@ -25,7 +28,6 @@ describe('copyShareLink', () => {
     });
     await expect(copyShareLink({ writeText }, SAMPLE_HREF)).resolves.toBe(false);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
   });
 });
 
@@ -46,7 +48,6 @@ describe('shareLink', () => {
     await expect(shareLink({ share }, { writeText }, SAMPLE_HREF)).resolves.toBe('cancelled');
     expect(writeText).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
-    errorSpy.mockRestore();
   });
 
   it('falls back to the clipboard and returns "copied" when navigator.share fails for a non-cancel reason', async () => {
@@ -56,7 +57,6 @@ describe('shareLink', () => {
     await expect(shareLink({ share }, { writeText }, SAMPLE_HREF)).resolves.toBe('copied');
     expect(writeText).toHaveBeenCalledWith(SAMPLE_HREF);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    errorSpy.mockRestore();
   });
 
   it('falls back to the clipboard and returns "failed" when both navigator.share and the clipboard fail', async () => {
@@ -65,7 +65,6 @@ describe('shareLink', () => {
     const writeText = vi.fn().mockRejectedValue(new Error('permission denied'));
     await expect(shareLink({ share }, { writeText }, SAMPLE_HREF)).resolves.toBe('failed');
     expect(errorSpy).toHaveBeenCalledTimes(2);
-    errorSpy.mockRestore();
   });
 
   it('copies directly when navigator.share is not supported', async () => {

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  angleDelta,
+  angleFromCenterOffset,
   bezelBaseRadius,
   bezelTicks,
+  DEGREES_PER_HOUR,
   directionChevrons,
   handAngle,
   hexToRgba,
   labelArcHalfLength,
   meetingAngle,
+  offsetMsFromAngle,
   outermostRingRadius,
   parseMeetingInstant,
   pointOnCircle,
@@ -177,13 +181,20 @@ describe('meetingAngle', () => {
     expect(meetingAngle(now, now)).toBe(0);
   });
 
-  it('is positive 15°/hour for a future meeting', () => {
-    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(15);
-    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(60);
+  it('is negative 15°/hour for a future meeting — hasn\'t swept up to NOW yet', () => {
+    expect(meetingAngle(new Date('2026-01-01T01:00:00.000Z'), now)).toBe(-15);
+    expect(meetingAngle(new Date('2026-01-01T04:00:00.000Z'), now)).toBe(-60);
   });
 
-  it('is negative 15°/hour for a past meeting', () => {
-    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(-15);
+  it('is positive 15°/hour for a past meeting — already swept past NOW', () => {
+    expect(meetingAngle(new Date('2025-12-31T23:00:00.000Z'), now)).toBe(15);
+  });
+
+  it('matches the sign convention of workingHoursArcPath (currentFrac - eventFrac)', () => {
+    // a boundary 3 hours in the future (e.g. workEnd relative to now) gets the same
+    // negative angle as a meeting 3 hours in the future
+    const threeHoursFuture = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    expect(meetingAngle(threeHoursFuture, now)).toBe((0 - 3) * DEGREES_PER_HOUR);
   });
 });
 
@@ -200,5 +211,56 @@ describe('parseMeetingInstant', () => {
 
   it('returns null for an empty string', () => {
     expect(parseMeetingInstant('')).toBeNull();
+  });
+});
+
+describe('angleFromCenterOffset', () => {
+  it('is 0 straight up from center', () => {
+    expect(angleFromCenterOffset(0, -10)).toBeCloseTo(0);
+  });
+
+  it('is 90 to the right of center', () => {
+    expect(angleFromCenterOffset(10, 0)).toBeCloseTo(90);
+  });
+
+  it('is 180 straight down from center', () => {
+    expect(angleFromCenterOffset(0, 10)).toBeCloseTo(180);
+  });
+
+  it('is 270 (not negative) to the left of center', () => {
+    expect(angleFromCenterOffset(-10, 0)).toBeCloseTo(270);
+  });
+});
+
+describe('angleDelta', () => {
+  it('is positive for a small clockwise turn', () => {
+    expect(angleDelta(10, 40)).toBeCloseTo(30);
+  });
+
+  it('is negative for a small counterclockwise turn', () => {
+    expect(angleDelta(40, 10)).toBeCloseTo(-30);
+  });
+
+  it('takes the short way across the 0/360 seam', () => {
+    expect(angleDelta(350, 10)).toBeCloseTo(20);
+    expect(angleDelta(10, 350)).toBeCloseTo(-20);
+  });
+
+  it('is 0 for no change', () => {
+    expect(angleDelta(90, 90)).toBe(0);
+  });
+});
+
+describe('offsetMsFromAngle', () => {
+  it('converts one hour of rotation (15deg) to one hour in ms', () => {
+    expect(offsetMsFromAngle(15)).toBe(3_600_000);
+  });
+
+  it('is negative for a counterclockwise rotation', () => {
+    expect(offsetMsFromAngle(-30)).toBe(-7_200_000);
+  });
+
+  it('is 0 for no rotation', () => {
+    expect(offsetMsFromAngle(0)).toBe(0);
   });
 });

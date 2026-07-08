@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Env vars (VITE_GOOGLE_CLIENT_ID etc.) — see .env.example for the template
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

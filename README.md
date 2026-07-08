@@ -21,6 +21,8 @@ all graphics rendered as SVG from `Intl.DateTimeFormat`, no timezone/date librar
 - Direction chevrons emphasizing the clockwise sweep
 - Central glass disc with the local city's time and date
 - DST-correct via IANA timezone ids; respects `prefers-reduced-motion`
+- Schedule a meeting: drag the clock face (or use arrow keys) to preview a different
+  time across every ring, then create the event on your Google Calendar
 
 ## Development
 
@@ -31,6 +33,12 @@ npm run build    # typecheck + production build
 npm test         # geometry + timezone unit tests (Vitest)
 npm run lint     # oxlint
 ```
+
+### Environment variables
+
+Scheduling meetings is gated behind a Google OAuth Client ID (client-side only, no
+backend). Copy `.env.example` to `.env.local` and fill in `VITE_GOOGLE_CLIENT_ID` to
+enable it; without it, the Schedule panel shows a note instead of the form.
 
 ## Structure
 

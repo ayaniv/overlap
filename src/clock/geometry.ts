@@ -14,6 +14,7 @@ export const BEZEL_TICK_COUNT = 60;
 export const BEZEL_MAJOR_TICK_EVERY = 5;
 export const DEGREES_PER_HOUR = 15;
 export const DEGREES_PER_TICK = 6;
+export const MS_PER_HOUR = 3_600_000;
 export const TOP_MARKER_TOP_MARGIN = 20;
 export const TOP_MARKER_HALF_WIDTH = 12;
 // the fast minute-sweep hand rides just outside the tick bezel; margins are
@@ -165,11 +166,16 @@ export function directionChevrons(ringRadii: number[]): Chevron[] {
   });
 }
 
-// angle of a meeting marker relative to the top (NOW) axis: elapsed hours between
-// now and the meeting instant is timezone-independent, so the same angle applies
-// to every ring
+// angle of a meeting marker relative to the top (NOW) axis, in the same
+// (currentFrac - eventFrac) convention as workingHoursArcPath: a future meeting is
+// negative (counterclockwise, hasn't swept up to NOW yet) and sweeps clockwise
+// toward 0 as real time passes, landing exactly on the NOW axis when the meeting
+// arrives, then continuing clockwise into positive (past) territory — sticky to the
+// ring's own rotation, not an independent "distance from now" marker. Elapsed hours
+// between now and the meeting instant is timezone-independent, so the same angle
+// applies to every ring.
 export function meetingAngle(meetingInstant: Date, now: Date): number {
-  const hoursDelta = (meetingInstant.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const hoursDelta = (now.getTime() - meetingInstant.getTime()) / MS_PER_HOUR;
   return hoursDelta * DEGREES_PER_HOUR;
 }
 
@@ -179,4 +185,26 @@ export function meetingAngle(meetingInstant: Date, now: Date): number {
 export function parseMeetingInstant(startISO: string): Date | null {
   const instant = new Date(startISO);
   return Number.isNaN(instant.getTime()) ? null : instant;
+}
+
+// angle (same convention as pointOnCircle: 0 = up, clockwise positive, in [0,360)) of a
+// point expressed as a pixel offset from a center — scale-invariant, so a drag handler
+// can pass raw pointer-to-center deltas without converting to viewBox units
+export function angleFromCenterOffset(dx: number, dy: number): number {
+  const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  return deg < 0 ? deg + 360 : deg;
+}
+
+// shortest signed delta from one angle to another, in (-180, 180], so a drag that
+// crosses the 0/360 seam doesn't jump to the long way around
+export function angleDelta(fromDeg: number, toDeg: number): number {
+  let delta = (toDeg - fromDeg) % 360;
+  if (delta > 180) delta -= 360;
+  if (delta <= -180) delta += 360;
+  return delta;
+}
+
+// converts a rotation (degrees, at DEGREES_PER_HOUR) into a time offset in milliseconds
+export function offsetMsFromAngle(deltaDeg: number): number {
+  return (deltaDeg / DEGREES_PER_HOUR) * MS_PER_HOUR;
 }

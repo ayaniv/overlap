@@ -1,6 +1,6 @@
 export type CityTime = { hour: number; minute: number; frac: number; label: string };
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const padTwoDigits = (value: number) => String(value).padStart(2, '0');
 
 export function getCityTime(date: Date, timeZoneId: string): CityTime {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -20,7 +20,7 @@ export function getCityTime(date: Date, timeZoneId: string): CityTime {
     if (part.type === 'second') second = Number(part.value);
   }
 
-  return { hour, minute, frac: hour + minute / 60 + second / 3600, label: `${pad(hour)}:${pad(minute)}` };
+  return { hour, minute, frac: hour + minute / 60 + second / 3600, label: `${padTwoDigits(hour)}:${padTwoDigits(minute)}` };
 }
 
 export function getCityDateLabel(date: Date, timeZoneId: string): string {
@@ -41,6 +41,12 @@ export function getCityDateLabel(date: Date, timeZoneId: string): string {
   }
 
   return `${weekday} ${day} ${month}`.toUpperCase();
+}
+
+// comparable YYYY-MM-DD key for "same calendar day" checks in a given timezone
+// (en-CA formats as YYYY-MM-DD directly, unlike getCityDateLabel's display string)
+export function getCityDateKey(date: Date, timeZoneId: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timeZoneId, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
 export function isWithinWorkingHours(frac: number, workStart: number, workEnd: number): boolean {
