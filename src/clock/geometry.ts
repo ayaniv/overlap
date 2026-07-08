@@ -175,7 +175,7 @@ export function directionChevrons(ringRadii: number[]): Chevron[] {
 // between now and the meeting instant is timezone-independent, so the same angle
 // applies to every ring.
 export function meetingAngle(meetingInstant: Date, now: Date): number {
-  const hoursDelta = (now.getTime() - meetingInstant.getTime()) / (1000 * 60 * 60);
+  const hoursDelta = (now.getTime() - meetingInstant.getTime()) / MS_PER_HOUR;
   return hoursDelta * DEGREES_PER_HOUR;
 }
 
