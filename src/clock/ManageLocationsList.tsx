@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import DragHandleIcon from './icons/drag-handle.svg?react';
+import HomeIcon from './icons/home.svg?react';
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
 
@@ -91,22 +93,10 @@ export function ManageLocationsList({ locations, onReorder, onRemove, onClose }:
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
               >
-                <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">
-                  <circle cx="3" cy="3" r="1.4" />
-                  <circle cx="9" cy="3" r="1.4" />
-                  <circle cx="3" cy="8" r="1.4" />
-                  <circle cx="9" cy="8" r="1.4" />
-                  <circle cx="3" cy="13" r="1.4" />
-                  <circle cx="9" cy="13" r="1.4" />
-                </svg>
+                <DragHandleIcon />
               </button>
               <span className={styles.swatch} style={{ background: location.color }} aria-hidden="true" />
-              {location.isHome && (
-                <svg className={styles.homeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-label="Home">
-                  <path d="M3 11l9-8 9 8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M5 10v10h14V10" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
+              {location.isHome && <HomeIcon className={styles.homeIcon} aria-label="Home" />}
               <span className={styles.label}>{location.label}</span>
               {!location.isHome && (
                 <button
