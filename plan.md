@@ -111,3 +111,24 @@ Raised during M4's `/t2a-review`: `useRingScrub.ts`'s `onKeyDown` currently trea
 - While expanded, the toggle's icon morphs from the two-line hamburger to an X; clicking it again (from its translated position) reverses both animations — the cluster buttons fade + scale back out, the toggle slides back to its original position, and the icon reverts to the hamburger.
 - Likely touches `ControlCluster.tsx` (collapsed/expanded state + icon swap) and `ControlCluster.module.css` (the transform/opacity/scale transitions).
 **Deployable:** ControlCluster starts collapsed as a single round icon button; expands/collapses with a smooth transition instead of always showing all three buttons.
+
+**Scrubbing onto an existing meeting surfaces it in the Schedule panel, with delete**
+Scrubbing (or landing via keyboard) on a time that already has a meeting should show that meeting's details as a banner in `ScheduleForm.tsx`, underneath the Cancel/Schedule buttons — and let the user clear it, from both the clock and Google Calendar.
+- New helper (e.g. `findMeetingAtInstant(meetings, instant, toleranceMs)` in `meetingForm.ts`) matching `previewInstant` against `config.meetings` by actual time proximity (a tolerance window, not exact equality) — computed in `App.tsx` alongside `previewInstant`, passed to `ScheduleForm` as a new `matchedMeeting?: Meeting` prop.
+- **Prerequisite gap, not just UI:** `Meeting` (`types.ts`) only stores `{id, startISO, title}` — no Google Calendar event id — and `createCalendarEvent` (`googleCalendar.ts`) discards the API response entirely (`Promise<void>`), so there's currently no way to identify which Google event to delete. Needs: `Meeting` gains an optional `googleEventId?: string`; `createCalendarEvent`/`scheduleMeetingOnGoogleCalendar` return the created event's id (from the v3 response body) so `buildMeeting` can store it.
+- New `deleteCalendarEvent(accessToken, eventId)` in `googleCalendar.ts` (`DELETE .../calendars/primary/events/{eventId}`), and a `removeMeetingOp(config, id)` in `configOps.ts` mirroring `removeLocationOp`, wired through `useClockConfig.ts`.
+- The banner's delete action needs its own sign-in (same GIS token flow as scheduling — deleting also requires OAuth) before calling `deleteCalendarEvent`, then `removeMeetingOp` on success; a meeting with no `googleEventId` (e.g. one from before this migration, or a share-link config from someone else) should still be removable locally, just skip the Google Calendar call and say so.
+**Deployable:** scrubbing onto a scheduled meeting shows its details in the schedule panel and lets you delete it from both the clock and Google Calendar.
+
+**Status/footer copy fixes**
+Two small copy issues in `WorldClock.tsx`'s footer row:
+- `statusText` (line ~203) reads `"{availableCount} of {totalCount} teams free now"` — change to **"{availableCount} of {totalCount} teams are available now"**.
+- The `legend` div (line ~427) reads `"Home working hours {workLabel} · local"`, implying a single shared working-hours policy — but work hours are per-location (each ring, set in M2's `AddLocationForm`), not global, so this footer is misleading as written. Needs a rework, not just a wording tweak: either drop it, or replace it with something that doesn't imply one shared schedule (e.g. only shown when relevant to what's actually being displayed, or dropped in favor of the per-ring working-hours arcs already visible on the dial itself, which already correctly show each location's own hours).
+**Deployable:** accurate footer copy that doesn't imply a single global working-hours policy.
+
+**Top eyebrow/headline copy update**
+`WorldClock.tsx`'s top-left context block:
+- Eyebrow (line 213, `MEETING&nbsp;PLANNER`) → **"Overlap Clock"**.
+- Headline (line 214, `"When can everyone meet today?"`) → **"See shared hours instantly"**.
+- Related surfaces using the old "meeting planner" phrasing that should be reviewed for consistency once the visible copy changes (not necessarily changed the same way, since they serve different purposes): the `<section aria-label="World clock meeting planner">` on the same element (line 211), `index.html`'s `<meta name="description">`, and `README.md`'s description line.
+**Deployable:** top-left copy reads "Overlap Clock" / "See shared hours instantly" instead of "Meeting Planner" / "When can everyone meet today?".

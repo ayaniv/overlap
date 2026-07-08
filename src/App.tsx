@@ -77,7 +77,11 @@ function App() {
 
   const exitToView = useCallback(() => changeMode('view'), [changeMode]);
 
-  const previewInstant = useMemo(() => new Date(now.getTime() + scrubOffsetMs), [now, scrubOffsetMs]);
+  // not memoized: `now` ticks every second already, and unlike WorldClock's
+  // effectiveNow, nothing downstream (ScheduleForm isn't memoized, and only ever
+  // reads this via .toISOString()/formatLocalTime()/etc., never as a useMemo dep)
+  // depends on this being a stable object reference
+  const previewInstant = new Date(now.getTime() + scrubOffsetMs);
 
   const handleChangeInstant = useCallback(
     (instant: Date) => setOffsetMs(instant.getTime() - now.getTime()),

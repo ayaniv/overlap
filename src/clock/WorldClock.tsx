@@ -100,7 +100,14 @@ export function WorldClock({
   const isScrubbable = Boolean(scrubBind);
 
   // dragging the clock face (useRingScrub) previews a different instant; every
-  // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
+  // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview.
+  // Memoized on purpose, despite `now` already ticking every second: `ringViews` and
+  // `meetingDots` below both depend on `effectiveNow` in their own useMemo — without
+  // this, effectiveNow would be a fresh object on every render whenever
+  // previewOffsetMs is nonzero, defeating those two memos on every incidental
+  // re-render (mode/toast/config changes) that leaves `now`/previewOffsetMs
+  // unchanged. Confirmed by re-introducing the exact react-hooks/exhaustive-deps
+  // warning oxlint raises on both when this is removed.
   const effectiveNow = useMemo(
     () => (previewOffsetMs ? new Date(now.getTime() + previewOffsetMs) : now),
     [now, previewOffsetMs],
