@@ -9,7 +9,7 @@ export const DEFAULT_MEETING_DURATION_MINUTES = 30;
 // Services' token-client popup flow directly from the browser.
 export function getGoogleClientId(): string | undefined {
   const id = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  return typeof id === 'string' && id.trim() ? id : undefined;
+  return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 }
 
 export function isGoogleCalendarConfigured(): boolean {

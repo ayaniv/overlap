@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
 import { buildMeeting, formatDurationLabel, formatLocalTime, toDateInputValue, validateMeetingTitle, withDatePart } from './meetingForm';
@@ -45,12 +45,23 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const isConfigured = isGoogleCalendarConfigured();
+  // guards against a stale result: Cancel doesn't (can't) abort the in-flight
+  // Google sign-in/event-creation call itself — Google Identity Services exposes no
+  // way to abort a popup mid-flow — but it does stop that stale result from silently
+  // adding the meeting to local config or flipping the UI after the user has already
+  // dismissed the panel
+  const isCancelledRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'success') return;
     const timer = setTimeout(onCancel, AUTO_RETURN_DELAY_MS);
     return () => clearTimeout(timer);
   }, [status, onCancel]);
+
+  const handleCancel = () => {
+    isCancelledRef.current = true;
+    onCancel();
+  };
 
   const handleDateChange = (value: string) => {
     const instant = withDatePart(value, previewInstant);
@@ -73,9 +84,11 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     setStatus('pending');
     try {
       await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
+      if (isCancelledRef.current) return;
       onScheduled(buildMeeting(title, previewInstant, existingMeetingIds));
       setStatus('success');
     } catch (err) {
+      if (isCancelledRef.current) return;
       console.error('overlap: failed to schedule the meeting', err);
       setError(err instanceof Error ? err.message : 'Could not schedule the meeting.');
       setStatus('error');
@@ -90,7 +103,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
           Set <code>VITE_GOOGLE_CLIENT_ID</code> to enable scheduling meetings straight to Google Calendar.
         </p>
         <div className={styles.actions}>
-          <button type="button" className={styles.cancelButton} onClick={onCancel}>
+          <button type="button" className={styles.cancelButton} onClick={handleCancel}>
             Close
           </button>
         </div>
@@ -178,7 +191,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
       )}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.cancelButton} onClick={onCancel}>
+        <button type="button" className={styles.cancelButton} onClick={handleCancel}>
           Cancel
         </button>
         <button

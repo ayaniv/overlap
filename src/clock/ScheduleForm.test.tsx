@@ -108,6 +108,31 @@ describe('ScheduleForm submission', () => {
       expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledWith('Sync', PREVIEW_INSTANT.toISOString(), 60),
     );
   });
+
+  it('does not call onScheduled or show success if Cancel is clicked while the request is still pending', async () => {
+    vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
+    let resolveSchedule: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      resolveSchedule = resolve;
+    });
+    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockReturnValue(pending);
+    const user = userEvent.setup();
+    const { onScheduled, onCancel } = renderForm();
+
+    await user.type(screen.getByLabelText('Meeting title'), 'Sync');
+    await user.click(screen.getByRole('button', { name: 'Schedule' }));
+    expect(screen.getByRole('button', { name: 'Scheduling…' })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    resolveSchedule();
+    // give the resolved promise's continuation inside handleSubmit a chance to run
+    await pending;
+    await Promise.resolve();
+
+    expect(onScheduled).not.toHaveBeenCalled();
+  });
 });
 
 describe('ScheduleForm scrub gate', () => {

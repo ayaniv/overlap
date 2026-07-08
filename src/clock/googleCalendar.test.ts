@@ -24,10 +24,15 @@ describe('getGoogleClientId / isGoogleCalendarConfigured', () => {
     expect(isGoogleCalendarConfigured()).toBe(false);
   });
 
-  it('returns the trimmed client id when set', () => {
+  it('returns the client id when set', () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'abc123.apps.googleusercontent.com');
     expect(getGoogleClientId()).toBe('abc123.apps.googleusercontent.com');
     expect(isGoogleCalendarConfigured()).toBe(true);
+  });
+
+  it('trims leading/trailing whitespace, e.g. from a copy-pasted Cloud Console value', () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '  abc123.apps.googleusercontent.com  ');
+    expect(getGoogleClientId()).toBe('abc123.apps.googleusercontent.com');
   });
 });
 
