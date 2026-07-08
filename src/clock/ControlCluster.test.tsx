@@ -75,4 +75,24 @@ describe('ControlCluster collapse/expand', () => {
 
     expect(onSetMode).toHaveBeenCalledWith('view');
   });
+
+  it('closing the cluster (X) dismisses whichever panel is open, not just the button row', async () => {
+    const user = userEvent.setup();
+    const { onSetMode } = renderCluster('schedule');
+    const toggle = screen.getByRole('button', { name: 'Menu' });
+
+    await user.click(toggle); // expand
+    await user.click(toggle); // collapse — should also close the schedule panel
+
+    expect(onSetMode).toHaveBeenCalledWith('view');
+  });
+
+  it('opening the cluster does not itself change the mode', async () => {
+    const user = userEvent.setup();
+    const { onSetMode } = renderCluster('schedule');
+
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+
+    expect(onSetMode).not.toHaveBeenCalled();
+  });
 });

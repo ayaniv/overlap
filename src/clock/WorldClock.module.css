@@ -25,6 +25,7 @@
   letter-spacing: 4px;
   color: #565b64;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
 .headline {
@@ -52,10 +53,6 @@
   overflow: visible;
 }
 
-.removeButton {
-  cursor: pointer;
-}
-
 .clockContainer[data-scrubbable] {
   cursor: grab;
   touch-action: none;
@@ -69,10 +66,6 @@
   outline: 2px solid #38bdf8;
   outline-offset: 6px;
   border-radius: 50%;
-}
-
-.removeButton:hover circle {
-  stroke: #fb7185;
 }
 
 /* central glass disc for depth, sits behind the time */

@@ -48,62 +48,9 @@ const SCRUB_BIND: RingScrubBind = {
   onKeyDown: vi.fn(),
 };
 
-describe('WorldClock remove button', () => {
-  it('shows no remove buttons in view mode', () => {
-    renderClock('view');
-    expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
-  });
-
-  it('shows a remove button for a non-home ring in edit mode', () => {
-    renderClock('edit');
-    expect(screen.getByRole('button', { name: 'Remove San Francisco' })).toBeTruthy();
-  });
-
-  it('never shows a remove button for the home ring, even in edit mode', () => {
-    renderClock('edit');
-    expect(screen.queryByRole('button', { name: 'Remove Tel Aviv' })).toBeNull();
-  });
-
-  it('calls onRemoveLocation with the ring id when clicked', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    await user.click(screen.getByRole('button', { name: 'Remove San Francisco' }));
-
-    expect(onRemoveLocation).toHaveBeenCalledTimes(1);
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
-  });
-
-  it('calls onRemoveLocation on Enter', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard('{Enter}');
-
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
-  });
-
-  it('calls onRemoveLocation on Space', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard(' ');
-
-    expect(onRemoveLocation).toHaveBeenCalledWith('san-francisco');
-  });
-
-  it('does not call onRemoveLocation on unrelated keys', async () => {
-    const user = userEvent.setup();
-    const { onRemoveLocation } = renderClock('edit');
-
-    screen.getByRole('button', { name: 'Remove San Francisco' }).focus();
-    await user.keyboard('{Escape}');
-
-    expect(onRemoveLocation).not.toHaveBeenCalled();
-  });
-});
+// removing a location is now exclusively a ManageLocationsList affordance
+// (see ManageLocationsList.test.tsx) — WorldClock no longer renders its own
+// on-ring remove control
 
 function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
   render(
@@ -123,17 +70,24 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
 }
 
 describe('WorldClock manage-locations list', () => {
-  it('lists home first, then rings, while in edit mode', () => {
+  it('lists home first, then rings, once the Manage locations accordion section is opened', async () => {
+    const user = userEvent.setup();
     renderClockWithPanel('edit');
+
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
+
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('Tel Aviv');
     expect(rows[1].textContent).toContain('San Francisco');
   });
 
-  it('threads onReorder through to the list (reorder mechanics covered by ManageLocationsList.test.tsx)', () => {
+  it('threads onReorder through to the list (reorder mechanics covered by ManageLocationsList.test.tsx)', async () => {
+    const user = userEvent.setup();
     const onReorder = vi.fn();
     renderClockWithPanel('edit', onReorder);
+
+    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
 
     expect(screen.getByRole('button', { name: 'Reorder San Francisco' })).toBeTruthy();
   });

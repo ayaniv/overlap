@@ -6,23 +6,27 @@
   pointer-events: auto;
 }
 
-/* both rest at the same top-right anchor: the actions row fades/scales in behind
-   the toggle's resting spot, and the toggle slides 300px left to vacate it */
+/* .actions rests immediately left of the toggle (34px toggle + 10px gap); at
+   rest it's shrunk + slid right by that same 44px so it visually sits "inside"
+   the toggle, then on expand it slides+grows out to its natural spot. The
+   overshoot easing (cubic-bezier back-out) gives it a small settle-in pulse
+   rather than a flat scale — subtler than a large positional translate. */
 .actions {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 44px;
   display: flex;
   gap: 10px;
   opacity: 0;
-  transform: scale(0.9);
+  transform: translateX(44px) scale(0.3);
+  transform-origin: right center;
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .cluster[data-expanded] .actions {
   opacity: 1;
-  transform: scale(1);
+  transform: translateX(0) scale(1);
   pointer-events: auto;
 }
 
@@ -41,7 +45,7 @@
   background: rgba(20, 22, 29, 0.6);
   color: #c4c8cf;
   cursor: pointer;
-  transition: transform 0.25s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .toggle:hover {
@@ -49,22 +53,30 @@
   color: #f5f6f8;
 }
 
-.cluster[data-expanded] .toggle {
-  transform: translateX(-300px);
+.hamburgerIcon,
+.closeIcon {
+  transform-origin: 12px 12px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.toggleLineTop,
-.toggleLineBottom {
-  transition: transform 0.25s ease;
-  transform-origin: 8px 8px;
+.hamburgerIcon {
+  opacity: 1;
+  transform: scale(1);
 }
 
-.toggle[aria-expanded='true'] .toggleLineTop {
-  transform: translateY(3px) rotate(45deg);
+.closeIcon {
+  opacity: 0;
+  transform: scale(0.5);
 }
 
-.toggle[aria-expanded='true'] .toggleLineBottom {
-  transform: translateY(-3px) rotate(-45deg);
+.toggle[aria-expanded='true'] .hamburgerIcon {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.toggle[aria-expanded='true'] .closeIcon {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .button {
