@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMeeting,
+  buildOverlapMeetingTitle,
   findMeetingAtInstant,
   formatDurationLabel,
   formatLocalTime,
@@ -9,6 +10,7 @@ import {
   validateMeetingTitle,
   withDatePart,
 } from './meetingForm';
+import type { Location } from './types';
 
 describe('validateMeetingTitle', () => {
   it('requires a non-blank title', () => {
@@ -42,6 +44,35 @@ describe('buildMeeting', () => {
   it('omits googleEventId when none is given', () => {
     const meeting = buildMeeting('Sync', instant, []);
     expect(meeting.googleEventId).toBeUndefined();
+  });
+});
+
+describe('buildOverlapMeetingTitle', () => {
+  const HOME: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 };
+  const LONDON: Location = { id: 'london', label: 'London', timezoneId: 'Europe/London', color: '#FBBF4B', workStart: 9, workEnd: 18 };
+  const SF: Location = { id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 };
+
+  it('lists home first, then every ring whose working hours cover the previewed instant', () => {
+    // Tel Aviv 14:00 (in), London 12:00 (in), SF 04:00 (out)
+    const instant = new Date('2026-01-01T12:00:00.000Z');
+    expect(buildOverlapMeetingTitle(instant, HOME, [LONDON, SF])).toBe('Overlap-Clock Meeting: Tel Aviv <> London');
+  });
+
+  it('excludes home from the list when home itself is out of hours', () => {
+    // Tel Aviv 22:00 (out), London 20:00 (out), SF 12:00 (in)
+    const instant = new Date('2026-01-01T20:00:00.000Z');
+    expect(buildOverlapMeetingTitle(instant, HOME, [LONDON, SF])).toBe('Overlap-Clock Meeting: San Francisco');
+  });
+
+  it('falls back to just home when nobody, including home, is in working hours', () => {
+    // Tel Aviv ~00:00 (out), London 22:00 (out)
+    const instant = new Date('2026-01-01T22:00:00.000Z');
+    expect(buildOverlapMeetingTitle(instant, HOME, [LONDON])).toBe('Overlap-Clock Meeting: Tel Aviv');
+  });
+
+  it('lists just home when there are no rings and home is in hours', () => {
+    const instant = new Date('2026-01-01T12:00:00.000Z');
+    expect(buildOverlapMeetingTitle(instant, HOME, [])).toBe('Overlap-Clock Meeting: Tel Aviv');
   });
 });
 

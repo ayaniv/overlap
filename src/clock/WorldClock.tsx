@@ -76,11 +76,13 @@ export type WorldClockProps = {
   // without this a share-link viewer who never signed in themselves would still
   // see the owner's scheduled-meeting dots
   isGoogleCalendarConnected?: boolean;
-  // mobile scrub action bar (portrait-only, see .scrubActionBar): opens the same
-  // schedule panel desktop auto-opens on scrub start, and resets the preview back
-  // to now, respectively
-  onScheduleFromScrub?: () => void;
+  // mobile quick-schedule (portrait-only, see isScrubActionBarVisible): swaps
+  // ControlCluster's icon menu for "Cancel"/"Schedule" while previewing a
+  // scrub. Schedule fires immediately (no form) at the previewed time;
+  // isQuickScheduling reflects the in-flight Google Calendar request.
+  onQuickSchedule?: () => void;
   onBackToNow?: () => void;
+  isQuickScheduling?: boolean;
 };
 
 export function WorldClock({
@@ -101,8 +103,9 @@ export function WorldClock({
   scrubBind,
   isScrubbing = false,
   isGoogleCalendarConnected = false,
-  onScheduleFromScrub,
+  onQuickSchedule,
   onBackToNow,
+  isQuickScheduling = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -217,11 +220,10 @@ export function WorldClock({
   // invalid slider for assistive tech
   const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
-  // mobile-only (see .scrubActionBar's default display:none, lifted in the portrait
-  // media query): on desktop `mode` flips to 'schedule' the instant a scrub starts
-  // (App.tsx's markScrubbed), so this is never true there in practice. On portrait
-  // it's the only surfaced affordance while previewing — mode stays 'view' until the
-  // user explicitly taps "Schedule" here (or ControlCluster's icon).
+  // mobile-only in practice: on desktop `mode` flips to 'schedule' the instant a
+  // scrub starts (App.tsx's markScrubbed), so this is never true there. On
+  // portrait, scrubbing stays a quiet preview instead — this swaps ControlCluster's
+  // icon menu for "Cancel"/"Schedule" for as long as that preview is live.
   const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
@@ -240,7 +242,6 @@ export function WorldClock({
       className={styles.stage}
       aria-label="World clock — shared working hours across timezones"
       data-chrome-hidden={isChromeHidden || undefined}
-      data-scrub-bar-visible={isScrubActionBarVisible || undefined}
     >
       <div className={styles.context} aria-hidden="true">
         <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
@@ -254,6 +255,11 @@ export function WorldClock({
           onShare={onShare}
           isExpanded={isMenuExpanded}
           onExpandedChange={onMenuExpandedChange}
+          scrubActions={
+            isScrubActionBarVisible
+              ? { onSchedule: () => onQuickSchedule?.(), onCancel: () => onBackToNow?.(), isScheduling: isQuickScheduling }
+              : undefined
+          }
         />
       </div>
       {mode === 'edit' && modePanelContent && (
@@ -436,22 +442,6 @@ export function WorldClock({
         />
         <span className={styles.statusText}>{statusText}</span>
       </div>
-
-      {/* mobile-only (see .scrubActionBar): the desktop equivalent of this pair —
-          Cancel/Schedule — already lives in ScheduleForm's auto-opened panel, since
-          desktop drops straight into schedule mode on scrub start (App.tsx's
-          markScrubbed). Portrait keeps scrubbing a quiet preview instead, so this bar
-          is the only surfaced way to act on it: commit via Schedule, or back out. */}
-      {isScrubActionBarVisible && (
-        <div className={styles.scrubActionBar}>
-          <button type="button" className={styles.scrubBarButton} onClick={onBackToNow}>
-            Back to now
-          </button>
-          <button type="button" className={styles.scrubBarButtonPrimary} onClick={onScheduleFromScrub}>
-            Schedule
-          </button>
-        </div>
-      )}
 
       <p className={styles.srOnly} role="status">
         {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.

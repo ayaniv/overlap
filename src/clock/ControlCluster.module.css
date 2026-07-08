@@ -132,6 +132,57 @@
   padding: 8px;
 }
 
+/* mobile quick-schedule swap (see ControlCluster.tsx's scrubActions branch):
+   replaces the icon menu with two plain-flow buttons instead of the toggle's
+   absolutely-positioned children, so the fixed 34px `.cluster` height (sized
+   for the icon-only menu) needs to expand to fit them here */
+.cluster[data-scrub-mode] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+}
+
+.scrubCancelButton,
+.scrubScheduleButton {
+  padding: 0 18px;
+  min-height: 34px;
+  border-radius: 999px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.scrubCancelButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+}
+
+.scrubCancelButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.scrubScheduleButton {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  color: #f5f6f8;
+}
+
+.scrubScheduleButton:hover {
+  background: rgba(56, 189, 248, 0.24);
+}
+
+.scrubCancelButton:disabled,
+.scrubScheduleButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* portrait/mobile: reposition for the narrower header text (M5). Touch targets
    go the other way from the old shrink-to-fit here (was 28px, smaller than
    desktop's 34px) — mobile has no hover state to fall back on, so these need
@@ -164,5 +215,12 @@
   .toggle svg {
     width: 20px;
     height: 20px;
+  }
+
+  .scrubCancelButton,
+  .scrubScheduleButton {
+    min-height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
   }
 }

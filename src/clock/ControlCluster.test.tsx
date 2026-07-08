@@ -140,3 +140,69 @@ describe('ControlCluster isExpanded (controlled prop)', () => {
     expect(onExpandedChange).toHaveBeenLastCalledWith(false);
   });
 });
+
+// mobile quick-schedule (App.tsx passes this while portrait-scrubbing, via
+// WorldClock's isScrubActionBarVisible): entirely replaces the Config/Schedule/
+// Share icon menu + hamburger toggle with two plain buttons
+describe('ControlCluster scrubActions', () => {
+  function renderClusterWithScrubActions(overrides: Partial<{ isScheduling: boolean }> = {}) {
+    const onSchedule = vi.fn();
+    const onCancel = vi.fn();
+    render(
+      <ControlCluster
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+        scrubActions={{ onSchedule, onCancel, isScheduling: false, ...overrides }}
+      />,
+    );
+    return { onSchedule, onCancel };
+  }
+
+  it('replaces the icon menu with Cancel/Schedule, hiding Config/Share/Menu entirely', () => {
+    renderClusterWithScrubActions();
+
+    expect(screen.getByText('Cancel')).toBeTruthy();
+    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
+  });
+
+  it('calls onSchedule when Schedule is tapped', async () => {
+    const user = userEvent.setup();
+    const { onSchedule } = renderClusterWithScrubActions();
+
+    await user.click(screen.getByText('Schedule'));
+
+    expect(onSchedule).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onCancel when Cancel is tapped', async () => {
+    const user = userEvent.setup();
+    const { onCancel } = renderClusterWithScrubActions();
+
+    await user.click(screen.getByText('Cancel'));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "Scheduling…" and disables both buttons while isScheduling is true', () => {
+    renderClusterWithScrubActions({ isScheduling: true });
+
+    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    expect(scheduleButton.disabled).toBe(true);
+    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('does not call onSchedule when disabled by isScheduling', async () => {
+    const user = userEvent.setup();
+    const { onSchedule } = renderClusterWithScrubActions({ isScheduling: true });
+
+    await user.click(screen.getByText('Scheduling…'));
+
+    expect(onSchedule).not.toHaveBeenCalled();
+  });
+});

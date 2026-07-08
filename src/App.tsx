@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
-import { isGoogleCalendarConnected } from './clock/googleCalendar';
-import { findMeetingAtInstant } from './clock/meetingForm';
+import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConnected, scheduleMeetingOnGoogleCalendar } from './clock/googleCalendar';
+import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
@@ -52,6 +52,10 @@ function App() {
   // ever changes at the one moment a schedule attempt succeeds, so handleScheduled
   // below re-reads it right there instead of polling it on a timer
   const [isConnectedToGoogleCalendar, setIsConnectedToGoogleCalendar] = useState(() => isGoogleCalendarConnected());
+  // guards the mobile quick-schedule action (ControlCluster's scrub Schedule
+  // button) against a second concurrent request while the first is still
+  // in flight — there's no form/disabled-fieldset to lean on here
+  const [isQuickScheduling, setIsQuickScheduling] = useState(false);
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
@@ -117,9 +121,9 @@ function App() {
 
   const handleDeleteMeeting = useCallback((id: string) => removeMeeting(id), [removeMeeting]);
 
-  // shared by the desktop auto-open (markScrubbed below) and the mobile scrub
-  // action bar's "Schedule" tap (WorldClock's onScheduleFromScrub) — both just
-  // want the schedule panel open with its trigger visibly active
+  // desktop auto-open (markScrubbed below) only — mobile's ControlCluster
+  // scrub buttons (Cancel/Schedule) bypass this panel entirely, see
+  // handleQuickSchedule/handleBackToNow
   const openScheduleModePanel = useCallback(() => {
     setMode((current) => (current === 'view' ? 'schedule' : current));
     // reveal the ControlCluster menu too, in case it's still collapsed — otherwise
@@ -127,13 +131,38 @@ function App() {
     setIsMenuExpanded(true);
   }, []);
 
-  // mobile scrub action bar's "Back to now" tap — only rendered while mode is
+  // mobile ControlCluster's scrub "Cancel" tap — only rendered while mode is
   // still 'view' (see WorldClock's isScrubActionBarVisible), so unlike exitToView
   // there's no panel/mode to unwind here, just the preview offset itself
   const handleBackToNow = useCallback(() => {
     resetScrub();
     setHasScrubbed(false);
   }, [resetScrub]);
+
+  // mobile ControlCluster's scrub "Schedule" tap: schedules immediately at the
+  // previewed instant instead of opening ScheduleForm — fixed 30-minute duration,
+  // title auto-generated from whichever locations currently overlap (see
+  // buildOverlapMeetingTitle). Mirrors ScheduleForm.handleSubmit's
+  // sign-in-then-create-event flow and error handling, just without a form to
+  // read a title/duration from or show an inline error in.
+  const handleQuickSchedule = useCallback(async () => {
+    if (isQuickScheduling) return;
+    setIsQuickScheduling(true);
+    const title = buildOverlapMeetingTitle(previewInstant, config.home, config.rings);
+    try {
+      const googleEventId = await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), DEFAULT_MEETING_DURATION_MINUTES);
+      const existingIds = config.meetings.map((meeting) => meeting.id);
+      handleScheduled(buildMeeting(title, previewInstant, existingIds, googleEventId));
+      showToast('Meeting scheduled');
+      resetScrub();
+      setHasScrubbed(false);
+    } catch (err) {
+      console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
+      showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
+    } finally {
+      setIsQuickScheduling(false);
+    }
+  }, [isQuickScheduling, previewInstant, config.home, config.rings, config.meetings, handleScheduled, showToast, resetScrub]);
 
   // scrubbing is the entry point into scheduling: starting a drag (or pressing an
   // arrow key) from view mode opens the schedule panel automatically, so the user
@@ -211,8 +240,9 @@ function App() {
       scrubBind={canScrub ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
       isGoogleCalendarConnected={isConnectedToGoogleCalendar}
-      onScheduleFromScrub={openScheduleModePanel}
+      onQuickSchedule={handleQuickSchedule}
       onBackToNow={handleBackToNow}
+      isQuickScheduling={isQuickScheduling}
     />
   );
 }

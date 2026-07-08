@@ -7,6 +7,12 @@ import { ShareIcon } from './icons/ShareIcon';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
 
+export type ScrubActions = {
+  onSchedule: () => void;
+  onCancel: () => void;
+  isScheduling: boolean;
+};
+
 export type ControlClusterProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
@@ -16,6 +22,11 @@ export type ControlClusterProps = {
   // button is visible instead of hidden behind a still-collapsed menu
   isExpanded: boolean;
   onExpandedChange: (isExpanded: boolean) => void;
+  // when set (mobile scrub preview, see WorldClock's isScrubActionBarVisible),
+  // replaces the Config/Schedule/Share icon menu with "Cancel"/"Schedule" —
+  // a time-sensitive contextual action that shouldn't hide behind the
+  // collapsed-menu interaction the icon row otherwise uses
+  scrubActions?: ScrubActions;
 };
 
 // top-right entry points for edit/schedule modes + share; the mode panel and
@@ -33,7 +44,7 @@ export type ControlClusterProps = {
 //
 // memoized because it doesn't receive `now`: without this it re-renders every
 // second along with WorldClock's once-a-second tick, for no visual benefit
-export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare, isExpanded, onExpandedChange }: ControlClusterProps) {
+export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare, isExpanded, onExpandedChange, scrubActions }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
   const actionTabIndex = isExpanded ? 0 : -1;
 
@@ -45,6 +56,29 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
     onExpandedChange(isNowExpanded);
     if (!isNowExpanded) onSetMode('view');
   };
+
+  if (scrubActions) {
+    return (
+      <div className={styles.cluster} data-scrub-mode="true">
+        <button
+          type="button"
+          className={styles.scrubCancelButton}
+          onClick={scrubActions.onCancel}
+          disabled={scrubActions.isScheduling}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={styles.scrubScheduleButton}
+          onClick={scrubActions.onSchedule}
+          disabled={scrubActions.isScheduling}
+        >
+          {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.cluster} data-expanded={isExpanded || undefined}>

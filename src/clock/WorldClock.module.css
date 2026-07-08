@@ -179,38 +179,6 @@
   flex-shrink: 0;
 }
 
-/* mobile scrub action bar (Fix 2, M8.1): desktop never renders this (see
-   WorldClock.tsx's isScrubActionBarVisible — mode flips to 'schedule' the instant
-   a scrub starts there), so it stays hidden outside the portrait override below. */
-.scrubActionBar {
-  display: none;
-}
-
-.scrubBarButton,
-.scrubBarButtonPrimary {
-  min-height: 48px;
-  padding: 0 22px;
-  border-radius: 999px;
-  font-family: 'Space Grotesk', -apple-system, sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-}
-
-.scrubBarButton {
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.92);
-  color: #f5f6f8;
-}
-
-.scrubBarButtonPrimary {
-  composes: scrubBarButton;
-  border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.22);
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -265,28 +233,5 @@
   .statusRow {
     bottom: 26px;
     font-size: 11px;
-  }
-
-  /* while the scrub action bar is up, the status line (still about "now", not the
-     scrubbed preview) would otherwise double up with it in the same tight footer —
-     hide it rather than fight the bar for space */
-  .stage[data-scrub-bar-visible] .statusRow {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  /* fixed (not absolute, unlike the rest of this footer) so it stays pinned to the
-     true viewport edge regardless of .stage's own box — padded by the safe-area
-     inset so it clears the home-indicator/browser bottom chrome the reference
-     screenshots show eating into this space, instead of sitting flush against it */
-  .scrubActionBar {
-    display: flex;
-    position: fixed;
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
-    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    gap: 10px;
-    z-index: 4;
   }
 }

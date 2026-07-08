@@ -204,12 +204,15 @@ describe('WorldClock copy', () => {
   });
 });
 
-// mobile scrub action bar (Fix 2): the only surfaced schedule/cancel affordance while
-// portrait scrubbing keeps mode at 'view' (see App.tsx's markScrubbed) — CSS hides it
-// on desktop (WorldClock.module.css's .scrubActionBar), so these tests exercise the
-// underlying render/wiring logic, independent of viewport.
-describe('WorldClock mobile scrub action bar', () => {
-  function renderScrubbedClock(onScheduleFromScrub = vi.fn(), onBackToNow = vi.fn(), previewOffsetMs = MS_PER_HOUR) {
+// mobile quick-schedule (ControlCluster's scrubActions swap): the only surfaced
+// schedule/cancel affordance while portrait scrubbing keeps mode at 'view' (see
+// App.tsx's markScrubbed) — desktop never sees this (mode leaves 'view' immediately
+// there), so these tests exercise the underlying render/wiring logic directly,
+// independent of viewport. ControlCluster's own tests cover the swapped markup in
+// isolation; these cover WorldClock actually passing scrubActions through at the
+// right moment.
+describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
+  function renderScrubbedClock(onQuickSchedule = vi.fn(), onBackToNow = vi.fn(), previewOffsetMs = MS_PER_HOUR, isQuickScheduling = false) {
     render(
       <WorldClock
         now={NOW}
@@ -225,44 +228,52 @@ describe('WorldClock mobile scrub action bar', () => {
         onReorder={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
-        onScheduleFromScrub={onScheduleFromScrub}
+        onQuickSchedule={onQuickSchedule}
         onBackToNow={onBackToNow}
+        isQuickScheduling={isQuickScheduling}
       />,
     );
-    return { onScheduleFromScrub, onBackToNow };
+    return { onQuickSchedule, onBackToNow };
   }
 
-  // ControlCluster already renders its own icon button with aria-label="Schedule"
-  // (always in the DOM, just visually collapsed), so these queries match by visible
-  // text instead of accessible name to target only the scrub bar's own button
-  it('is absent before any scrub (previewOffsetMs is 0)', () => {
+  it('is absent before any scrub (previewOffsetMs is 0) — the normal icon menu shows instead', () => {
     renderScrubbedClock(vi.fn(), vi.fn(), 0);
-    expect(screen.queryByText('Schedule')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Back to now' })).toBeNull();
+    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
   });
 
-  it('surfaces Schedule and Back to now once scrubbed, in view mode', () => {
+  it('swaps in Cancel/Schedule once scrubbed, in view mode, replacing the icon menu', () => {
     renderScrubbedClock();
+    expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Back to now' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   });
 
-  it('calls onScheduleFromScrub when Schedule is tapped', async () => {
+  it('calls onQuickSchedule when Schedule is tapped', async () => {
     const user = userEvent.setup();
-    const { onScheduleFromScrub } = renderScrubbedClock();
+    const { onQuickSchedule } = renderScrubbedClock();
 
     await user.click(screen.getByText('Schedule'));
 
-    expect(onScheduleFromScrub).toHaveBeenCalledTimes(1);
+    expect(onQuickSchedule).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onBackToNow when Back to now is tapped', async () => {
+  it('calls onBackToNow when Cancel is tapped', async () => {
     const user = userEvent.setup();
     const { onBackToNow } = renderScrubbedClock();
 
-    await user.click(screen.getByRole('button', { name: 'Back to now' }));
+    await user.click(screen.getByText('Cancel'));
 
     expect(onBackToNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('reflects an in-flight quick-schedule as a disabled "Scheduling…" state', () => {
+    renderScrubbedClock(vi.fn(), vi.fn(), MS_PER_HOUR, true);
+
+    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    expect(scheduleButton.disabled).toBe(true);
+    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('is hidden once schedule mode is entered, deferring to ScheduleForm’s own Cancel/Schedule', () => {
@@ -281,13 +292,13 @@ describe('WorldClock mobile scrub action bar', () => {
         onReorder={vi.fn()}
         previewOffsetMs={MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
-        onScheduleFromScrub={vi.fn()}
+        onQuickSchedule={vi.fn()}
         onBackToNow={vi.fn()}
       />,
     );
 
-    expect(screen.queryByText('Schedule')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Back to now' })).toBeNull();
+    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
   });
 });
 
