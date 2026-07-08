@@ -55,7 +55,7 @@ const SCRUB_BIND: RingScrubBind = {
 // (see ManageLocationsList.test.tsx) — WorldClock no longer renders its own
 // on-ring remove control
 
-function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
+function renderClockWithPanel(mode: Mode, onReorder = vi.fn(), overrides: Partial<{ isPortrait: boolean; onSetMode: (mode: Mode) => void }> = {}) {
   render(
     <WorldClock
       now={NOW}
@@ -70,6 +70,7 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
       onRemoveLocation={vi.fn()}
       onReorder={onReorder}
       modePanelContent={<div>Form</div>}
+      {...overrides}
     />,
   );
 }
@@ -100,6 +101,52 @@ describe('WorldClock manage-locations list', () => {
   it('is not rendered outside edit mode, even with a mode panel present', () => {
     renderClockWithPanel('schedule');
     expect(screen.queryByRole('listitem')).toBeNull();
+  });
+});
+
+// mobile Config view: the desktop floating ConfigPanel (position: absolute, no
+// scroll container) could get its Add/Manage-locations content pushed off-screen
+// by the on-screen keyboard with no way back — MobileConfigView replaces it
+// wholesale on portrait with a real scrollable page showing both sections at once
+describe('WorldClock mobile Config view (isPortrait)', () => {
+  it('renders MobileConfigView instead of the floating ConfigPanel when isPortrait and in edit mode', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.getByText('Manage clock')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+  });
+
+  it('shows both sections at once, with no accordion toggle needed to reach Manage locations', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.getByText('Form')).toBeTruthy(); // the addLocationContent passed in
+    expect(screen.getAllByRole('listitem')).toHaveLength(2); // Manage locations rows, visible without any click
+    expect(screen.queryByRole('button', { name: 'Manage locations' })).toBeNull(); // no accordion header here
+  });
+
+  it('calls onSetMode("view") when Done is tapped', async () => {
+    const user = userEvent.setup();
+    const onSetMode = vi.fn();
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true, onSetMode });
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(onSetMode).toHaveBeenCalledWith('view');
+  });
+
+  it('still uses the desktop accordion ConfigPanel when isPortrait is false (default)', () => {
+    renderClockWithPanel('edit');
+
+    expect(screen.queryByText('Manage clock')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+    expect(screen.queryByRole('listitem')).toBeNull(); // collapsed by default, behind the accordion
+  });
+
+  it('does not affect the schedule panel — modePanelContent renders directly regardless of isPortrait', () => {
+    renderClockWithPanel('schedule', vi.fn(), { isPortrait: true });
+
+    expect(screen.getByText('Form')).toBeTruthy();
+    expect(screen.queryByText('Manage clock')).toBeNull();
   });
 });
 

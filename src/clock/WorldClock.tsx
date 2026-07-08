@@ -28,6 +28,7 @@ import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
+import { MobileConfigView } from './MobileConfigView';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
@@ -83,6 +84,11 @@ export type WorldClockProps = {
   onQuickSchedule?: () => void;
   onBackToNow?: () => void;
   isQuickScheduling?: boolean;
+  // Config mode on mobile renders a full-screen MobileConfigView instead of the
+  // desktop floating ConfigPanel (see the modePanel block below) — the old panel
+  // had no scroll container, so the keyboard could push its Add/Manage-locations
+  // content off-screen with no way back to it
+  isPortrait?: boolean;
 };
 
 export function WorldClock({
@@ -106,6 +112,7 @@ export function WorldClock({
   onQuickSchedule,
   onBackToNow,
   isQuickScheduling = false,
+  isPortrait = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -144,6 +151,16 @@ export function WorldClock({
   // manage-locations list reads inside->outside (home first), the reverse of
   // orderedLocations (which renders outside->inside for the SVG rings)
   const manageListLocations = useMemo(() => [...orderedLocations].reverse(), [orderedLocations]);
+  // shared between the desktop ConfigPanel accordion and the mobile
+  // MobileConfigView's stacked sections — same list, same handlers either way
+  const manageLocationsElement = (
+    <ManageLocationsList
+      locations={manageListLocations}
+      onReorder={onReorder}
+      onRemove={onRemoveLocation}
+      onClose={() => onSetMode('view')}
+    />
+  );
 
   const ringViews = useMemo(
     () =>
@@ -262,21 +279,19 @@ export function WorldClock({
           }
         />
       </div>
-      {mode === 'edit' && modePanelContent && (
-        <div className={styles.modePanel}>
-          <ConfigPanel
+      {mode === 'edit' &&
+        modePanelContent &&
+        (isPortrait ? (
+          <MobileConfigView
             addLocationContent={modePanelContent}
-            manageLocationsContent={
-              <ManageLocationsList
-                locations={manageListLocations}
-                onReorder={onReorder}
-                onRemove={onRemoveLocation}
-                onClose={() => onSetMode('view')}
-              />
-            }
+            manageLocationsContent={manageLocationsElement}
+            onClose={() => onSetMode('view')}
           />
-        </div>
-      )}
+        ) : (
+          <div className={styles.modePanel}>
+            <ConfigPanel addLocationContent={modePanelContent} manageLocationsContent={manageLocationsElement} />
+          </div>
+        ))}
       {mode === 'schedule' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
       <Toast message={toastMessage} />
 

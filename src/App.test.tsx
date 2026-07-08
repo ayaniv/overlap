@@ -259,3 +259,48 @@ describe('App — mobile quick-schedule (ControlCluster scrub buttons)', () => {
     expect(googleCalendar.scheduleMeetingOnGoogleCalendar).not.toHaveBeenCalled();
   });
 });
+
+// mobile Config flow: the desktop floating ConfigPanel has no scroll container
+// (position: absolute inside an overflow:hidden stage), so the on-screen keyboard
+// opening on the city-search tap could push Add/Manage-locations off-screen with
+// no way back to it. MobileConfigView (a real full-screen scrollable page)
+// replaces it on portrait; desktop keeps the floating accordion unchanged.
+describe('App — mobile Config view replaces the floating panel on portrait', () => {
+  it('opens the full-screen MobileConfigView (both sections, no accordion) instead of the floating panel', async () => {
+    stubMatchMedia(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await openClusterMenu(user);
+    await user.click(screen.getByRole('button', { name: 'Config' }));
+
+    expect(screen.getByText('Manage clock')).toBeTruthy();
+    expect(screen.getByLabelText('Search city')).toBeTruthy();
+    // Manage locations' rows visible at once, alongside Add location — no
+    // accordion click needed to reach them (unlike the desktop ConfigPanel)
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
+  });
+
+  it('Done returns to view mode, closing the full-screen view', async () => {
+    stubMatchMedia(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await openClusterMenu(user);
+    await user.click(screen.getByRole('button', { name: 'Config' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(screen.queryByText('Manage clock')).toBeNull();
+  });
+
+  it('keeps the desktop floating accordion panel on non-portrait, unaffected', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await openClusterMenu(user);
+    await user.click(screen.getByRole('button', { name: 'Config' }));
+
+    expect(screen.queryByText('Manage clock')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+  });
+});

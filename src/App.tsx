@@ -243,6 +243,7 @@ function App() {
       onQuickSchedule={handleQuickSchedule}
       onBackToNow={handleBackToNow}
       isQuickScheduling={isQuickScheduling}
+      isPortrait={isPortrait}
     />
   );
 }
