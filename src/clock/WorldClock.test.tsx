@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorldClock } from './WorldClock';
-import { MS_PER_HOUR } from './geometry';
+import { MS_PER_HOUR, meetingAngle, pointOnCircle, ringRadius } from './geometry';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 
@@ -131,5 +131,60 @@ describe('WorldClock scrub slider', () => {
     expect(slider.getAttribute('aria-valuemin')).toBe(String(-24 * MS_PER_HOUR));
     expect(slider.getAttribute('aria-valuemax')).toBe(String(24 * MS_PER_HOUR));
     expect(slider.getAttribute('aria-valuetext')).toBeTruthy();
+  });
+});
+
+const MEETING: Meeting = { id: 'meeting-1', title: 'Sync', startISO: '2026-01-01T13:00:00.000Z' };
+
+describe('WorldClock meeting dot', () => {
+  it('sits at meetingAngle(instant, now) on the home ring when there is no scrub preview', () => {
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+      />,
+    );
+
+    const dot = container.querySelector('circle[r="6"]');
+    expect(dot).toBeTruthy();
+    const homeRadius = ringRadius(1, 2); // [SF, home] -> home is the last of 2 rings
+    const expected = pointOnCircle(homeRadius, meetingAngle(new Date(MEETING.startISO), NOW));
+    expect(Number(dot?.getAttribute('cx'))).toBeCloseTo(expected.x, 1);
+    expect(Number(dot?.getAttribute('cy'))).toBeCloseTo(expected.y, 1);
+  });
+
+  it('moves with the scrub preview, staying attached to the ring instead of a fixed screen position', () => {
+    const previewOffsetMs = 2 * MS_PER_HOUR;
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[MEETING]}
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        previewOffsetMs={previewOffsetMs}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const dot = container.querySelector('circle[r="6"]');
+    const homeRadius = ringRadius(1, 2);
+    const effectiveNow = new Date(NOW.getTime() + previewOffsetMs);
+    const expected = pointOnCircle(homeRadius, meetingAngle(new Date(MEETING.startISO), effectiveNow));
+    expect(Number(dot?.getAttribute('cx'))).toBeCloseTo(expected.x, 1);
+    expect(Number(dot?.getAttribute('cy'))).toBeCloseTo(expected.y, 1);
+
+    // sanity: the preview really did move it from the unscrubbed position
+    const unscrubbed = pointOnCircle(homeRadius, meetingAngle(new Date(MEETING.startISO), NOW));
+    expect(expected.x).not.toBeCloseTo(unscrubbed.x, 1);
   });
 });
