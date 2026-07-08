@@ -28,7 +28,7 @@ const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
   const now = useNow();
-  const { config, addLocation, removeLocation, addMeeting, removeMeeting, reorder } = useClockConfig();
+  const { config, addLocation, removeLocation, updateLocation, setHome, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
@@ -235,6 +235,8 @@ function App() {
       onMenuExpandedChange={setIsMenuExpanded}
       onRemoveLocation={removeLocation}
       onReorder={reorder}
+      onUpdateLocation={updateLocation}
+      onSetHome={setHome}
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={canScrub ? scrubOffsetMs : 0}

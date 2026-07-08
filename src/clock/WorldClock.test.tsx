@@ -39,6 +39,8 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
       onShare={vi.fn()}
       onRemoveLocation={onRemoveLocation}
       onReorder={vi.fn()}
+      onUpdateLocation={vi.fn()}
+      onSetHome={vi.fn()}
     />,
   );
   return { onRemoveLocation };
@@ -69,6 +71,8 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn(), overrides: Partia
       onShare={vi.fn()}
       onRemoveLocation={vi.fn()}
       onReorder={onReorder}
+      onUpdateLocation={vi.fn()}
+      onSetHome={vi.fn()}
       modePanelContent={<div>Form</div>}
       {...overrides}
     />,
@@ -178,6 +182,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={2 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -204,6 +210,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={100 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -227,6 +235,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={-100 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -281,6 +291,8 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
         onQuickSchedule={onQuickSchedule}
@@ -345,6 +357,8 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
         onQuickSchedule={vi.fn()}
@@ -374,6 +388,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -401,6 +417,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -435,6 +453,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -456,6 +476,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={24 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -479,6 +501,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected={false}
       />,
     );
@@ -500,6 +524,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
 
@@ -527,6 +553,8 @@ describe('WorldClock ambient idle mode', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
     const stage = container.querySelector('section');
@@ -552,6 +580,8 @@ describe('WorldClock ambient idle mode', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
 
@@ -576,6 +606,8 @@ describe('WorldClock ambient idle mode', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
     const stage = container.querySelector('section');

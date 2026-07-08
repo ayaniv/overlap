@@ -68,6 +68,8 @@ export type WorldClockProps = {
   onMenuExpandedChange: (isExpanded: boolean) => void;
   onRemoveLocation: (id: string) => void;
   onReorder: (orderedIds: string[]) => void;
+  onUpdateLocation: (id: string, patch: Partial<Location>) => void;
+  onSetHome: (location: Location) => void;
   modePanelContent?: ReactNode;
   toastMessage?: string | null;
   previewOffsetMs?: number;
@@ -103,6 +105,8 @@ export function WorldClock({
   onMenuExpandedChange,
   onRemoveLocation,
   onReorder,
+  onUpdateLocation,
+  onSetHome,
   modePanelContent,
   toastMessage = null,
   previewOffsetMs = 0,
@@ -160,6 +164,8 @@ export function WorldClock({
       onRemove={onRemoveLocation}
       onClose={() => onSetMode('view')}
       hideCloseButton={isPortrait}
+      onUpdateLocation={onUpdateLocation}
+      onSetHome={onSetHome}
     />
   );
 
