@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addLocationOp, addMeetingOp, removeLocationOp, reorderLocationsOp, setHomeOp, updateLocationOp } from './configOps';
+import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from './configOps';
 import type { ClockConfig, Location } from './types';
 
 const HOME: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 };
@@ -111,5 +111,21 @@ describe('addMeetingOp', () => {
     const next = addMeetingOp(BASE_CONFIG, meeting);
     expect(next.meetings).toEqual([meeting]);
     expect(BASE_CONFIG.meetings).toEqual([]); // original untouched
+  });
+});
+
+describe('removeMeetingOp', () => {
+  const meeting1 = { id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync' };
+  const meeting2 = { id: 'm2', startISO: '2026-01-02T10:00:00.000Z', title: 'Standup' };
+  const configWithMeetings: ClockConfig = { ...BASE_CONFIG, meetings: [meeting1, meeting2] };
+
+  it('removes the matching meeting', () => {
+    const next = removeMeetingOp(configWithMeetings, meeting1.id);
+    expect(next.meetings).toEqual([meeting2]);
+  });
+
+  it('is a no-op when the id does not match anything', () => {
+    const next = removeMeetingOp(configWithMeetings, 'not-a-real-id');
+    expect(next.meetings).toEqual(configWithMeetings.meetings);
   });
 });

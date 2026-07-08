@@ -136,14 +136,16 @@ export function requestAccessToken(clientId: string, oauth2: GoogleOAuth2): Prom
   });
 }
 
-// creates a primary-calendar event via the Calendar v3 REST API
+// creates a primary-calendar event via the Calendar v3 REST API; resolves with the
+// created event's id (from the response body) so the caller can store it on the
+// Meeting and later target it for deletion
 export async function createCalendarEvent(
   accessToken: string,
   title: string,
   startISO: string,
   durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
   fetchImpl: typeof fetch = fetch,
-): Promise<void> {
+): Promise<string> {
   const payload = buildEventPayload(title, startISO, durationMinutes);
   const response = await fetchImpl(EVENTS_ENDPOINT, {
     method: 'POST',
@@ -155,6 +157,43 @@ export async function createCalendarEvent(
     console.error('overlap: Google Calendar event creation failed', response.status, body);
     throw new Error('overlap: failed to create the calendar event');
   }
+  const created: unknown = await response.json();
+  const eventId =
+    typeof created === 'object' && created !== null && typeof (created as { id?: unknown }).id === 'string'
+      ? (created as { id: string }).id
+      : undefined;
+  if (!eventId) {
+    console.error('overlap: Google Calendar event creation response had no event id', created);
+    throw new Error('overlap: created the calendar event but could not read its id');
+  }
+  return eventId;
+}
+
+// deletes a primary-calendar event via the Calendar v3 REST API; a 410 (already
+// gone) counts as success — that's the outcome the caller wants either way
+export async function deleteCalendarEvent(accessToken: string, eventId: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const response = await fetchImpl(`${EVENTS_ENDPOINT}/${encodeURIComponent(eventId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok && response.status !== 410) {
+    const body = await response.text().catch(() => '');
+    console.error('overlap: Google Calendar event deletion failed', response.status, body);
+    throw new Error('overlap: failed to delete the calendar event');
+  }
+}
+
+// shared sign-in step for both scheduling and deleting: Google Identity Services
+// issues short-lived access tokens, not a persisted session, so every calendar
+// mutation (including deleting a meeting that was created moments ago) re-runs
+// this popup flow
+async function signIn(): Promise<string> {
+  const clientId = getGoogleClientId();
+  if (!clientId) {
+    throw new Error('overlap: Google Calendar is not configured (missing VITE_GOOGLE_CLIENT_ID)');
+  }
+  const oauth2 = await loadGoogleIdentityServices();
+  return requestAccessToken(clientId, oauth2);
 }
 
 // orchestrates sign-in + event creation; every step logs on failure, and this rethrows
@@ -163,12 +202,13 @@ export async function scheduleMeetingOnGoogleCalendar(
   title: string,
   startISO: string,
   durationMinutes: number = DEFAULT_MEETING_DURATION_MINUTES,
-): Promise<void> {
-  const clientId = getGoogleClientId();
-  if (!clientId) {
-    throw new Error('overlap: Google Calendar is not configured (missing VITE_GOOGLE_CLIENT_ID)');
-  }
-  const oauth2 = await loadGoogleIdentityServices();
-  const accessToken = await requestAccessToken(clientId, oauth2);
-  await createCalendarEvent(accessToken, title, startISO, durationMinutes);
+): Promise<string> {
+  const accessToken = await signIn();
+  return createCalendarEvent(accessToken, title, startISO, durationMinutes);
+}
+
+// orchestrates sign-in + event deletion, mirroring scheduleMeetingOnGoogleCalendar
+export async function deleteMeetingFromGoogleCalendar(eventId: string): Promise<void> {
+  const accessToken = await signIn();
+  await deleteCalendarEvent(accessToken, eventId);
 }

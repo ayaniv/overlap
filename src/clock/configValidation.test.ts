@@ -45,4 +45,19 @@ describe('isValidClockConfig', () => {
   it('rejects when a meeting entry has the wrong shape', () => {
     expect(isValidClockConfig({ ...VALID_CONFIG, meetings: [{ id: 'm1' }] })).toBe(false);
   });
+
+  it('accepts a meeting with a string googleEventId', () => {
+    const meeting = { id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync', googleEventId: 'evt-1' };
+    expect(isValidClockConfig({ ...VALID_CONFIG, meetings: [meeting] })).toBe(true);
+  });
+
+  it('accepts a meeting with no googleEventId (pre-migration/foreign share links)', () => {
+    const meeting = { id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync' };
+    expect(isValidClockConfig({ ...VALID_CONFIG, meetings: [meeting] })).toBe(true);
+  });
+
+  it('rejects a meeting whose googleEventId is not a string', () => {
+    const meeting = { id: 'm1', startISO: '2026-01-01T10:00:00.000Z', title: 'Sync', googleEventId: 42 };
+    expect(isValidClockConfig({ ...VALID_CONFIG, meetings: [meeting] })).toBe(false);
+  });
 });

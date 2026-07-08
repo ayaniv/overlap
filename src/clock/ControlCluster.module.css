@@ -2,9 +2,81 @@
   position: absolute;
   top: 38px;
   right: 44px;
+  height: 34px;
+  pointer-events: auto;
+}
+
+/* .actions rests immediately left of the toggle (34px toggle + 10px gap); at
+   rest it's shrunk + slid right by that same 44px so it visually sits "inside"
+   the toggle, then on expand it slides+grows out to its natural spot. The
+   overshoot easing (cubic-bezier back-out) gives it a small settle-in pulse
+   rather than a flat scale — subtler than a large positional translate. */
+.actions {
+  position: absolute;
+  top: 0;
+  right: 44px;
   display: flex;
   gap: 10px;
+  opacity: 0;
+  transform: translateX(44px) scale(0.3);
+  transform-origin: right center;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cluster[data-expanded] .actions {
+  opacity: 1;
+  transform: translateX(0) scale(1);
   pointer-events: auto;
+}
+
+.toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.6);
+  color: #c4c8cf;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.toggle:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.hamburgerIcon,
+.closeIcon {
+  transform-origin: 12px 12px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.hamburgerIcon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.closeIcon {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.toggle[aria-expanded='true'] .hamburgerIcon {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.toggle[aria-expanded='true'] .closeIcon {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .button {
@@ -56,6 +128,9 @@
   .cluster {
     top: 20px;
     right: 16px;
+  }
+
+  .actions {
     gap: 6px;
   }
 
@@ -66,8 +141,10 @@
   }
 
   .iconButton,
-  .iconButtonActive {
+  .iconButtonActive,
+  .toggle {
     width: 28px;
+    height: 28px;
     padding: 6px;
   }
 }

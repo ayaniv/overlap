@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildEventPayload,
   createCalendarEvent,
+  deleteCalendarEvent,
+  deleteMeetingFromGoogleCalendar,
   getGoogleClientId,
   isGoogleCalendarConfigured,
   isGoogleCalendarConnected,
@@ -114,10 +116,14 @@ describe('isGoogleCalendarConnected', () => {
   });
 });
 
+function okJsonResponse(body: unknown) {
+  return { ok: true, json: () => Promise.resolve(body) };
+}
+
 describe('createCalendarEvent', () => {
-  it('posts the event payload and resolves on a 2xx response', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
-    await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl);
+  it('posts the event payload and resolves with the created event id', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJsonResponse({ id: 'evt-123' }));
+    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl)).resolves.toBe('evt-123');
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://www.googleapis.com/calendar/v3/calendars/primary/events',
       expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }) }),
@@ -125,7 +131,7 @@ describe('createCalendarEvent', () => {
   });
 
   it('respects a custom duration in the posted payload', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    const fetchImpl = vi.fn().mockResolvedValue(okJsonResponse({ id: 'evt-123' }));
     await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 45, fetchImpl);
     const [, options] = fetchImpl.mock.calls[0];
     const body = JSON.parse(options.body as string);
@@ -133,7 +139,7 @@ describe('createCalendarEvent', () => {
   });
 
   it('defaults to a 30-minute event when no duration is given', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    const fetchImpl = vi.fn().mockResolvedValue(okJsonResponse({ id: 'evt-123' }));
     await createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', undefined, fetchImpl);
     const [, options] = fetchImpl.mock.calls[0];
     const body = JSON.parse(options.body as string);
@@ -149,9 +155,46 @@ describe('createCalendarEvent', () => {
     expect(errorSpy).toHaveBeenCalledWith('overlap: Google Calendar event creation failed', 403, 'forbidden');
   });
 
+  it('throws and logs when the response body has no usable event id', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue(okJsonResponse({ summary: 'Sync' }));
+    await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl)).rejects.toThrow(
+      'could not read its id',
+    );
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
   it('propagates a network-level rejection', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
     await expect(createCalendarEvent('tok-123', 'Sync', '2026-01-01T10:00:00.000Z', 30, fetchImpl)).rejects.toThrow('network down');
+  });
+});
+
+describe('deleteCalendarEvent', () => {
+  it('sends a DELETE request for the given event id and resolves on a 2xx response', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    await deleteCalendarEvent('tok-123', 'evt-123', fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events/evt-123',
+      expect.objectContaining({ method: 'DELETE', headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }) }),
+    );
+  });
+
+  it('treats a 410 (already gone) as success', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 410, text: () => Promise.resolve('gone') });
+    await expect(deleteCalendarEvent('tok-123', 'evt-123', fetchImpl)).resolves.toBeUndefined();
+  });
+
+  it('throws and logs on a non-2xx, non-410 status', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 403, text: () => Promise.resolve('forbidden') });
+    await expect(deleteCalendarEvent('tok-123', 'evt-123', fetchImpl)).rejects.toThrow('failed to delete the calendar event');
+    expect(errorSpy).toHaveBeenCalledWith('overlap: Google Calendar event deletion failed', 403, 'forbidden');
+  });
+
+  it('propagates a network-level rejection', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
+    await expect(deleteCalendarEvent('tok-123', 'evt-123', fetchImpl)).rejects.toThrow('network down');
   });
 });
 
@@ -229,14 +272,14 @@ describe('scheduleMeetingOnGoogleCalendar', () => {
     );
   });
 
-  it('resolves once sign-in and event creation both succeed', async () => {
+  it('resolves with the created event id once sign-in and event creation both succeed', async () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
     const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
     vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    const fetchImpl = vi.fn().mockResolvedValue(okJsonResponse({ id: 'evt-123' }));
     vi.stubGlobal('fetch', fetchImpl);
 
-    await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).resolves.toBeUndefined();
+    await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).resolves.toBe('evt-123');
 
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://www.googleapis.com/calendar/v3/calendars/primary/events',
@@ -267,6 +310,53 @@ describe('scheduleMeetingOnGoogleCalendar', () => {
     vi.stubGlobal('fetch', fetchImpl);
 
     await expect(scheduleMeetingOnGoogleCalendar('Sync', '2026-01-01T10:00:00.000Z')).rejects.toThrow('access_denied');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+  });
+});
+
+describe('deleteMeetingFromGoogleCalendar', () => {
+  it('throws without touching the network when no client id is configured', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '');
+    await expect(deleteMeetingFromGoogleCalendar('evt-123')).rejects.toThrow('Google Calendar is not configured');
+  });
+
+  it('resolves once sign-in and event deletion both succeed — deletion re-signs-in rather than reusing a stored token', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(deleteMeetingFromGoogleCalendar('evt-123')).resolves.toBeUndefined();
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events/evt-123',
+      expect.objectContaining({ method: 'DELETE', headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }) }),
+    );
+  });
+
+  it('rejects and logs when event deletion fails after a successful sign-in', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve('boom') });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(deleteMeetingFromGoogleCalendar('evt-123')).rejects.toThrow('failed to delete the calendar event');
+    expect(errorSpy).toHaveBeenCalledWith('overlap: Google Calendar event deletion failed', 500, 'boom');
+  });
+
+  it('rejects and never touches the network when sign-in fails', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const oauth2 = fakeOAuth2((callback) => callback({ error: 'access_denied' }));
+    vi.stubGlobal('window', { google: { accounts: { oauth2 } } });
+    const fetchImpl = vi.fn();
+    vi.stubGlobal('fetch', fetchImpl);
+
+    await expect(deleteMeetingFromGoogleCalendar('evt-123')).rejects.toThrow('access_denied');
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
   });

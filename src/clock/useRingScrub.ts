@@ -2,7 +2,13 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { MS_PER_HOUR, angleDelta, angleFromCenterOffset, offsetMsFromAngle } from './geometry';
 
-const ARROW_STEP_MS = MS_PER_HOUR;
+// Up/Down step by a minute; holding Shift steps by an hour instead, so
+// keyboard-only users get both granularities off the same pair of keys. This
+// diverges from the ARIA APG slider convention (all four arrows stepping
+// equally, no modifier) — see WorldClock.tsx's aria-label for the accompanying
+// screen-reader note. Left/Right are intentionally unbound.
+const ARROW_MINUTE_STEP_MS = MS_PER_HOUR / 60;
+const ARROW_HOUR_STEP_MS = MS_PER_HOUR;
 
 export type RingScrubBind = {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -25,8 +31,9 @@ function angleFromClientPoint(centerX: number, centerY: number, clientX: number,
 
 // lets the user drag anywhere on the clock face to preview a different meeting time:
 // rotation maps to a time offset at 15deg/hour (DEGREES_PER_HOUR), so `now + previewOffsetMs`
-// can be rendered by the clock as the previewed instant. Arrow keys step by one hour so the
-// same preview is reachable without a pointer.
+// can be rendered by the clock as the previewed instant. Up/Down step by a minute
+// (Shift+Up/Down by an hour), so the same preview is reachable — at either
+// granularity — without a pointer.
 export function useRingScrub(): UseRingScrubResult {
   const [previewOffsetMs, setPreviewOffsetMs] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -68,12 +75,13 @@ export function useRingScrub(): UseRingScrubResult {
   }, []);
 
   const onKeyDown = useCallback((event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+    const stepMs = event.shiftKey ? ARROW_HOUR_STEP_MS : ARROW_MINUTE_STEP_MS;
+    if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setPreviewOffsetMs((ms) => ms + ARROW_STEP_MS);
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      setPreviewOffsetMs((ms) => ms + stepMs);
+    } else if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setPreviewOffsetMs((ms) => ms - ARROW_STEP_MS);
+      setPreviewOffsetMs((ms) => ms - stepMs);
     }
   }, []);
 

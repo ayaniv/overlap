@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorldClock } from './WorldClock';
 import { MS_PER_HOUR, meetingAngle, pointOnCircle, ringRadius } from './geometry';
+import { DEFAULT_IDLE_TIMEOUT_MS } from '../hooks/useIsIdle';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 
@@ -33,6 +34,8 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
       meetings={meetings}
       mode={mode}
       onSetMode={vi.fn()}
+      isMenuExpanded={false}
+      onMenuExpandedChange={vi.fn()}
       onShare={vi.fn()}
       onRemoveLocation={onRemoveLocation}
       onReorder={vi.fn()}
@@ -61,6 +64,8 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
       meetings={[]}
       mode={mode}
       onSetMode={vi.fn()}
+      isMenuExpanded={false}
+      onMenuExpandedChange={vi.fn()}
       onShare={vi.fn()}
       onRemoveLocation={vi.fn()}
       onReorder={onReorder}
@@ -113,6 +118,8 @@ describe('WorldClock scrub slider', () => {
         meetings={[]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -126,6 +133,69 @@ describe('WorldClock scrub slider', () => {
     expect(slider.getAttribute('aria-valuemin')).toBe(String(-24 * MS_PER_HOUR));
     expect(slider.getAttribute('aria-valuemax')).toBe(String(24 * MS_PER_HOUR));
     expect(slider.getAttribute('aria-valuetext')).toBeTruthy();
+  });
+
+  it('clamps aria-valuenow to aria-valuemin/aria-valuemax, since the raw offset itself is never clamped', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={100 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(24 * MS_PER_HOUR));
+  });
+
+  it('clamps a large negative offset to aria-valuemin', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        previewOffsetMs={-100 * MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+      />,
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(-24 * MS_PER_HOUR));
+  });
+});
+
+describe('WorldClock copy', () => {
+  it('shows the current top-of-page branding and an accurate status line, without a global working-hours legend', () => {
+    renderClock('view');
+
+    expect(screen.getByText('See shared hours instantly')).toBeTruthy();
+    expect(screen.getByText((_, node) => node?.textContent === 'Overlap Clock')).toBeTruthy();
+    // per-location working hours are per-ring, so no single "Home working hours" line
+    expect(screen.queryByText(/Home working hours/)).toBeNull();
+  });
+
+  it('phrases the status line as "N of M teams are available now"', () => {
+    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT)
+    const matches = screen.getAllByText(/teams are available now|No teams available right now/);
+    expect(matches.length).toBeGreaterThan(0);
   });
 });
 
@@ -141,6 +211,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -166,6 +238,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -198,6 +272,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING_TOMORROW]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -217,6 +293,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING_TOMORROW]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -238,6 +316,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -257,6 +337,8 @@ describe('WorldClock meeting dot', () => {
         meetings={[MEETING]}
         mode="view"
         onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
@@ -264,5 +346,87 @@ describe('WorldClock meeting dot', () => {
     );
 
     expect(container.querySelector('circle[r="6"]')).toBeNull();
+  });
+});
+
+describe('WorldClock ambient idle mode', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('marks the stage data-chrome-hidden after DEFAULT_IDLE_TIMEOUT_MS of no activity, in view mode', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+    const stage = container.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+  });
+
+  it('does not mark data-chrome-hidden while a panel is open (mode !== view)', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="schedule"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+
+    const stage = container.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+
+  it('clears data-chrome-hidden immediately on activity (e.g. a keydown)', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+    const stage = container.querySelector('section');
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+
+    act(() => window.dispatchEvent(new Event('keydown')));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 });

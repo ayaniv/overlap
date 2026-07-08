@@ -23,6 +23,7 @@ import {
 } from './geometry';
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
+import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
@@ -51,8 +52,6 @@ const LABEL_DOT_GAP = 18;
 // isn't clamped
 const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
-const padTwoDigits = (value: number) => String(value).padStart(2, '0');
-
 export type WorldClockProps = {
   now: Date;
   home: Location;
@@ -61,6 +60,8 @@ export type WorldClockProps = {
   mode: Mode;
   onSetMode: (mode: Mode) => void;
   onShare: () => void;
+  isMenuExpanded: boolean;
+  onMenuExpandedChange: (isExpanded: boolean) => void;
   onRemoveLocation: (id: string) => void;
   onReorder: (orderedIds: string[]) => void;
   modePanelContent?: ReactNode;
@@ -82,6 +83,8 @@ export function WorldClock({
   mode,
   onSetMode,
   onShare,
+  isMenuExpanded,
+  onMenuExpandedChange,
   onRemoveLocation,
   onReorder,
   modePanelContent,
@@ -96,6 +99,15 @@ export function WorldClock({
   // allowed (not in edit mode) — WorldClock just reflects that, it doesn't re-derive
   // its own mode rule
   const isScrubbable = Boolean(scrubBind);
+
+  // ambient "wall display" mode: fades the header copy, footer status line, and
+  // ControlCluster after a stretch of no touch/keystroke/pointer activity, so a
+  // clock left running on a wall reads as a clean ambient display rather than an
+  // app waiting for input. Only while `mode === 'view'` — fading the chrome out
+  // from under an open Config/Schedule panel would strand it with no visible way
+  // to close.
+  const isIdle = useIsIdle();
+  const isChromeHidden = isIdle && mode === 'view';
 
   // dragging the clock face (useRingScrub) previews a different instant; every
   // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview.
@@ -189,24 +201,40 @@ export function WorldClock({
 
   const homeTime = getCityTime(effectiveNow, home.timezoneId);
   const homeDateLabel = getCityDateLabel(effectiveNow, home.timezoneId);
+  // previewOffsetMs itself is never clamped (a long drag or a burst of arrow-key
+  // presses can carry it past a single day), but the ARIA slider's advertised range
+  // is +/-24h — aria-valuenow must stay within aria-valuemin/aria-valuemax or it's an
+  // invalid slider for assistive tech
+  const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
-  const statusText = availableCount === 0 ? 'No teams free right now' : `${availableCount} of ${totalCount} teams free now`;
+  const statusText = availableCount === 0 ? 'No teams available right now' : `${availableCount} of ${totalCount} teams are available now`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
-  const workLabel = `${padTwoDigits(home.workStart)}:00–${padTwoDigits(home.workEnd % 24)}:00`;
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
   return (
-    <section className={styles.stage} aria-label="World clock meeting planner">
+    <section
+      className={styles.stage}
+      aria-label="World clock — shared working hours across timezones"
+      data-chrome-hidden={isChromeHidden || undefined}
+    >
       <div className={styles.context} aria-hidden="true">
-        <div className={styles.eyebrow}>MEETING&nbsp;PLANNER</div>
-        <div className={styles.headline}>When can everyone meet today?</div>
+        <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
+        <div className={styles.headline}>See shared hours instantly</div>
       </div>
 
-      <ControlCluster mode={mode} onSetMode={onSetMode} onShare={onShare} />
+      <div className={styles.controlClusterWrap}>
+        <ControlCluster
+          mode={mode}
+          onSetMode={onSetMode}
+          onShare={onShare}
+          isExpanded={isMenuExpanded}
+          onExpandedChange={onMenuExpandedChange}
+        />
+      </div>
       {mode === 'edit' && modePanelContent && (
         <div className={styles.modePanel}>
           <ConfigPanel
@@ -231,8 +259,12 @@ export function WorldClock({
         data-scrubbing={isScrubbing || undefined}
         tabIndex={isScrubbable ? 0 : undefined}
         role={isScrubbable ? 'slider' : undefined}
-        aria-label={isScrubbable ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
-        aria-valuenow={isScrubbable ? previewOffsetMs : undefined}
+        aria-label={
+          isScrubbable
+            ? 'Drag, or use Up/Down (Shift for hours) to preview a different meeting time'
+            : undefined
+        }
+        aria-valuenow={isScrubbable ? clampedScrubValueMs : undefined}
         aria-valuemin={isScrubbable ? -SCRUB_RANGE_MS : undefined}
         aria-valuemax={isScrubbable ? SCRUB_RANGE_MS : undefined}
         aria-valuetext={isScrubbable ? `Home time ${homeTime.label}` : undefined}
@@ -384,8 +416,6 @@ export function WorldClock({
           />
           {statusText}
         </div>
-        <span className={styles.separator} />
-        <div className={styles.legend}>Home working hours {workLabel} · local</div>
       </div>
 
       <p className={styles.srOnly} role="status">
