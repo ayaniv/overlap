@@ -7,6 +7,103 @@ import { isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_S
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
 
+const FALLBACK_SWATCH_COLOR = '#000000';
+
+type LocationEditorProps = {
+  location: Location & { isHome: boolean };
+  onUpdateLocation: (id: string, patch: Partial<Location>) => void;
+  onSetHome: (location: Location) => void;
+};
+
+// the row's inline editor, revealed by tapping .rowToggle — its own component
+// (rather than inlined in the parent's .map(), where hooks aren't allowed)
+// specifically so hexDraft below resets via mount/unmount whenever a
+// different row expands, instead of needing an effect to resync it (which
+// would fight the once-a-second parent re-render from WorldClock's `now`)
+function LocationEditor({ location, onUpdateLocation, onSetHome }: LocationEditorProps) {
+  // buffered separately from location.color: applying every keystroke live
+  // (AddLocationForm gates this behind a submit step instead) means an
+  // incomplete typed hex — e.g. cut short by clicking "Set as home" mid-edit —
+  // would otherwise get baked into the ring's actual rendered color. Only
+  // forwarded to onUpdateLocation once it's a complete, valid hex; the swatch
+  // and native picker below always produce a valid value, so they stay
+  // in sync with both this draft and the committed color directly.
+  const [hexDraft, setHexDraft] = useState(location.color);
+
+  return (
+    <div className={styles.expanded}>
+      <div className={styles.colorRow}>
+        {PALETTE.map((swatch) => (
+          <button
+            key={swatch}
+            type="button"
+            className={location.color === swatch ? styles.swatchOptionActive : styles.swatchOption}
+            style={{ background: swatch }}
+            aria-label={`Color ${swatch}`}
+            aria-pressed={location.color === swatch}
+            onClick={() => {
+              setHexDraft(swatch);
+              onUpdateLocation(location.id, { color: swatch });
+            }}
+          />
+        ))}
+      </div>
+      <div className={styles.hexRow}>
+        <input
+          className={styles.hexInput}
+          type="text"
+          value={hexDraft}
+          onChange={(event) => {
+            const value = event.target.value;
+            setHexDraft(value);
+            if (isValidHexColor(value)) onUpdateLocation(location.id, { color: value });
+          }}
+          aria-label={`Hex color for ${location.label}`}
+        />
+        <input
+          className={styles.colorPicker}
+          type="color"
+          value={isValidHexColor(location.color) ? location.color : FALLBACK_SWATCH_COLOR}
+          onChange={(event) => {
+            setHexDraft(event.target.value);
+            onUpdateLocation(location.id, { color: event.target.value });
+          }}
+          aria-label={`Pick color for ${location.label}`}
+        />
+      </div>
+      <div className={styles.hoursRow}>
+        <label className={styles.hoursLabel}>
+          Start
+          <input
+            className={styles.hoursInput}
+            type="number"
+            min={MIN_WORK_START}
+            max={MAX_WORK_START}
+            value={location.workStart}
+            onChange={(event) => onUpdateLocation(location.id, { workStart: Number(event.target.value) })}
+          />
+        </label>
+        <label className={styles.hoursLabel}>
+          End
+          <input
+            className={styles.hoursInput}
+            type="number"
+            min={MIN_WORK_END}
+            max={MAX_WORK_END}
+            value={location.workEnd}
+            onChange={(event) => onUpdateLocation(location.id, { workEnd: Number(event.target.value) })}
+          />
+        </label>
+      </div>
+      {!location.isHome && (
+        <button type="button" className={styles.setHomeButton} onClick={() => onSetHome(location)}>
+          Set as home
+        </button>
+      )}
+    </div>
+  );
+}
+
 export type ManageLocationsListProps = {
   // inside -> outside: home first, then rings from innermost to outermost
   locations: Array<Location & { isHome: boolean }>;
@@ -24,8 +121,6 @@ export type ManageLocationsListProps = {
   onUpdateLocation: (id: string, patch: Partial<Location>) => void;
   onSetHome: (location: Location) => void;
 };
-
-const FALLBACK_SWATCH_COLOR = '#000000';
 
 // counts how many of the other rows' current centers sit above `pointerY`,
 // which is exactly the dragged row's target index among them
@@ -145,68 +240,7 @@ export function ManageLocationsList({
                 )}
               </div>
 
-              {isExpanded && (
-                <div className={styles.expanded}>
-                  <div className={styles.colorRow}>
-                    {PALETTE.map((swatch) => (
-                      <button
-                        key={swatch}
-                        type="button"
-                        className={location.color === swatch ? styles.swatchOptionActive : styles.swatchOption}
-                        style={{ background: swatch }}
-                        aria-label={`Color ${swatch}`}
-                        aria-pressed={location.color === swatch}
-                        onClick={() => onUpdateLocation(location.id, { color: swatch })}
-                      />
-                    ))}
-                  </div>
-                  <div className={styles.hexRow}>
-                    <input
-                      className={styles.hexInput}
-                      type="text"
-                      value={location.color}
-                      onChange={(event) => onUpdateLocation(location.id, { color: event.target.value })}
-                      aria-label={`Hex color for ${location.label}`}
-                    />
-                    <input
-                      className={styles.colorPicker}
-                      type="color"
-                      value={isValidHexColor(location.color) ? location.color : FALLBACK_SWATCH_COLOR}
-                      onChange={(event) => onUpdateLocation(location.id, { color: event.target.value })}
-                      aria-label={`Pick color for ${location.label}`}
-                    />
-                  </div>
-                  <div className={styles.hoursRow}>
-                    <label className={styles.hoursLabel}>
-                      Start
-                      <input
-                        className={styles.hoursInput}
-                        type="number"
-                        min={MIN_WORK_START}
-                        max={MAX_WORK_START}
-                        value={location.workStart}
-                        onChange={(event) => onUpdateLocation(location.id, { workStart: Number(event.target.value) })}
-                      />
-                    </label>
-                    <label className={styles.hoursLabel}>
-                      End
-                      <input
-                        className={styles.hoursInput}
-                        type="number"
-                        min={MIN_WORK_END}
-                        max={MAX_WORK_END}
-                        value={location.workEnd}
-                        onChange={(event) => onUpdateLocation(location.id, { workEnd: Number(event.target.value) })}
-                      />
-                    </label>
-                  </div>
-                  {!location.isHome && (
-                    <button type="button" className={styles.setHomeButton} onClick={() => onSetHome(location)}>
-                      Set as home
-                    </button>
-                  )}
-                </div>
-              )}
+              {isExpanded && <LocationEditor location={location} onUpdateLocation={onUpdateLocation} onSetHome={onSetHome} />}
             </li>
           );
         })}

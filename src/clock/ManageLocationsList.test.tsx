@@ -236,6 +236,35 @@ describe('ManageLocationsList row expand/edit', () => {
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { color: '#123456' });
   });
 
+  // regression: typing live (not a single fireEvent.change like above) used to
+  // apply every keystroke straight to the ring's actual color — an incomplete
+  // hex cut short mid-edit (e.g. by clicking "Set as home" before finishing)
+  // would get baked in as the location's real, rendered color
+  it('does not call onUpdateLocation for an incomplete hex value while still typing', async () => {
+    const user = userEvent.setup();
+    const { onUpdateLocation } = renderList();
+
+    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    const hexInput = screen.getByLabelText('Hex color for San Francisco');
+    await user.clear(hexInput);
+    await user.type(hexInput, '#3644'); // incomplete — not yet a full 6-digit hex
+
+    expect(onUpdateLocation).not.toHaveBeenCalled();
+    expect((hexInput as HTMLInputElement).value).toBe('#3644'); // still reflects what was typed
+  });
+
+  it('commits the color the moment typing completes a valid hex, mid-stream', async () => {
+    const user = userEvent.setup();
+    const { onUpdateLocation } = renderList();
+
+    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    const hexInput = screen.getByLabelText('Hex color for San Francisco');
+    await user.clear(hexInput);
+    await user.type(hexInput, '#364449');
+
+    expect(onUpdateLocation).toHaveBeenLastCalledWith('san-francisco', { color: '#364449' });
+  });
+
   it('calls onUpdateLocation with the new Start/End hours', async () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
