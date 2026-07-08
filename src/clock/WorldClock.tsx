@@ -47,12 +47,7 @@ const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 // clarifies what the colored ring segments mean — otherwise nothing on
-// screen ties "colored arc" to "that location's local working hours". The
-// bullet is a separator from the status text on the same line (desktop); on
-// portrait, where the status row wraps onto its own line, it reads oddly as
-// the first character of a standalone line, so it's hidden there in CSS
-// (.legendBullet) — kept as its own span rather than baked into the string.
-const RING_COLOR_LEGEND_BULLET = '• ';
+// screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'In colors — local working hours';
 const LABEL_DOT_GAP = 18;
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
@@ -424,10 +419,8 @@ export function WorldClock({
           />
           {statusText}
         </div>
-        <div className={styles.legendText}>
-          <span className={styles.legendBullet}>{RING_COLOR_LEGEND_BULLET}</span>
-          {RING_COLOR_LEGEND_TEXT}
-        </div>
+        <span className={styles.legendBullet} />
+        <div className={styles.legendText}>{RING_COLOR_LEGEND_TEXT}</div>
       </div>
 
       <p className={styles.srOnly} role="status">

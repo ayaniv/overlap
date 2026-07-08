@@ -175,8 +175,16 @@
   color: #d6d9de;
 }
 
+.legendBullet,
 .legendText {
   color: #7b808a;
+}
+
+/* purely decorative separator (the whole .statusRow is aria-hidden already)
+   between statusText and legendText — its own empty flex item so it centers
+   in the middle of .statusRow's `gap` rather than hugging one side of it */
+.legendBullet::before {
+  content: '•';
 }
 
 .statusDot {
@@ -203,16 +211,24 @@
 @media (orientation: portrait) {
   /* the top-left context copy and bottom status row used to be dropped
      entirely (display:none) on portrait so the clock could dominate the
-     narrow screen (M5); reflowed instead (smaller/repositioned) so phone
-     users can still read them (M8) — matching plan.md's original M5 intent
-     ("top-left context, top-right cluster, bottom status reflow"). */
+     narrow screen (M5); reflowed instead so phone users can still read them
+     (M8) — matching plan.md's original M5 intent ("top-left context,
+     top-right cluster, bottom status reflow"). The headline (marketing
+     tagline) is dropped here rather than shrunk to fit: unlike the eyebrow
+     label or the status row, it's not functional info, and at any readable
+     size it either wraps into the ring labels below it or runs wide enough
+     to reach the clock's NOW triangle marker at the horizontal center. */
   .context {
     top: 20px;
     left: 16px;
   }
 
+  .eyebrow {
+    font-size: 10px;
+  }
+
   .headline {
-    font-size: 15px;
+    display: none;
   }
 
   .clockContainer {
@@ -232,16 +248,6 @@
     font-size: 11px;
     white-space: normal;
     text-align: center;
-  }
-
-  /* the ambient idle-fade (data-chrome-hidden) is a deliberate desktop
-     "wall display" affordance backed by continuous mouse movement; on
-     mobile there's no equivalent passive activity signal, so the same fade
-     reads as this chrome randomly disappearing rather than an ambient
-     effect. Keep it persistently visible on portrait/mobile instead (M8). */
-  .stage[data-chrome-hidden] .context,
-  .stage[data-chrome-hidden] .statusRow {
-    opacity: 1;
   }
 
   /* the status row wraps onto its own line here (flex-direction: column
