@@ -18,6 +18,22 @@
   position: absolute;
   top: 38px;
   left: 44px;
+  transition: opacity 0.8s ease;
+}
+
+.controlClusterWrap {
+  transition: opacity 0.8s ease;
+}
+
+/* ambient "wall display" mode (useIsIdle): fades the header, footer status
+   line, and ControlCluster after a stretch of no activity — the clock face
+   itself stays fully visible. Only ever set while mode === 'view' (see
+   WorldClock.tsx), so this never hides chrome out from under an open panel. */
+.stage[data-chrome-hidden] .context,
+.stage[data-chrome-hidden] .statusRow,
+.stage[data-chrome-hidden] .controlClusterWrap {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .eyebrow {
@@ -146,6 +162,7 @@
   display: flex;
   align-items: center;
   gap: 22px;
+  transition: opacity 0.8s ease;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;

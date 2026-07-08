@@ -23,6 +23,7 @@ import {
 } from './geometry';
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
+import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
@@ -98,6 +99,15 @@ export function WorldClock({
   // allowed (not in edit mode) — WorldClock just reflects that, it doesn't re-derive
   // its own mode rule
   const isScrubbable = Boolean(scrubBind);
+
+  // ambient "wall display" mode: fades the header copy, footer status line, and
+  // ControlCluster after a stretch of no touch/keystroke/pointer activity, so a
+  // clock left running on a wall reads as a clean ambient display rather than an
+  // app waiting for input. Only while `mode === 'view'` — fading the chrome out
+  // from under an open Config/Schedule panel would strand it with no visible way
+  // to close.
+  const isIdle = useIsIdle();
+  const isChromeHidden = isIdle && mode === 'view';
 
   // dragging the clock face (useRingScrub) previews a different instant; every
   // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview.
@@ -206,19 +216,25 @@ export function WorldClock({
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
   return (
-    <section className={styles.stage} aria-label="World clock — shared working hours across timezones">
+    <section
+      className={styles.stage}
+      aria-label="World clock — shared working hours across timezones"
+      data-chrome-hidden={isChromeHidden || undefined}
+    >
       <div className={styles.context} aria-hidden="true">
         <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
         <div className={styles.headline}>See shared hours instantly</div>
       </div>
 
-      <ControlCluster
-        mode={mode}
-        onSetMode={onSetMode}
-        onShare={onShare}
-        isExpanded={isMenuExpanded}
-        onExpandedChange={onMenuExpandedChange}
-      />
+      <div className={styles.controlClusterWrap}>
+        <ControlCluster
+          mode={mode}
+          onSetMode={onSetMode}
+          onShare={onShare}
+          isExpanded={isMenuExpanded}
+          onExpandedChange={onMenuExpandedChange}
+        />
+      </div>
       {mode === 'edit' && modePanelContent && (
         <div className={styles.modePanel}>
           <ConfigPanel

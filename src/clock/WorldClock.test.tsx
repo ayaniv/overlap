@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorldClock } from './WorldClock';
 import { MS_PER_HOUR, meetingAngle, pointOnCircle, ringRadius } from './geometry';
+import { DEFAULT_IDLE_TIMEOUT_MS } from '../hooks/useIsIdle';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 
@@ -345,5 +346,87 @@ describe('WorldClock meeting dot', () => {
     );
 
     expect(container.querySelector('circle[r="6"]')).toBeNull();
+  });
+});
+
+describe('WorldClock ambient idle mode', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('marks the stage data-chrome-hidden after DEFAULT_IDLE_TIMEOUT_MS of no activity, in view mode', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+    const stage = container.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+  });
+
+  it('does not mark data-chrome-hidden while a panel is open (mode !== view)', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="schedule"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+
+    const stage = container.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+
+  it('clears data-chrome-hidden immediately on activity (e.g. a keydown)', () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+    const stage = container.querySelector('section');
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+
+    act(() => window.dispatchEvent(new Event('keydown')));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 });
