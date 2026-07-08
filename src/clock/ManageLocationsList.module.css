@@ -70,16 +70,28 @@
   align-self: stretch;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 0 4px;
   font-family: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
   border-radius: 6px;
+  outline: none;
 }
 
 .rowToggle:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* subtle tie-in to the editor revealed below, instead of relying on the
+   browser's default (visually loud, mismatched) focus ring */
+.rowToggle[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rowToggle:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.5);
+  outline-offset: -2px;
 }
 
 .swatch {
@@ -128,13 +140,33 @@
 /* the row's inline editor (color/hours/set-as-home), revealed by tapping
    .rowToggle — mirrors AddLocationForm's equivalent controls (duplicated
    rather than shared across CSS modules, matching this codebase's existing
-   convention of self-contained, per-component CSS modules) */
+   convention of self-contained, per-component CSS modules). Generous
+   spacing + a quiet fade/slide-in (not a bounce) so it reads as a calm
+   sub-panel rather than an abrupt pop-in. */
 .expanded {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 8px 14px;
+  gap: 14px;
+  padding: 14px 12px 18px;
   border-top: 1px solid #3a3e46;
+  animation: expandIn 0.16s ease;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expanded {
+    animation: none;
+  }
 }
 
 .colorRow {
