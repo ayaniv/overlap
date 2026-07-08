@@ -195,15 +195,10 @@
   border: 0;
 }
 
-/* portrait/mobile: anchor the clock high and scale it up so the top rings +
-   NOW + center time dominate the screen, with the lower rings bleeding off
-   the bottom edge (stage keeps overflow:hidden); header/cluster/status
-   reflow to fit the narrower width instead of overlapping (M5) */
+/* portrait/mobile: scale the clock up so it dominates the narrow screen,
+   centered in the viewport (the stage's default flex centering) with the
+   widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
 @media (orientation: portrait) {
-  .stage {
-    align-items: flex-start;
-  }
-
   /* the top context copy and bottom status row are desktop-only chrome; on a
      narrow portrait screen we drop them so the clock itself can dominate (M5) */
   .context,
@@ -213,7 +208,6 @@
 
   .clockContainer {
     width: min(165vw, 760px);
-    margin-top: 68px;
   }
 
   .modePanel {
