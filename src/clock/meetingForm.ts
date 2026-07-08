@@ -9,11 +9,11 @@ export function validateMeetingTitle(title: string): string | null {
 
 // kebab-numbered id disambiguated against existing meeting ids, mirroring buildLocationId
 function buildMeetingId(existingIds: string[]): string {
-  let n = existingIds.length + 1;
-  let id = `meeting-${n}`;
+  let suffix = existingIds.length + 1;
+  let id = `meeting-${suffix}`;
   while (existingIds.includes(id)) {
-    n++;
-    id = `meeting-${n}`;
+    suffix++;
+    id = `meeting-${suffix}`;
   }
   return id;
 }
@@ -23,18 +23,51 @@ export function buildMeeting(title: string, instant: Date, existingIds: string[]
   return { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const padTwoDigits = (value: number) => String(value).padStart(2, '0');
 
-// formats a Date as the value a <input type="datetime-local"> expects, in local time
-export function toDatetimeLocalValue(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+// formats a Date as the value a <input type="date"> expects, in local time
+export function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
 }
 
-// parses a <input type="datetime-local"> value back into a Date; returns null (and lets
-// the caller decide whether to log) for an empty or unparseable value rather than an
-// Invalid Date
-export function fromDatetimeLocalValue(value: string): Date | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+const DATE_INPUT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// combines a <input type="date"> value (the day) with an existing instant's time-of-day
+// (hours/minutes/seconds) — picking a date never silently resets the time the user
+// already dialed in by scrubbing. Returns null (letting the caller log) for an
+// unparseable value rather than an Invalid Date.
+export function withDatePart(value: string, timeSource: Date): Date | null {
+  const match = DATE_INPUT_PATTERN.exec(value);
+  if (!match) return null;
+  const [, yearStr, monthStr, dayStr] = match;
+  const combined = new Date(timeSource);
+  combined.setFullYear(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
+  return Number.isNaN(combined.getTime()) ? null : combined;
+}
+
+// HH:MM in the browser's local time — a read-only readout next to the date picker,
+// since the time itself is set by scrubbing the rings, not typed
+export function formatLocalTime(date: Date): string {
+  return `${padTwoDigits(date.getHours())}:${padTwoDigits(date.getMinutes())}`;
+}
+
+// compact label for a duration-picker button: whole hours read as "1h", everything
+// else (including sub-hour amounts) reads as minutes, e.g. 45 -> "45m"
+export function formatDurationLabel(minutes: number): string {
+  return minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`;
+}
+
+// "Wed, Jan 1 · 09:45" — the scheduled instant, shown in the post-submit success note
+// so the confirmation states what was actually booked, not just that something was
+export function formatScheduledSummary(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).formatToParts(date);
+  let weekday = '';
+  let month = '';
+  let day = '';
+  for (const part of parts) {
+    if (part.type === 'weekday') weekday = part.value;
+    if (part.type === 'month') month = part.value;
+    if (part.type === 'day') day = part.value;
+  }
+  return `${weekday}, ${month} ${day} · ${formatLocalTime(date)}`;
 }

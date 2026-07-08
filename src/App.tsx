@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
+import { isGoogleCalendarConnected } from './clock/googleCalendar';
 import { ScheduleForm } from './clock/ScheduleForm';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
 import { useRingScrub } from './clock/useRingScrub';
 import { WorldClock } from './clock/WorldClock';
-import type { Mode } from './clock/types';
+import type { Meeting, Mode } from './clock/types';
 import type { RingScrubBind } from './clock/useRingScrub';
 import { useClockConfig } from './hooks/useClockConfig';
 import { useNow } from './hooks/useNow';
@@ -16,6 +17,8 @@ const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
   failed: "Couldn't copy link",
 };
 
+const MARK_SCRUBBED_DEBOUNCE_MS = 300;
+
 function App() {
   const now = useNow();
   const { config, addLocation, removeLocation, addMeeting } = useClockConfig();
@@ -23,9 +26,17 @@ function App() {
   const { message: toastMessage, showToast } = useToast();
   const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, setOffsetMs, bind: scrubBind } = useRingScrub();
   // gates the schedule form: the user must scrub the rings (drag or arrow keys) at
-  // least once per schedule-mode visit before they can submit — forces a deliberate
-  // time pick via the app's core gesture instead of silently defaulting to "now"
+  // least once before they can submit — forces a deliberate time pick via the app's
+  // core gesture instead of silently defaulting to "now". Scrubbing itself works
+  // whenever the clock isn't in edit mode, independent of the schedule form's state,
+  // so previewing a time doesn't require opening — or keeping open — the panel first
   const [hasScrubbed, setHasScrubbed] = useState(false);
+  const canScrub = mode !== 'edit';
+  // isGoogleCalendarConnected() reads localStorage; read it once on mount rather
+  // than on every render (App re-renders every second via useNow's tick) — it only
+  // ever changes at the one moment a schedule attempt succeeds, so handleScheduled
+  // below re-reads it right there instead of polling it on a timer
+  const [isConnectedToGoogleCalendar, setIsConnectedToGoogleCalendar] = useState(() => isGoogleCalendarConnected());
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
@@ -36,18 +47,35 @@ function App() {
     });
   }, [showToast]);
 
-  const exitEditMode = useCallback(() => setMode('view'), []);
-  const exitScheduleMode = useCallback(() => setMode('view'), []);
+  const handleScheduled = useCallback(
+    (meeting: Meeting) => {
+      addMeeting(meeting);
+      // scheduling only succeeds after a successful Google sign-in (see
+      // scheduleMeetingOnGoogleCalendar) — that's exactly the moment the connected
+      // flag flips, so re-read it here instead of on every render
+      setIsConnectedToGoogleCalendar(isGoogleCalendarConnected());
+    },
+    [addMeeting],
+  );
 
-  // the ring-scrub preview offset only makes sense while actively scheduling; drop it
-  // (and the scrub-gate) whenever schedule mode isn't active so re-entering (or
-  // switching to edit/share) starts fresh from "now" again
-  useEffect(() => {
-    if (mode !== 'schedule') {
-      resetScrub();
-      setHasScrubbed(false);
-    }
-  }, [mode, resetScrub]);
+  // the single place mode ever changes: leaving schedule mode — however it happens
+  // (the form's Cancel, the calendar-icon toggle closing the panel, switching to
+  // Edit, the post-success auto-return) — always abandons the in-progress scrub
+  // preview. Previously only the form's own Cancel button did this reset, so e.g.
+  // clicking Edit directly left scrubOffsetMs stuck at its last value, silently
+  // reapplied once the user returned to view mode.
+  const changeMode = useCallback(
+    (nextMode: Mode) => {
+      if (mode === 'schedule' && nextMode !== 'schedule') {
+        resetScrub();
+        setHasScrubbed(false);
+      }
+      setMode(nextMode);
+    },
+    [mode, resetScrub],
+  );
+
+  const exitToView = useCallback(() => changeMode('view'), [changeMode]);
 
   const previewInstant = useMemo(() => new Date(now.getTime() + scrubOffsetMs), [now, scrubOffsetMs]);
 
@@ -56,7 +84,20 @@ function App() {
     [setOffsetMs, now],
   );
 
-  const markScrubbed = useCallback(() => setHasScrubbed(true), []);
+  // scrubbing is the entry point into scheduling: starting a drag (or pressing an
+  // arrow key) from view mode opens the schedule panel automatically, so the user
+  // sees the form fill in live as they pick a time instead of having to scrub first
+  // and only then think to click Schedule. onPointerDown fires once per drag, but
+  // onKeyDown repeats continuously while an arrow key is held — debounced (leading
+  // edge) so holding a key doesn't call setState on every repeat, only once per burst
+  const lastMarkScrubbedRef = useRef(0);
+  const markScrubbed = useCallback(() => {
+    const timestamp = Date.now();
+    if (timestamp - lastMarkScrubbedRef.current < MARK_SCRUBBED_DEBOUNCE_MS) return;
+    lastMarkScrubbedRef.current = timestamp;
+    setHasScrubbed(true);
+    setMode((current) => (current === 'view' ? 'schedule' : current));
+  }, []);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
     () => ({
@@ -79,15 +120,15 @@ function App() {
         existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
         existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
-        onDone={exitEditMode}
+        onDone={exitToView}
       />
     ) : mode === 'schedule' ? (
       <ScheduleForm
         previewInstant={previewInstant}
         onChangeInstant={handleChangeInstant}
         existingMeetingIds={config.meetings.map((meeting) => meeting.id)}
-        onScheduled={addMeeting}
-        onCancel={exitScheduleMode}
+        onScheduled={handleScheduled}
+        onCancel={exitToView}
         isEnabled={hasScrubbed}
       />
     ) : undefined;
@@ -99,14 +140,15 @@ function App() {
       rings={config.rings}
       meetings={config.meetings}
       mode={mode}
-      onSetMode={setMode}
+      onSetMode={changeMode}
       onShare={handleShare}
       onRemoveLocation={removeLocation}
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
-      previewOffsetMs={mode === 'schedule' ? scrubOffsetMs : 0}
-      scrubBind={mode === 'schedule' ? scrubBindWithGate : undefined}
+      previewOffsetMs={canScrub ? scrubOffsetMs : 0}
+      scrubBind={canScrub ? scrubBindWithGate : undefined}
       isScrubbing={isScrubbing}
+      isGoogleCalendarConnected={isConnectedToGoogleCalendar}
     />
   );
 }

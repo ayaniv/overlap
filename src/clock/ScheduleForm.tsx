@@ -1,13 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
-import { isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
-import { buildMeeting, fromDatetimeLocalValue, toDatetimeLocalValue, validateMeetingTitle } from './meetingForm';
+import { DEFAULT_MEETING_DURATION_MINUTES, isGoogleCalendarConfigured, scheduleMeetingOnGoogleCalendar } from './googleCalendar';
+import {
+  buildMeeting,
+  formatDurationLabel,
+  formatLocalTime,
+  formatScheduledSummary,
+  toDateInputValue,
+  validateMeetingTitle,
+  withDatePart,
+} from './meetingForm';
 import type { Meeting } from './types';
 import styles from './ScheduleForm.module.css';
 
 const AUTO_RETURN_DELAY_MS = 3000;
 
 const SCRUB_GATE_TOOLTIP = 'Scrub the rings to pick a time';
+
+const DURATION_OPTIONS_MINUTES = [15, 30, 45, 60];
 
 export type ScheduleFormProps = {
   previewInstant: Date;
@@ -21,26 +31,34 @@ export type ScheduleFormProps = {
 
 type Status = 'idle' | 'pending' | 'success' | 'error';
 
-// opens the native date/time picker on click, not just on the small calendar-icon
-// affordance a plain <input type="datetime-local"> otherwise requires
+// opens the native calendar on click, not just on the small calendar-icon affordance a
+// plain <input type="date"> otherwise requires
 function handleWhenClick(event: MouseEvent<HTMLInputElement>) {
   const input = event.currentTarget;
   if (typeof input.showPicker !== 'function') return;
   try {
     input.showPicker();
   } catch (err) {
-    console.error('overlap: failed to open the native date/time picker', err);
+    console.error('overlap: failed to open the native calendar', err);
   }
 }
 
 // renders inside the schedule-mode panel anchored next to the Schedule button: a title +
-// datetime-local input (kept in sync with the ring-drag preview via onChangeInstant), and
-// a Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
+// a date picker for the day (kept in sync with the ring-drag preview via onChangeInstant;
+// the time-of-day itself is read-only here — it's set by scrubbing, not typed), and a
+// Google Calendar submit that's gated behind VITE_GOOGLE_CLIENT_ID being configured.
 export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingIds, onScheduled, onCancel, isEnabled }: ScheduleFormProps) {
   const [title, setTitle] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(DEFAULT_MEETING_DURATION_MINUTES);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const isConfigured = isGoogleCalendarConfigured();
+  // guards against a stale result: Cancel doesn't (can't) abort the in-flight
+  // Google sign-in/event-creation call itself — Google Identity Services exposes no
+  // way to abort a popup mid-flow — but it does stop that stale result from silently
+  // adding the meeting to local config or flipping the UI after the user has already
+  // dismissed the panel
+  const isCancelledRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'success') return;
@@ -48,10 +66,15 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     return () => clearTimeout(timer);
   }, [status, onCancel]);
 
-  const handleInstantChange = (value: string) => {
-    const instant = fromDatetimeLocalValue(value);
+  const handleCancel = () => {
+    isCancelledRef.current = true;
+    onCancel();
+  };
+
+  const handleDateChange = (value: string) => {
+    const instant = withDatePart(value, previewInstant);
     if (!instant) {
-      console.error('overlap: could not parse the datetime-local input value', value);
+      console.error('overlap: could not parse the date input value', value);
       return;
     }
     onChangeInstant(instant);
@@ -68,10 +91,12 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
     setError(null);
     setStatus('pending');
     try {
-      await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString());
+      await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
+      if (isCancelledRef.current) return;
       onScheduled(buildMeeting(title, previewInstant, existingMeetingIds));
       setStatus('success');
     } catch (err) {
+      if (isCancelledRef.current) return;
       console.error('overlap: failed to schedule the meeting', err);
       setError(err instanceof Error ? err.message : 'Could not schedule the meeting.');
       setStatus('error');
@@ -86,7 +111,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
           Set <code>VITE_GOOGLE_CLIENT_ID</code> to enable scheduling meetings straight to Google Calendar.
         </p>
         <div className={styles.actions}>
-          <button type="button" className={styles.cancelButton} onClick={onCancel}>
+          <button type="button" className={styles.cancelButton} onClick={handleCancel}>
             Close
           </button>
         </div>
@@ -101,6 +126,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
         <p className={styles.successNote} role="status">
           ✓ added
         </p>
+        <p className={styles.successDetail}>{formatScheduledSummary(previewInstant)}</p>
       </div>
     );
   }
@@ -129,14 +155,37 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
         <div className={styles.field}>
           <label className={styles.hoursLabel}>
             When
-            <input
-              className={styles.textInput}
-              type="datetime-local"
-              value={toDatetimeLocalValue(previewInstant)}
-              onChange={(event) => handleInstantChange(event.target.value)}
-              onClick={handleWhenClick}
-            />
+            <div className={styles.whenRow}>
+              <input
+                className={styles.textInput}
+                type="date"
+                value={toDateInputValue(previewInstant)}
+                onChange={(event) => handleDateChange(event.target.value)}
+                onClick={handleWhenClick}
+              />
+              <span className={styles.timeReadout}>{formatLocalTime(previewInstant)}</span>
+            </div>
           </label>
+        </div>
+
+        <div className={styles.field}>
+          {/* a plain div, not a <label> — it labels a button group, not one form control */}
+          <div className={styles.hoursLabel}>
+            Duration
+            <div className={styles.durationRow} role="group" aria-label="Meeting duration">
+              {DURATION_OPTIONS_MINUTES.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  className={minutes === durationMinutes ? styles.durationButtonActive : styles.durationButton}
+                  aria-pressed={minutes === durationMinutes}
+                  onClick={() => setDurationMinutes(minutes)}
+                >
+                  {formatDurationLabel(minutes)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </fieldset>
 
@@ -151,7 +200,7 @@ export function ScheduleForm({ previewInstant, onChangeInstant, existingMeetingI
       )}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.cancelButton} onClick={onCancel}>
+        <button type="button" className={styles.cancelButton} onClick={handleCancel}>
           Cancel
         </button>
         <button

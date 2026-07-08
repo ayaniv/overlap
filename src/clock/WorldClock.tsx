@@ -10,6 +10,7 @@ import {
   labelArcPath,
   LABEL_RADIUS_OFFSET,
   meetingAngle,
+  MS_PER_HOUR,
   parseMeetingInstant,
   pointOnCircle,
   ringRadius,
@@ -21,7 +22,7 @@ import {
   workingHoursArcPath,
 } from './geometry';
 import type { Point } from './geometry';
-import { getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
+import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { ControlCluster } from './ControlCluster';
 import { Toast } from './Toast';
@@ -49,8 +50,12 @@ const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 const LABEL_DOT_GAP = 18;
+// the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
+// used only as the ARIA slider's advertised range, since the underlying offset itself
+// isn't clamped
+const SCRUB_RANGE_MS = 24 * MS_PER_HOUR;
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const padTwoDigits = (value: number) => String(value).padStart(2, '0');
 
 export type WorldClockProps = {
   now: Date;
@@ -66,6 +71,10 @@ export type WorldClockProps = {
   previewOffsetMs?: number;
   scrubBind?: RingScrubBind;
   isScrubbing?: boolean;
+  // gates meeting dots: `meetings` is mirrored into the shareable URL hash, so
+  // without this a share-link viewer who never signed in themselves would still
+  // see the owner's scheduled-meeting dots
+  isGoogleCalendarConnected?: boolean;
 };
 
 export function WorldClock({
@@ -82,11 +91,16 @@ export function WorldClock({
   previewOffsetMs = 0,
   scrubBind,
   isScrubbing = false,
+  isGoogleCalendarConnected = false,
 }: WorldClockProps) {
   const idPrefix = useId();
+  // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
+  // allowed (not in edit mode) — WorldClock just reflects that, it doesn't re-derive
+  // its own mode rule
+  const isScrubbable = Boolean(scrubBind);
 
-  // in schedule mode, dragging the clock face (useRingScrub) previews a different instant;
-  // every ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
+  // dragging the clock face (useRingScrub) previews a different instant; every
+  // ring/arc/dot below reads `effectiveNow` so the whole face reflects the preview
   const effectiveNow = useMemo(
     () => (previewOffsetMs ? new Date(now.getTime() + previewOffsetMs) : now),
     [now, previewOffsetMs],
@@ -122,18 +136,33 @@ export function WorldClock({
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
+  // driven by `effectiveNow`, matching every other angle on the ring (working-hours
+  // arcs, the NOW axis itself): the dot is anchored to the ring's own rotating
+  // reference frame, not a fixed screen position, so scrubbing sweeps it around
+  // exactly like the rest of the dial — it represents the meeting's fixed instant
+  // relative to whatever moment the dial is currently previewing
+  // only shows a meeting's dot on the calendar day it actually falls on (home
+  // timezone) — the angle alone repeats every 24h, so without this a meeting a day
+  // (or more) away would otherwise draw right on top of one happening today
   const meetingDots = useMemo(() => {
-    const dots: Array<{ meeting: Meeting; position: Point }> = [];
+    const visibleMeetingDots: Array<{ meeting: Meeting; position: Point }> = [];
+    // `meetings` rides along in the shareable config (URL hash/localStorage), so a
+    // viewer who hasn't signed in on this device shouldn't see the owner's dots
+    if (!isGoogleCalendarConnected) return visibleMeetingDots;
+    const viewedDateKey = getCityDateKey(effectiveNow, home.timezoneId);
     for (const meeting of meetings) {
       const instant = parseMeetingInstant(meeting.startISO);
       if (!instant) {
         console.error('overlap: skipping meeting with an invalid startISO', meeting.id, meeting.startISO);
-        continue;
+      } else {
+        const isOnViewedDate = getCityDateKey(instant, home.timezoneId) === viewedDateKey;
+        if (isOnViewedDate) {
+          visibleMeetingDots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
+        }
       }
-      dots.push({ meeting, position: pointOnCircle(homeRadius, meetingAngle(instant, effectiveNow)) });
     }
-    return dots;
-  }, [meetings, homeRadius, effectiveNow]);
+    return visibleMeetingDots;
+  }, [meetings, homeRadius, effectiveNow, home.timezoneId, isGoogleCalendarConnected]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
   const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
@@ -167,7 +196,7 @@ export function WorldClock({
   const statusText = availableCount === 0 ? 'No teams free right now' : `${availableCount} of ${totalCount} teams free now`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
-  const workLabel = `${pad(home.workStart)}:00–${pad(home.workEnd % 24)}:00`;
+  const workLabel = `${padTwoDigits(home.workStart)}:00–${padTwoDigits(home.workEnd % 24)}:00`;
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
@@ -184,13 +213,16 @@ export function WorldClock({
 
       <div
         className={styles.clockContainer}
-        data-scrubbable={mode === 'schedule' || undefined}
+        data-scrubbable={isScrubbable || undefined}
         data-scrubbing={isScrubbing || undefined}
-        tabIndex={mode === 'schedule' ? 0 : undefined}
-        role={mode === 'schedule' ? 'slider' : undefined}
-        aria-label={mode === 'schedule' ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
-        aria-valuenow={mode === 'schedule' ? previewOffsetMs : undefined}
-        {...(mode === 'schedule' ? scrubBind : undefined)}
+        tabIndex={isScrubbable ? 0 : undefined}
+        role={isScrubbable ? 'slider' : undefined}
+        aria-label={isScrubbable ? 'Drag or use arrow keys to preview a different meeting time' : undefined}
+        aria-valuenow={isScrubbable ? previewOffsetMs : undefined}
+        aria-valuemin={isScrubbable ? -SCRUB_RANGE_MS : undefined}
+        aria-valuemax={isScrubbable ? SCRUB_RANGE_MS : undefined}
+        aria-valuetext={isScrubbable ? `Home time ${homeTime.label}` : undefined}
+        {...(isScrubbable ? scrubBind : undefined)}
       >
         {/* glass disc sits behind the SVG so the strike line draws on top of it, un-dimmed */}
         <div className={styles.glassDisc} aria-hidden="true" />
