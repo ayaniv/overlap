@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
+import { usePostHog } from '@posthog/react';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
   deleteMeetingFromGoogleCalendar,
@@ -68,6 +69,7 @@ export function ScheduleForm({
   matchedMeeting,
   onDeleteMeeting,
 }: ScheduleFormProps) {
+  const posthog = usePostHog();
   const [title, setTitle] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_MEETING_DURATION_MINUTES);
   const [status, setStatus] = useState<Status>('idle');
@@ -112,9 +114,11 @@ export function ScheduleForm({
       }
       if (isCancelledRef.current) return;
       onDeleteMeeting(matchedMeeting.id);
+      posthog?.capture('meeting_deleted');
     } catch (err) {
       if (isCancelledRef.current) return;
       console.error('overlap: failed to delete the meeting', err);
+      posthog?.captureException(err);
       setDeleteError(err instanceof Error ? err.message : 'Could not delete the meeting.');
       setDeleteStatus('error');
     }
@@ -143,10 +147,12 @@ export function ScheduleForm({
       const googleEventId = await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), durationMinutes);
       if (isCancelledRef.current) return;
       onScheduled(buildMeeting(title, previewInstant, existingMeetingIds, googleEventId));
+      posthog?.capture('meeting_scheduled', { duration_minutes: durationMinutes });
       setStatus('success');
     } catch (err) {
       if (isCancelledRef.current) return;
       console.error('overlap: failed to schedule the meeting', err);
+      posthog?.captureException(err);
       setError(err instanceof Error ? err.message : 'Could not schedule the meeting.');
       setStatus('error');
     }

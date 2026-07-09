@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { usePostHog } from '@posthog/react';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import type { Location } from './types';
@@ -37,6 +38,7 @@ function withMovedId(order: string[], draggedId: string, dropIndex: number): str
 // neighbor, and dragging a ring past the home slot promotes it to home
 // (mirrors dragging a city into the home slot per the plan).
 export function ManageLocationsList({ locations, onReorder, onRemove, onClose }: ManageLocationsListProps) {
+  const posthog = usePostHog();
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
@@ -71,6 +73,7 @@ export function ManageLocationsList({ locations, onReorder, onRemove, onClose }:
     }
     if (liveOrder && liveOrder.some((id, index) => id !== originalOrder[index])) {
       onReorder(liveOrder);
+      posthog?.capture('locations_reordered', { location_count: liveOrder.length });
     }
     setDraggedId(null);
     setLiveOrder(null);
@@ -102,7 +105,10 @@ export function ManageLocationsList({ locations, onReorder, onRemove, onClose }:
                   type="button"
                   className={styles.removeButton}
                   aria-label={`Remove ${location.label}`}
-                  onClick={() => onRemove(location.id)}
+                  onClick={() => {
+                    posthog?.capture('location_removed');
+                    onRemove(location.id);
+                  }}
                 >
                   ×
                 </button>

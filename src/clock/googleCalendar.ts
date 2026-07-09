@@ -1,3 +1,5 @@
+import posthog from 'posthog-js';
+
 const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const EVENTS_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
@@ -36,6 +38,7 @@ function markGoogleCalendarConnected(): void {
   } catch (err) {
     console.error('overlap: failed to persist Google Calendar connection state', err);
   }
+  posthog.capture('google_calendar_connected');
 }
 
 export type EventPayload = {

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { usePostHog } from '@posthog/react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { isGoogleCalendarConnected } from './clock/googleCalendar';
 import { findMeetingAtInstant } from './clock/meetingForm';
@@ -27,6 +28,7 @@ const MARK_SCRUBBED_DEBOUNCE_MS = 300;
 const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
+  const posthog = usePostHog();
   const now = useNow();
   const { config, addLocation, removeLocation, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
@@ -59,8 +61,9 @@ function App() {
       // get no toast — the OS UI already gave feedback, or there's nothing to report
       const message = SHARE_TOAST_MESSAGE[outcome];
       if (message) showToast(message);
+      posthog?.capture('clock_shared', { outcome });
     });
-  }, [showToast]);
+  }, [showToast, posthog]);
 
   const handleScheduled = useCallback(
     (meeting: Meeting) => {
@@ -85,9 +88,12 @@ function App() {
         resetScrub();
         setHasScrubbed(false);
       }
+      if (nextMode === 'schedule' && mode !== 'schedule') {
+        posthog?.capture('schedule_form_opened');
+      }
       setMode(nextMode);
     },
-    [mode, resetScrub],
+    [mode, resetScrub, posthog],
   );
 
   const exitToView = useCallback(() => changeMode('view'), [changeMode]);

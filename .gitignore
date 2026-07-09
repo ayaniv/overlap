@@ -31,3 +31,4 @@ dist-ssr
 # Orchestrator session files (per-worktree, not repo content)
 /STATUS
 /TASK.md
+.env.local
