@@ -120,6 +120,9 @@
 
 .removeButton {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -127,9 +130,12 @@
   border-radius: 6px;
   background: transparent;
   color: #c4c8cf;
-  font-size: 11px;
-  line-height: 1;
   cursor: pointer;
+}
+
+.removeButton svg {
+  width: 13px;
+  height: 13px;
 }
 
 .removeButton:hover {
@@ -230,8 +236,9 @@
     height: 24px;
   }
 
-  .removeButton {
-    font-size: 20px;
+  .removeButton svg {
+    width: 20px;
+    height: 20px;
   }
 
   .setHomeButton,

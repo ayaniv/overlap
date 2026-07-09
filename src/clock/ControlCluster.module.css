@@ -135,12 +135,11 @@
 /* quick-schedule swap (see ControlCluster.tsx's scrubActions branch): replaces
    the icon menu with plain-flow buttons instead of the toggle's absolutely-
    positioned children, so the fixed 34px `.cluster` height (sized for the
-   icon-only menu) needs to expand to fit them here. Wraps (rather than
-   growing indefinitely wide) when the optional third "Remove Meeting" button
-   is present, since this is right-anchored with no left boundary of its own. */
+   icon-only menu) needs to expand to fit them here. Exactly one of
+   Cancel+Schedule or Remove Meeting renders at a time (never both), so this
+   never needs to wrap. */
 .cluster[data-scrub-mode] {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
@@ -184,9 +183,18 @@
 }
 
 .scrubRemoveMeetingButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid #fb7185;
   background: rgba(251, 113, 133, 0.12);
   color: #f5f6f8;
+}
+
+.scrubRemoveMeetingButton svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 .scrubRemoveMeetingButton:hover {
@@ -244,5 +252,10 @@
     min-height: 48px;
     padding: 0 20px;
     font-size: 15px;
+  }
+
+  .scrubRemoveMeetingButton svg {
+    width: 18px;
+    height: 18px;
   }
 }

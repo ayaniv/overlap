@@ -143,7 +143,8 @@ describe('ControlCluster isExpanded (controlled prop)', () => {
 
 // quick-schedule (App.tsx passes this while scrubbing, via WorldClock's
 // isScrubActionBarVisible, on any platform): entirely replaces the Config/
-// Share icon menu + hamburger toggle with Cancel/Schedule(/Remove Meeting)
+// Share icon menu + hamburger toggle with Cancel/Schedule — or, if the preview
+// lands on an existing meeting, with Remove Meeting instead of either of them
 describe('ControlCluster scrubActions', () => {
   function renderClusterWithScrubActions(
     overrides: Partial<{ isScheduling: boolean; matchedMeeting: { onRemove: () => void; isRemoving: boolean } }> = {},
@@ -213,11 +214,11 @@ describe('ControlCluster scrubActions', () => {
     expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
   });
 
-  it('shows a Remove Meeting button alongside Cancel/Schedule when matchedMeeting is set', () => {
+  it('replaces Cancel/Schedule with Remove Meeting when matchedMeeting is set', () => {
     renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: false } });
 
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.queryByText('Schedule')).toBeNull();
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
   });
 
@@ -231,12 +232,10 @@ describe('ControlCluster scrubActions', () => {
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "Removing…" and disables all three buttons while matchedMeeting.isRemoving is true', () => {
+  it('relabels to "Removing…" and disables the button while matchedMeeting.isRemoving is true', () => {
     renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: true } });
 
-    const removeButton = screen.getByText('Removing…') as HTMLButtonElement;
+    const removeButton = screen.getByRole('button', { name: 'Removing…' }) as HTMLButtonElement;
     expect(removeButton.disabled).toBe(true);
-    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByText('Schedule') as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { CloseIcon } from './icons/CloseIcon';
 import { CogwheelIcon } from './icons/CogwheelIcon';
 import { MenuIcon } from './icons/MenuIcon';
 import { ShareIcon } from './icons/ShareIcon';
+import { TrashIcon } from './icons/TrashIcon';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
 
@@ -67,24 +68,31 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
   };
 
   if (scrubActions) {
-    const isBusy = scrubActions.isScheduling || scrubActions.matchedMeeting?.isRemoving;
     return (
       <div className={styles.cluster} data-scrub-mode="true">
-        <button type="button" className={styles.scrubCancelButton} onClick={scrubActions.onCancel} disabled={isBusy}>
-          Cancel
-        </button>
-        <button type="button" className={styles.scrubScheduleButton} onClick={scrubActions.onSchedule} disabled={isBusy}>
-          {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
-        </button>
-        {scrubActions.matchedMeeting && (
+        {scrubActions.matchedMeeting ? (
+          // landing on an existing meeting replaces Cancel/Schedule entirely, rather
+          // than adding a third button alongside them — removing it is the only
+          // scrub-specific action that makes sense here (scrubbing elsewhere is
+          // already how you back out without removing anything)
           <button
             type="button"
             className={styles.scrubRemoveMeetingButton}
             onClick={scrubActions.matchedMeeting.onRemove}
-            disabled={isBusy}
+            disabled={scrubActions.matchedMeeting.isRemoving}
           >
+            <TrashIcon isOpen={scrubActions.matchedMeeting.isRemoving} />
             {scrubActions.matchedMeeting.isRemoving ? 'Removing…' : 'Remove Meeting'}
           </button>
+        ) : (
+          <>
+            <button type="button" className={styles.scrubCancelButton} onClick={scrubActions.onCancel} disabled={scrubActions.isScheduling}>
+              Cancel
+            </button>
+            <button type="button" className={styles.scrubScheduleButton} onClick={scrubActions.onSchedule} disabled={scrubActions.isScheduling}>
+              {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
+            </button>
+          </>
         )}
       </div>
     );

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
+import { TrashIcon } from './icons/TrashIcon';
 import { isValidHexColor } from './locationForm';
 import { LocationColorAndHoursFields } from './LocationColorAndHoursFields';
 import type { Location } from './types';
@@ -187,9 +188,10 @@ export function ManageLocationsList({
                     type="button"
                     className={styles.removeButton}
                     aria-label={`Remove ${location.label}`}
+                    title={`Remove ${location.label}`}
                     onClick={() => onRemove(location.id)}
                   >
-                    ×
+                    <TrashIcon />
                   </button>
                 )}
               </div>
