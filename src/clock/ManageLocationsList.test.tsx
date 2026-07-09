@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { ManageLocationsList } from './ManageLocationsList';
 import type { Location } from './types';
 
@@ -72,24 +74,36 @@ describe('ManageLocationsList', () => {
 
   it('has no remove button on the home row, and a working remove button on other rows', () => {
     const onRemove = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={onRemove} onClose={vi.fn()} />);
+    const analytics = createMockAnalyticsService();
+    render(
+      <AnalyticsProvider service={analytics}>
+        <ManageLocationsList locations={LOCATIONS} onReorder={vi.fn()} onRemove={onRemove} onClose={vi.fn()} />
+      </AnalyticsProvider>,
+    );
 
     expect(screen.queryByRole('button', { name: 'Remove Tel Aviv' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Remove San Francisco' }));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onRemove).toHaveBeenCalledWith('san-francisco');
+    expect(analytics.trackEvent).toHaveBeenCalledWith('location_removed');
   });
 
   it('dragging a ring down past its outward neighbor swaps them, keeping home in place', () => {
     const onReorder = vi.fn();
-    render(<ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />);
+    const analytics = createMockAnalyticsService();
+    render(
+      <AnalyticsProvider service={analytics}>
+        <ManageLocationsList locations={LOCATIONS} onReorder={onReorder} onRemove={vi.fn()} onClose={vi.fn()} />
+      </AnalyticsProvider>,
+    );
 
     // San Francisco (row 1) dragged past New York's (row 2) center
     drag(dragHandleFor('San Francisco'), rowCenter(1), rowCenter(2) + 1);
 
     expect(onReorder).toHaveBeenCalledTimes(1);
     expect(onReorder).toHaveBeenCalledWith(['tel-aviv', 'new-york', 'san-francisco']);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('locations_reordered', { location_count: 3 });
   });
 
   it('dragging a ring up past home promotes it to home', () => {
