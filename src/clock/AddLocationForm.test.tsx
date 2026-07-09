@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { AddLocationForm } from './AddLocationForm';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, PALETTE } from './defaultCities';
 
@@ -15,14 +17,17 @@ describe('AddLocationForm', () => {
   it('searches, selects a city, and adds a location with an unused default color and default work hours', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
+    const analytics = createMockAnalyticsService();
     // every palette swatch but the last is already in use, so the suggested default is deterministic
     render(
-      <AddLocationForm
-        existingIds={['tel-aviv']}
-        existingColors={PALETTE.slice(0, PALETTE.length - 1)}
-        onAdd={onAdd}
-        onDone={vi.fn()}
-      />,
+      <AnalyticsProvider service={analytics}>
+        <AddLocationForm
+          existingIds={['tel-aviv']}
+          existingColors={PALETTE.slice(0, PALETTE.length - 1)}
+          onAdd={onAdd}
+          onDone={vi.fn()}
+        />
+      </AnalyticsProvider>,
     );
 
     await pickTokyo(user);
@@ -39,6 +44,10 @@ describe('AddLocationForm', () => {
         workEnd: DEFAULT_WORK_END,
       }),
     );
+    expect(analytics.trackEvent).toHaveBeenCalledWith('location_added', {
+      timezone_id: 'Asia/Tokyo',
+      country: 'Japan',
+    });
   });
 
   it('defaults to some palette color when none are in use yet', async () => {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { usePostHog } from '@posthog/react';
+import { useAnalytics } from '../analytics/useAnalytics';
 import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, PALETTE } from './defaultCities';
@@ -30,7 +30,7 @@ const FALLBACK_SWATCH_COLOR = '#000000';
 // city search that becomes an editable label once a city is picked, color
 // (swatches + free hex + native picker), and per-location work hours.
 export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: AddLocationFormProps) {
-  const posthog = usePostHog();
+  const analytics = useAnalytics();
   const [query, setQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityEntry | null>(null);
   const [color, setColor] = useState<string>(() => pickAvailableColor(existingColors));
@@ -73,7 +73,7 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone }: 
       return;
     }
     onAdd(buildNewLocation(input, existingIds));
-    posthog?.capture('location_added', {
+    analytics.trackEvent('location_added', {
       timezone_id: selectedCity?.timezoneId,
       country: selectedCity?.country,
     });
