@@ -47,3 +47,7 @@ enable it; without it, the Schedule panel shows a note instead of the form.
 - `src/clock/WorldClock.tsx` — the radial clock component (props-driven; `now` supplied by the parent)
 - `src/clock/defaultCities.ts` — default home + world cities and working hours
 - `src/hooks/useNow.ts` — shared 1s tick
+
+## License
+
+Released under the [MIT License](./LICENSE).
