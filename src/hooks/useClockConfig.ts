@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePostHog } from '@posthog/react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAnalytics } from '../analytics/useAnalytics';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
@@ -60,9 +60,7 @@ function persistConfig(config: ClockConfig): void {
 }
 
 export function useClockConfig() {
-  const posthog = usePostHog();
-  const posthogRef = useRef(posthog);
-  posthogRef.current = posthog;
+  const analytics = useAnalytics();
 
   // Detect if this session loaded config from a share link (hash present but no
   // matching localStorage config), computed once at mount so it's stable
@@ -90,12 +88,12 @@ export function useClockConfig() {
 
   useEffect(() => {
     if (loadedFromShare) {
-      posthogRef.current?.capture('shared_config_loaded', {
+      analytics.trackEvent('shared_config_loaded', {
         location_count: loadedFromShare.rings.length + 1,
         has_meetings: loadedFromShare.meetings.length > 0,
       });
     }
-  }, [loadedFromShare]);
+  }, [loadedFromShare, analytics]);
 
   useEffect(() => {
     persistConfig(config);

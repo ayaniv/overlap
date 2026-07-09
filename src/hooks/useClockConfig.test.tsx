@@ -1,7 +1,10 @@
+import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { encodeConfig } from '../clock/shareCodec';
 import type { ClockConfig } from '../clock/types';
-import { DEFAULT_CONFIG, parseHashConfig, parseStoredConfig, resolveInitialConfig } from './useClockConfig';
+import { DEFAULT_CONFIG, parseHashConfig, parseStoredConfig, resolveInitialConfig, useClockConfig } from './useClockConfig';
 
 const SAMPLE_CONFIG: ClockConfig = {
   home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
@@ -70,5 +73,38 @@ describe('resolveInitialConfig', () => {
   it('falls back to defaults when both hash and storage are corrupt', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(resolveInitialConfig('#c=not-valid', '{not valid json')).toEqual(DEFAULT_CONFIG);
+  });
+});
+
+describe('useClockConfig — shared_config_loaded analytics event', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('fires shared_config_loaded when the initial config was loaded from a share link', async () => {
+    window.history.replaceState(null, '', `#c=${encodeConfig(SAMPLE_CONFIG)}`);
+    const analytics = createMockAnalyticsService();
+
+    renderHook(() => useClockConfig(), {
+      wrapper: ({ children }) => <AnalyticsProvider service={analytics}>{children}</AnalyticsProvider>,
+    });
+
+    await waitFor(() =>
+      expect(analytics.trackEvent).toHaveBeenCalledWith('shared_config_loaded', {
+        location_count: SAMPLE_CONFIG.rings.length + 1,
+        has_meetings: SAMPLE_CONFIG.meetings.length > 0,
+      }),
+    );
+  });
+
+  it('does not fire shared_config_loaded when there is no share link in the hash', () => {
+    const analytics = createMockAnalyticsService();
+
+    renderHook(() => useClockConfig(), {
+      wrapper: ({ children }) => <AnalyticsProvider service={analytics}>{children}</AnalyticsProvider>,
+    });
+
+    expect(analytics.trackEvent).not.toHaveBeenCalled();
   });
 });
