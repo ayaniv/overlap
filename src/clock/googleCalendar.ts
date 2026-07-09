@@ -12,13 +12,9 @@ export function getGoogleClientId(): string | undefined {
   return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 }
 
-export function isGoogleCalendarConfigured(): boolean {
-  return Boolean(getGoogleClientId());
-}
-
 const CONNECTED_STORAGE_KEY = 'overlap:google-connected:v1';
 
-// distinct from isGoogleCalendarConfigured (a build-time env var): this is a runtime
+// distinct from getGoogleClientId (a build-time env var): this is a runtime
 // "has this browser signed in before" flag, so a meeting synced into a share link's
 // config doesn't leak its dot to a viewer who never authenticated on their own device
 export function isGoogleCalendarConnected(): boolean {

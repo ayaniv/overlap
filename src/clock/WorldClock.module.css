@@ -161,7 +161,7 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 10px;
   transition: opacity 0.8s ease;
   font-size: 13px;
   font-weight: 500;
@@ -169,28 +169,14 @@
 }
 
 .statusText {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   color: #d6d9de;
-}
-
-.legendBullet,
-.legendText {
-  color: #7b808a;
-}
-
-/* purely decorative separator (the whole .statusRow is aria-hidden already)
-   between statusText and legendText — its own empty flex item so it centers
-   in the middle of .statusRow's `gap` rather than hugging one side of it */
-.legendBullet::before {
-  content: '•';
 }
 
 .statusDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .srOnly {
@@ -240,21 +226,12 @@
     right: 16px;
   }
 
+  /* now a single short line (was two stacked lines pre-M8.1), so it needs less
+     vertical space than before — bumped a few px further from the bottom edge
+     (rather than tucked at the same 20px as the old two-line block) so it reads
+     with clear breathing room below the oversized portrait clock face above it */
   .statusRow {
-    bottom: 20px;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    bottom: 26px;
     font-size: 11px;
-    white-space: normal;
-    text-align: center;
-  }
-
-  /* the status row wraps onto its own line here (flex-direction: column
-     above), so the legend's leading "• " separator — meant to split it from
-     the status text on the same line — reads oddly as a standalone line's
-     first character; drop it */
-  .legendBullet {
-    display: none;
   }
 }

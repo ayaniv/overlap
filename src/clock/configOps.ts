@@ -4,7 +4,12 @@ import type { ClockConfig, Location, Meeting } from './types';
 // testable without touching window/localStorage
 // swaps home for one of the current rings: the outgoing home slides into the
 // chosen ring's old slot (mirrors addLocationOp/removeLocationOp's id-based
-// approach) so no location is ever dropped
+// approach) so no location is ever dropped. Only `home.id` is trusted for the
+// lookup — the new home stored is always the canonical ring object from
+// `config.rings`, not the passed-in `home` value itself, since callers like
+// ManageLocationsList pass their own display copy of a location (spread with
+// an extra `isHome` flag for rendering) that shouldn't leak into persisted
+// config.
 export function setHomeOp(config: ClockConfig, home: Location): ClockConfig {
   if (home.id === config.home.id) return config;
   const ringIndex = config.rings.findIndex((location) => location.id === home.id);
@@ -13,8 +18,9 @@ export function setHomeOp(config: ClockConfig, home: Location): ClockConfig {
     return config;
   }
   const rings = [...config.rings];
+  const newHome = rings[ringIndex];
   rings[ringIndex] = config.home;
-  return { ...config, home, rings };
+  return { ...config, home: newHome, rings };
 }
 
 // reorders the full home+rings id list (inside->outside); if `orderedIds[0]`
@@ -53,7 +59,14 @@ export function removeLocationOp(config: ClockConfig, id: string): ClockConfig {
   return { ...config, rings: config.rings.filter((location) => location.id !== id) };
 }
 
+// `id` can name either a ring or the current home — home lives in its own
+// `config.home` field, not the `rings` array, so it needs its own branch here.
+// Editing home's color/hours previously did nothing at all: this only ever
+// mapped over `rings`, silently dropping the patch whenever `id` was home's.
 export function updateLocationOp(config: ClockConfig, id: string, patch: Partial<Location>): ClockConfig {
+  if (config.home.id === id) {
+    return { ...config, home: { ...config.home, ...patch } };
+  }
   return {
     ...config,
     rings: config.rings.map((location) => (location.id === id ? { ...location, ...patch } : location)),

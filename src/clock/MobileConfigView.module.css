@@ -1,0 +1,88 @@
+/* full-screen, self-scrolling (unlike the desktop .modePanel it replaces on
+   mobile) — the stage behind it is overflow:hidden, so this needs its own
+   scroll container to ever be safe against the keyboard eating half the
+   viewport. z-index clears ControlCluster (3) and the desktop .modePanel (2):
+   this is a full takeover, not an overlay meant to coexist with either. */
+.page {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: #0a0b0f;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideIn 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
+}
+
+/* sticky, not fixed: stays pinned to the top of the scroll area without
+   needing its own separate scroll-position bookkeeping */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;
+  background: #0a0b0f;
+  border-bottom: 1px solid #3a3e46;
+}
+
+.title {
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f5f6f8;
+}
+
+.doneButton {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  color: #f5f6f8;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.body {
+  flex: 1;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+/* no horizontal padding here — AddLocationForm/ManageLocationsList each
+   already pad themselves (.form/.panel), doubling up would look lopsided */
+.section + .section {
+  margin-top: 8px;
+  border-top: 1px solid #3a3e46;
+}
+
+.sectionHeading {
+  margin: 20px 0 0;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #7b808a;
+}

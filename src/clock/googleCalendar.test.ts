@@ -5,7 +5,6 @@ import {
   deleteCalendarEvent,
   deleteMeetingFromGoogleCalendar,
   getGoogleClientId,
-  isGoogleCalendarConfigured,
   isGoogleCalendarConnected,
   requestAccessToken,
   scheduleMeetingOnGoogleCalendar,
@@ -19,17 +18,15 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('getGoogleClientId / isGoogleCalendarConfigured', () => {
-  it('is undefined/false when the env var is unset', () => {
+describe('getGoogleClientId', () => {
+  it('is undefined when the env var is unset', () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '');
     expect(getGoogleClientId()).toBeUndefined();
-    expect(isGoogleCalendarConfigured()).toBe(false);
   });
 
   it('returns the client id when set', () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'abc123.apps.googleusercontent.com');
     expect(getGoogleClientId()).toBe('abc123.apps.googleusercontent.com');
-    expect(isGoogleCalendarConfigured()).toBe(true);
   });
 
   it('trims leading/trailing whitespace, e.g. from a copy-pasted Cloud Console value', () => {

@@ -132,28 +132,130 @@
   padding: 8px;
 }
 
-/* portrait/mobile: shrink the cluster so it clears the narrower header text (M5) */
+/* quick-schedule swap (see ControlCluster.tsx's scrubActions branch): replaces
+   the icon menu with plain-flow buttons instead of the toggle's absolutely-
+   positioned children, so the fixed 34px `.cluster` height (sized for the
+   icon-only menu) needs to expand to fit them here. Exactly one of
+   Cancel+Schedule or Remove Meeting renders at a time (never both), so this
+   never needs to wrap. */
+.cluster[data-scrub-mode] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+  max-width: 220px;
+}
+
+.scrubCancelButton,
+.scrubScheduleButton,
+.scrubRemoveMeetingButton {
+  padding: 0 18px;
+  min-height: 34px;
+  border-radius: 999px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.scrubCancelButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+}
+
+.scrubCancelButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.scrubScheduleButton {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  color: #f5f6f8;
+}
+
+.scrubScheduleButton:hover {
+  background: rgba(56, 189, 248, 0.24);
+}
+
+.scrubRemoveMeetingButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #fb7185;
+  background: rgba(251, 113, 133, 0.12);
+  color: #f5f6f8;
+}
+
+.scrubRemoveMeetingButton svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.scrubRemoveMeetingButton:hover {
+  background: rgba(251, 113, 133, 0.2);
+}
+
+.scrubCancelButton:disabled,
+.scrubScheduleButton:disabled,
+.scrubRemoveMeetingButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* portrait/mobile: reposition for the narrower header text (M5). Touch targets
+   go the other way from the old shrink-to-fit here (was 28px, smaller than
+   desktop's 34px) — mobile has no hover state to fall back on, so these need
+   to be *at least* Apple's 44px minimum, not smaller than desktop. */
 @media (orientation: portrait) {
   .cluster {
     top: 20px;
     right: 16px;
   }
 
+  /* right/translateX both recalibrated to the enlarged 44px toggle below (44px
+     toggle + 8px gap = 52px), same "tuck behind the toggle at rest" relationship
+     the base rule documents above, just at mobile's bigger touch-target size */
   .actions {
-    gap: 6px;
-  }
-
-  .button,
-  .buttonActive {
-    padding: 6px 11px;
-    font-size: 11px;
+    right: 52px;
+    gap: 8px;
+    transform: translateX(52px) scale(0.3);
   }
 
   .iconButton,
   .iconButtonActive,
   .toggle {
-    width: 28px;
-    height: 28px;
-    padding: 6px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+
+  .iconButton svg,
+  .iconButtonActive svg,
+  .toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .cluster[data-scrub-mode] {
+    max-width: 260px;
+  }
+
+  .scrubCancelButton,
+  .scrubScheduleButton,
+  .scrubRemoveMeetingButton {
+    min-height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+
+  .scrubRemoveMeetingButton svg {
+    width: 18px;
+    height: 18px;
   }
 }

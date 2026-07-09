@@ -39,6 +39,8 @@ function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] =
       onShare={vi.fn()}
       onRemoveLocation={onRemoveLocation}
       onReorder={vi.fn()}
+      onUpdateLocation={vi.fn()}
+      onSetHome={vi.fn()}
     />,
   );
   return { onRemoveLocation };
@@ -55,7 +57,7 @@ const SCRUB_BIND: RingScrubBind = {
 // (see ManageLocationsList.test.tsx) — WorldClock no longer renders its own
 // on-ring remove control
 
-function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
+function renderClockWithPanel(mode: Mode, onReorder = vi.fn(), overrides: Partial<{ isPortrait: boolean; onSetMode: (mode: Mode) => void }> = {}) {
   render(
     <WorldClock
       now={NOW}
@@ -69,7 +71,10 @@ function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
       onShare={vi.fn()}
       onRemoveLocation={vi.fn()}
       onReorder={onReorder}
+      onUpdateLocation={vi.fn()}
+      onSetHome={vi.fn()}
       modePanelContent={<div>Form</div>}
+      {...overrides}
     />,
   );
 }
@@ -98,9 +103,57 @@ describe('WorldClock manage-locations list', () => {
   });
 
   it('is not rendered outside edit mode, even with a mode panel present', () => {
-    renderClockWithPanel('schedule');
+    renderClockWithPanel('view');
     expect(screen.queryByRole('listitem')).toBeNull();
   });
+});
+
+// mobile Config view: the desktop floating ConfigPanel (position: absolute, no
+// scroll container) could get its Add/Manage-locations content pushed off-screen
+// by the on-screen keyboard with no way back — MobileConfigView replaces it
+// wholesale on portrait with a real scrollable page showing both sections at once
+describe('WorldClock mobile Config view (isPortrait)', () => {
+  it('renders MobileConfigView instead of the floating ConfigPanel when isPortrait and in edit mode', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.getByText('Manage clock')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+  });
+
+  it('shows both sections at once, with no accordion toggle needed to reach Manage locations', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.getByText('Form')).toBeTruthy(); // the addLocationContent passed in
+    expect(screen.getAllByRole('listitem')).toHaveLength(2); // Manage locations rows, visible without any click
+    expect(screen.queryByRole('button', { name: 'Manage locations' })).toBeNull(); // no accordion header here
+  });
+
+  it('calls onSetMode("view") when Done is tapped', async () => {
+    const user = userEvent.setup();
+    const onSetMode = vi.fn();
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true, onSetMode });
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(onSetMode).toHaveBeenCalledWith('view');
+  });
+
+  // the header's own "Done" is the only exit affordance here — ManageLocationsList's
+  // own Close button (still shown on desktop, see below) would be a redundant second
+  it('omits ManageLocationsList\'s own Close button, since the header Done already covers it', () => {
+    renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
+
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  });
+
+  it('still uses the desktop accordion ConfigPanel when isPortrait is false (default)', () => {
+    renderClockWithPanel('edit');
+
+    expect(screen.queryByText('Manage clock')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+    expect(screen.queryByRole('listitem')).toBeNull(); // collapsed by default, behind the accordion
+  });
+
 });
 
 describe('WorldClock scrub slider', () => {
@@ -123,6 +176,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={2 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -149,6 +204,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={100 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -172,6 +229,8 @@ describe('WorldClock scrub slider', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={-100 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
       />,
@@ -192,15 +251,117 @@ describe('WorldClock copy', () => {
     expect(screen.queryByText(/Home working hours/)).toBeNull();
   });
 
-  it('phrases the status line as "N of M teams are available now"', () => {
-    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT)
-    const matches = screen.getAllByText(/teams are available now|No teams available right now/);
-    expect(matches.length).toBeGreaterThan(0);
+  it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {
+    renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT); home (Tel Aviv) is in hours
+    expect(screen.getByText('1/2 teams available • local working hours')).toBeTruthy();
   });
 
-  it('explains what the ring colors mean, alongside the status line', () => {
-    renderClock('view', [SF]);
-    expect(screen.getAllByText(/local working hours/).length).toBeGreaterThan(0);
+  it('recomputes the count from the actual ring list instead of a hardcoded total', () => {
+    const SYDNEY: Location = { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 };
+    renderClock('view', [SF, SYDNEY]); // SF and Sydney are both out of hours at NOW; only home is in hours
+    expect(screen.getByText('1/3 teams available • local working hours')).toBeTruthy();
+  });
+});
+
+// mobile quick-schedule (ControlCluster's scrubActions swap): the only surfaced
+// schedule/cancel affordance while portrait scrubbing keeps mode at 'view' (see
+// App.tsx's markScrubbed) — desktop never sees this (mode leaves 'view' immediately
+// there), so these tests exercise the underlying render/wiring logic directly,
+// independent of viewport. ControlCluster's own tests cover the swapped markup in
+// isolation; these cover WorldClock actually passing scrubActions through at the
+// right moment.
+describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
+  function renderScrubbedClock(onQuickSchedule = vi.fn(), onBackToNow = vi.fn(), previewOffsetMs = MS_PER_HOUR, isQuickScheduling = false) {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        previewOffsetMs={previewOffsetMs}
+        scrubBind={SCRUB_BIND}
+        onQuickSchedule={onQuickSchedule}
+        onBackToNow={onBackToNow}
+        isQuickScheduling={isQuickScheduling}
+      />,
+    );
+    return { onQuickSchedule, onBackToNow };
+  }
+
+  it('is absent before any scrub (previewOffsetMs is 0) — the normal icon menu shows instead', () => {
+    renderScrubbedClock(vi.fn(), vi.fn(), 0);
+    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
+  });
+
+  it('swaps in Cancel/Schedule once scrubbed, in view mode, replacing the icon menu', () => {
+    renderScrubbedClock();
+    expect(screen.getByText('Cancel')).toBeTruthy();
+    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+  });
+
+  it('calls onQuickSchedule when Schedule is tapped', async () => {
+    const user = userEvent.setup();
+    const { onQuickSchedule } = renderScrubbedClock();
+
+    await user.click(screen.getByText('Schedule'));
+
+    expect(onQuickSchedule).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onBackToNow when Cancel is tapped', async () => {
+    const user = userEvent.setup();
+    const { onBackToNow } = renderScrubbedClock();
+
+    await user.click(screen.getByText('Cancel'));
+
+    expect(onBackToNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('reflects an in-flight quick-schedule as a disabled "Scheduling…" state', () => {
+    renderScrubbedClock(vi.fn(), vi.fn(), MS_PER_HOUR, true);
+
+    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    expect(scheduleButton.disabled).toBe(true);
+    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('is hidden while in edit mode, even with a nonzero preview offset', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="edit"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        previewOffsetMs={MS_PER_HOUR}
+        scrubBind={SCRUB_BIND}
+        onQuickSchedule={vi.fn()}
+        onBackToNow={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
   });
 });
 
@@ -221,6 +382,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -248,6 +411,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={previewOffsetMs}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -282,6 +447,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected
       />,
     );
@@ -303,6 +470,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         previewOffsetMs={24 * MS_PER_HOUR}
         scrubBind={SCRUB_BIND}
         isGoogleCalendarConnected
@@ -326,6 +495,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
         isGoogleCalendarConnected={false}
       />,
     );
@@ -347,6 +518,8 @@ describe('WorldClock meeting dot', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
 
@@ -374,6 +547,8 @@ describe('WorldClock ambient idle mode', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
     const stage = container.querySelector('section');
@@ -392,13 +567,15 @@ describe('WorldClock ambient idle mode', () => {
         home={HOME}
         rings={[SF]}
         meetings={[]}
-        mode="schedule"
+        mode="edit"
         onSetMode={vi.fn()}
         isMenuExpanded={false}
         onMenuExpandedChange={vi.fn()}
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
 
@@ -423,6 +600,8 @@ describe('WorldClock ambient idle mode', () => {
         onShare={vi.fn()}
         onRemoveLocation={vi.fn()}
         onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
       />,
     );
     const stage = container.querySelector('section');

@@ -27,7 +27,9 @@ import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
+import type { ScrubActions } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
+import { MobileConfigView } from './MobileConfigView';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
@@ -48,7 +50,7 @@ const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
-const RING_COLOR_LEGEND_TEXT = 'In colors — local working hours';
+const RING_COLOR_LEGEND_TEXT = 'local working hours';
 const LABEL_DOT_GAP = 18;
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
 // used only as the ARIA slider's advertised range, since the underlying offset itself
@@ -67,6 +69,8 @@ export type WorldClockProps = {
   onMenuExpandedChange: (isExpanded: boolean) => void;
   onRemoveLocation: (id: string) => void;
   onReorder: (orderedIds: string[]) => void;
+  onUpdateLocation: (id: string, patch: Partial<Location>) => void;
+  onSetHome: (location: Location) => void;
   modePanelContent?: ReactNode;
   toastMessage?: string | null;
   previewOffsetMs?: number;
@@ -76,6 +80,23 @@ export type WorldClockProps = {
   // without this a share-link viewer who never signed in themselves would still
   // see the owner's scheduled-meeting dots
   isGoogleCalendarConnected?: boolean;
+  // quick-schedule (see isScrubActionBarVisible): swaps ControlCluster's icon
+  // menu for "Cancel"/"Schedule" while previewing a scrub, on any platform.
+  // Schedule fires immediately (no form) at the previewed time;
+  // isQuickScheduling reflects the in-flight Google Calendar request.
+  onQuickSchedule?: () => void;
+  onBackToNow?: () => void;
+  isQuickScheduling?: boolean;
+  // when the scrub preview lands on an already-scheduled meeting, ControlCluster
+  // shows a third "Remove Meeting" button alongside Cancel/Schedule
+  hasMatchedMeeting?: boolean;
+  onRemoveMeeting?: () => void;
+  isRemovingMeeting?: boolean;
+  // Config mode on mobile renders a full-screen MobileConfigView instead of the
+  // desktop floating ConfigPanel (see the modePanel block below) — the old panel
+  // had no scroll container, so the keyboard could push its Add/Manage-locations
+  // content off-screen with no way back to it
+  isPortrait?: boolean;
 };
 
 export function WorldClock({
@@ -90,12 +111,21 @@ export function WorldClock({
   onMenuExpandedChange,
   onRemoveLocation,
   onReorder,
+  onUpdateLocation,
+  onSetHome,
   modePanelContent,
   toastMessage = null,
   previewOffsetMs = 0,
   scrubBind,
   isScrubbing = false,
   isGoogleCalendarConnected = false,
+  onQuickSchedule,
+  onBackToNow,
+  isQuickScheduling = false,
+  hasMatchedMeeting = false,
+  onRemoveMeeting,
+  isRemovingMeeting = false,
+  isPortrait = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -134,6 +164,19 @@ export function WorldClock({
   // manage-locations list reads inside->outside (home first), the reverse of
   // orderedLocations (which renders outside->inside for the SVG rings)
   const manageListLocations = useMemo(() => [...orderedLocations].reverse(), [orderedLocations]);
+  // shared between the desktop ConfigPanel accordion and the mobile
+  // MobileConfigView's stacked sections — same list, same handlers either way
+  const manageLocationsElement = (
+    <ManageLocationsList
+      locations={manageListLocations}
+      onReorder={onReorder}
+      onRemove={onRemoveLocation}
+      onClose={() => onSetMode('view')}
+      hideCloseButton={isPortrait}
+      onUpdateLocation={onUpdateLocation}
+      onSetHome={onSetHome}
+    />
+  );
 
   const ringViews = useMemo(
     () =>
@@ -210,9 +253,32 @@ export function WorldClock({
   // invalid slider for assistive tech
   const clampedScrubValueMs = Math.min(SCRUB_RANGE_MS, Math.max(-SCRUB_RANGE_MS, previewOffsetMs));
 
+  // true on any platform for as long as a scrub preview is live — scheduling
+  // has no separate mode/form to switch into anymore, so `mode` just stays
+  // 'view' throughout. Swaps ControlCluster's icon menu for Cancel/Schedule
+  // (and, if the preview lands on an existing meeting, Remove Meeting too).
+  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
+
+  // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
+  // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
+  // defeat that for the whole duration of a scrub, so this is memoized on the values
+  // that actually determine its shape rather than rebuilt inline in the JSX below
+  const scrubActions = useMemo<ScrubActions | undefined>(() => {
+    if (!isScrubActionBarVisible) return undefined;
+    return {
+      onSchedule: () => onQuickSchedule?.(),
+      onCancel: () => onBackToNow?.(),
+      isScheduling: isQuickScheduling,
+      matchedMeeting: hasMatchedMeeting ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting } : undefined,
+    };
+  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
+
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
-  const statusText = availableCount === 0 ? 'No teams available right now' : `${availableCount} of ${totalCount} teams are available now`;
+  // single short line (was two stacked lines): the colored dot still carries the
+  // available/none signal on its own, so the count + legend can share one line
+  // instead of needing a whole sentence to spell out "none available"
+  const statusText = `${availableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
   const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
   const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
 
@@ -236,24 +302,22 @@ export function WorldClock({
           onShare={onShare}
           isExpanded={isMenuExpanded}
           onExpandedChange={onMenuExpandedChange}
+          scrubActions={scrubActions}
         />
       </div>
-      {mode === 'edit' && modePanelContent && (
-        <div className={styles.modePanel}>
-          <ConfigPanel
+      {mode === 'edit' &&
+        modePanelContent &&
+        (isPortrait ? (
+          <MobileConfigView
             addLocationContent={modePanelContent}
-            manageLocationsContent={
-              <ManageLocationsList
-                locations={manageListLocations}
-                onReorder={onReorder}
-                onRemove={onRemoveLocation}
-                onClose={() => onSetMode('view')}
-              />
-            }
+            manageLocationsContent={manageLocationsElement}
+            onClose={() => onSetMode('view')}
           />
-        </div>
-      )}
-      {mode === 'schedule' && modePanelContent && <div className={styles.modePanel}>{modePanelContent}</div>}
+        ) : (
+          <div className={styles.modePanel}>
+            <ConfigPanel addLocationContent={modePanelContent} manageLocationsContent={manageLocationsElement} />
+          </div>
+        ))}
       <Toast message={toastMessage} />
 
       <div
@@ -412,19 +476,15 @@ export function WorldClock({
       </div>
 
       <div className={styles.statusRow} aria-hidden="true">
-        <div className={styles.statusText}>
-          <span
-            className={styles.statusDot}
-            style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
-          />
-          {statusText}
-        </div>
-        <span className={styles.legendBullet} />
-        <div className={styles.legendText}>{RING_COLOR_LEGEND_TEXT}</div>
+        <span
+          className={styles.statusDot}
+          style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
+        />
+        <span className={styles.statusText}>{statusText}</span>
       </div>
 
       <p className={styles.srOnly} role="status">
-        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}. {RING_COLOR_LEGEND_TEXT}.
+        {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
     </section>
   );
