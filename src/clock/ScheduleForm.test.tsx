@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { ScheduleForm } from './ScheduleForm';
 import * as googleCalendar from './googleCalendar';
 import { formatScheduledSummary } from './meetingForm';
@@ -27,19 +29,22 @@ function renderForm(overrides: Partial<Parameters<typeof ScheduleForm>[0]> = {})
   const onScheduled = vi.fn();
   const onCancel = vi.fn();
   const onDeleteMeeting = vi.fn();
+  const analytics = createMockAnalyticsService();
   render(
-    <ScheduleForm
-      previewInstant={PREVIEW_INSTANT}
-      onChangeInstant={onChangeInstant}
-      existingMeetingIds={[]}
-      onScheduled={onScheduled}
-      onCancel={onCancel}
-      isEnabled
-      onDeleteMeeting={onDeleteMeeting}
-      {...overrides}
-    />,
+    <AnalyticsProvider service={analytics}>
+      <ScheduleForm
+        previewInstant={PREVIEW_INSTANT}
+        onChangeInstant={onChangeInstant}
+        existingMeetingIds={[]}
+        onScheduled={onScheduled}
+        onCancel={onCancel}
+        isEnabled
+        onDeleteMeeting={onDeleteMeeting}
+        {...overrides}
+      />
+    </AnalyticsProvider>,
   );
-  return { onChangeInstant, onScheduled, onCancel, onDeleteMeeting };
+  return { onChangeInstant, onScheduled, onCancel, onDeleteMeeting, analytics };
 }
 
 describe('ScheduleForm gated state', () => {
@@ -72,7 +77,7 @@ describe('ScheduleForm submission', () => {
     vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
     vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockResolvedValue('evt-123');
     const user = userEvent.setup();
-    const { onScheduled } = renderForm();
+    const { onScheduled, analytics } = renderForm();
 
     await user.type(screen.getByLabelText('Meeting title'), 'Sync');
     await user.click(screen.getByRole('button', { name: 'Schedule' }));
@@ -91,13 +96,17 @@ describe('ScheduleForm submission', () => {
     expect(screen.getByRole('status').textContent).toMatch(/added/i);
     // the date/time actually scheduled, not just a bare confirmation
     expect(screen.getByText(formatScheduledSummary(PREVIEW_INSTANT))).toBeTruthy();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', {
+      duration_minutes: googleCalendar.DEFAULT_MEETING_DURATION_MINUTES,
+    });
   });
 
   it('shows an inline, retryable error when scheduling fails', async () => {
     vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
-    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockRejectedValue(new Error('boom'));
+    const scheduleError = new Error('boom');
+    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockRejectedValue(scheduleError);
     const user = userEvent.setup();
-    const { onScheduled } = renderForm();
+    const { onScheduled, analytics } = renderForm();
 
     await user.type(screen.getByLabelText('Meeting title'), 'Sync');
     await user.click(screen.getByRole('button', { name: 'Schedule' }));
@@ -106,6 +115,7 @@ describe('ScheduleForm submission', () => {
     expect(onScheduled).not.toHaveBeenCalled();
     // still on the form, so the user can retry without re-entering the title
     expect(screen.getByRole('button', { name: 'Schedule' })).toBeTruthy();
+    expect(analytics.captureException).toHaveBeenCalledWith(scheduleError);
   });
 
   it('lets the user pick a different duration before submitting', async () => {
@@ -192,12 +202,13 @@ describe('ScheduleForm matched-meeting banner', () => {
     vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
     vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockResolvedValue(undefined);
     const user = userEvent.setup();
-    const { onDeleteMeeting } = renderForm({ matchedMeeting: MATCHED_MEETING });
+    const { onDeleteMeeting, analytics } = renderForm({ matchedMeeting: MATCHED_MEETING });
 
     await user.click(screen.getByRole('button', { name: 'Delete meeting' }));
 
     await waitFor(() => expect(onDeleteMeeting).toHaveBeenCalledWith('m1'));
     expect(googleCalendar.deleteMeetingFromGoogleCalendar).toHaveBeenCalledWith('evt-1');
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted');
   });
 
   it('skips the Google Calendar call and removes the meeting locally when it has no googleEventId', async () => {
@@ -216,9 +227,10 @@ describe('ScheduleForm matched-meeting banner', () => {
 
   it('shows an inline error and does not remove the meeting when the Google Calendar delete fails', async () => {
     vi.mocked(googleCalendar.isGoogleCalendarConfigured).mockReturnValue(true);
-    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(new Error('sign-in cancelled'));
+    const deleteError = new Error('sign-in cancelled');
+    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(deleteError);
     const user = userEvent.setup();
-    const { onDeleteMeeting } = renderForm({ matchedMeeting: MATCHED_MEETING });
+    const { onDeleteMeeting, analytics } = renderForm({ matchedMeeting: MATCHED_MEETING });
 
     await user.click(screen.getByRole('button', { name: 'Delete meeting' }));
 
@@ -226,6 +238,7 @@ describe('ScheduleForm matched-meeting banner', () => {
     expect(onDeleteMeeting).not.toHaveBeenCalled();
     // still there, so the user can retry
     expect(screen.getByRole('button', { name: 'Delete meeting' })).toBeTruthy();
+    expect(analytics.captureException).toHaveBeenCalledWith(deleteError);
   });
 
   it('disables the delete button while the delete is pending', async () => {
