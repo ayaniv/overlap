@@ -1,13 +1,11 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { PALETTE } from './defaultCities';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
-import { isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_START } from './locationForm';
+import { isValidHexColor } from './locationForm';
+import { LocationColorAndHoursFields } from './LocationColorAndHoursFields';
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
-
-const FALLBACK_SWATCH_COLOR = '#000000';
 
 type LocationEditorProps = {
   location: Location & { isHome: boolean };
@@ -30,71 +28,27 @@ function LocationEditor({ location, onUpdateLocation, onSetHome }: LocationEdito
   // in sync with both this draft and the committed color directly.
   const [hexDraft, setHexDraft] = useState(location.color);
 
+  const commitColor = (value: string) => {
+    setHexDraft(value);
+    onUpdateLocation(location.id, { color: value });
+  };
+
   return (
     <div className={styles.expanded}>
-      <div className={styles.colorRow}>
-        {PALETTE.map((swatch) => (
-          <button
-            key={swatch}
-            type="button"
-            className={location.color === swatch ? styles.swatchOptionActive : styles.swatchOption}
-            style={{ background: swatch }}
-            aria-label={`Color ${swatch}`}
-            aria-pressed={location.color === swatch}
-            onClick={() => {
-              setHexDraft(swatch);
-              onUpdateLocation(location.id, { color: swatch });
-            }}
-          />
-        ))}
-      </div>
-      <div className={styles.hexRow}>
-        <input
-          className={styles.hexInput}
-          type="text"
-          value={hexDraft}
-          onChange={(event) => {
-            const value = event.target.value;
-            setHexDraft(value);
-            if (isValidHexColor(value)) onUpdateLocation(location.id, { color: value });
-          }}
-          aria-label={`Hex color for ${location.label}`}
-        />
-        <input
-          className={styles.colorPicker}
-          type="color"
-          value={isValidHexColor(location.color) ? location.color : FALLBACK_SWATCH_COLOR}
-          onChange={(event) => {
-            setHexDraft(event.target.value);
-            onUpdateLocation(location.id, { color: event.target.value });
-          }}
-          aria-label={`Pick color for ${location.label}`}
-        />
-      </div>
-      <div className={styles.hoursRow}>
-        <label className={styles.hoursLabel}>
-          Start
-          <input
-            className={styles.hoursInput}
-            type="number"
-            min={MIN_WORK_START}
-            max={MAX_WORK_START}
-            value={location.workStart}
-            onChange={(event) => onUpdateLocation(location.id, { workStart: Number(event.target.value) })}
-          />
-        </label>
-        <label className={styles.hoursLabel}>
-          End
-          <input
-            className={styles.hoursInput}
-            type="number"
-            min={MIN_WORK_END}
-            max={MAX_WORK_END}
-            value={location.workEnd}
-            onChange={(event) => onUpdateLocation(location.id, { workEnd: Number(event.target.value) })}
-          />
-        </label>
-      </div>
+      <LocationColorAndHoursFields
+        color={location.color}
+        hexValue={hexDraft}
+        onHexInputChange={(value) => {
+          setHexDraft(value);
+          if (isValidHexColor(value)) onUpdateLocation(location.id, { color: value });
+        }}
+        onColorPick={commitColor}
+        workStart={location.workStart}
+        workEnd={location.workEnd}
+        onChangeWorkStart={(value) => onUpdateLocation(location.id, { workStart: value })}
+        onChangeWorkEnd={(value) => onUpdateLocation(location.id, { workEnd: value })}
+        ariaLabelSuffix={` for ${location.label}`}
+      />
       {!location.isHome && (
         <button type="button" className={styles.setHomeButton} onClick={() => onSetHome(location)}>
           Set as home

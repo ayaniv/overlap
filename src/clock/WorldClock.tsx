@@ -27,6 +27,7 @@ import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
+import type { ScrubActions } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
 import { Toast } from './Toast';
@@ -258,6 +259,20 @@ export function WorldClock({
   // (and, if the preview lands on an existing meeting, Remove Meeting too).
   const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
+  // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
+  // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
+  // defeat that for the whole duration of a scrub, so this is memoized on the values
+  // that actually determine its shape rather than rebuilt inline in the JSX below
+  const scrubActions = useMemo<ScrubActions | undefined>(() => {
+    if (!isScrubActionBarVisible) return undefined;
+    return {
+      onSchedule: () => onQuickSchedule?.(),
+      onCancel: () => onBackToNow?.(),
+      isScheduling: isQuickScheduling,
+      matchedMeeting: hasMatchedMeeting ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting } : undefined,
+    };
+  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
+
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
   // single short line (was two stacked lines): the colored dot still carries the
@@ -287,18 +302,7 @@ export function WorldClock({
           onShare={onShare}
           isExpanded={isMenuExpanded}
           onExpandedChange={onMenuExpandedChange}
-          scrubActions={
-            isScrubActionBarVisible
-              ? {
-                  onSchedule: () => onQuickSchedule?.(),
-                  onCancel: () => onBackToNow?.(),
-                  isScheduling: isQuickScheduling,
-                  matchedMeeting: hasMatchedMeeting
-                    ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting }
-                    : undefined,
-                }
-              : undefined
-          }
+          scrubActions={scrubActions}
         />
       </div>
       {mode === 'edit' &&

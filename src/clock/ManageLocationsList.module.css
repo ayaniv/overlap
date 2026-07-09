@@ -137,12 +137,10 @@
   color: #fb7185;
 }
 
-/* the row's inline editor (color/hours/set-as-home), revealed by tapping
-   .rowToggle — mirrors AddLocationForm's equivalent controls (duplicated
-   rather than shared across CSS modules, matching this codebase's existing
-   convention of self-contained, per-component CSS modules). Generous
-   spacing + a quiet fade/slide-in (not a bounce) so it reads as a calm
-   sub-panel rather than an abrupt pop-in. */
+/* the row's inline editor (color/hours via LocationColorAndHoursFields, plus
+   set-as-home), revealed by tapping .rowToggle. Generous spacing + a quiet
+   fade/slide-in (not a bounce) so it reads as a calm sub-panel rather than an
+   abrupt pop-in. */
 .expanded {
   display: flex;
   flex-direction: column;
@@ -167,95 +165,6 @@
   .expanded {
     animation: none;
   }
-}
-
-.colorRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.swatchOption,
-.swatchOptionActive {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  padding: 0;
-}
-
-.swatchOptionActive {
-  border-color: #f5f6f8;
-}
-
-.hexRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hexInput {
-  flex: 1;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 7px 9px;
-  border-radius: 8px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.7);
-  color: #f5f6f8;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-
-.hexInput:focus {
-  outline: none;
-  border-color: #38bdf8;
-}
-
-.colorPicker {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid #3a3e46;
-  border-radius: 7px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.hoursRow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.hoursLabel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
-  letter-spacing: 0.3px;
-  color: #7b808a;
-}
-
-.hoursInput {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 6px 9px;
-  border-radius: 8px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.7);
-  color: #f5f6f8;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-}
-
-.hoursInput:focus {
-  outline: none;
-  border-color: #38bdf8;
 }
 
 .setHomeButton {
@@ -303,8 +212,8 @@
 /* mobile touch targets: no hover state to fall back on there, so the drag
    handle (a continuous drag gesture, most sensitive to a cramped hit area)
    and remove button need Apple's 44px minimum, not the desktop-density 22px.
-   Same iOS-zoom-on-focus fix as AddLocationForm's inputs for the hex/hours
-   fields here (font-size < 16px triggers it). */
+   LocationColorAndHoursFields applies its own portrait sizing for the hex/
+   hours/swatch/picker controls it owns. */
 @media (orientation: portrait) {
   .rowMain {
     padding: 8px;
@@ -323,23 +232,6 @@
 
   .removeButton {
     font-size: 20px;
-  }
-
-  .hexInput,
-  .hoursInput {
-    padding: 12px 9px;
-    font-size: 16px;
-  }
-
-  .swatchOption,
-  .swatchOptionActive {
-    width: 32px;
-    height: 32px;
-  }
-
-  .colorPicker {
-    width: 40px;
-    height: 40px;
   }
 
   .setHomeButton,

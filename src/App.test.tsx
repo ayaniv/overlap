@@ -224,6 +224,31 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
   });
+
+  // mirrors the equivalent quick-schedule regression test: the ring stays
+  // scrubbable while the delete request is in flight, so resolving it must not
+  // clobber a newer preview the user scrubbed to in the meantime
+  it('does not snap the scrub preview back to now if the user scrubs further while Remove Meeting is still in flight', async () => {
+    seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
+    let resolveDelete: () => void = () => {};
+    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockImplementation(() => new Promise<void>((resolve) => (resolveDelete = resolve)));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubOntoMeeting(user);
+    const offsetBeforeRemove = screen.getByRole('slider').getAttribute('aria-valuenow');
+    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await waitFor(() => expect(googleCalendar.deleteMeetingFromGoogleCalendar).toHaveBeenCalledTimes(1));
+
+    screen.getByRole('slider').focus();
+    await user.keyboard('{ArrowUp}');
+    const offsetAfterFurtherScrub = screen.getByRole('slider').getAttribute('aria-valuenow');
+    expect(offsetAfterFurtherScrub).not.toBe(offsetBeforeRemove);
+
+    resolveDelete();
+    expect(await screen.findByText('Meeting removed')).toBeTruthy();
+    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe(offsetAfterFurtherScrub);
+  });
 });
 
 // quick-schedule: scrubbing swaps ControlCluster's icon menu for Cancel/
@@ -276,6 +301,32 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
     expect(googleCalendar.scheduleMeetingOnGoogleCalendar).not.toHaveBeenCalled();
+  });
+
+  // the ring stays scrubbable while a schedule request is in flight (only
+  // ControlCluster's own buttons are disabled) — resolving that request must not
+  // clobber a newer preview the user scrubbed to in the meantime
+  it('does not snap the scrub preview back to now if the user scrubs further while Schedule is still in flight', async () => {
+    stubMatchMedia(true);
+    let resolveSchedule: (eventId: string) => void = () => {};
+    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockImplementation(
+      () => new Promise<string>((resolve) => (resolveSchedule = resolve)),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+
+    await scrubForward(user);
+    const offsetBeforeSchedule = screen.getByRole('slider').getAttribute('aria-valuenow');
+    await user.click(screen.getByText('Schedule'));
+    await waitFor(() => expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledTimes(1));
+
+    await scrubForward(user);
+    const offsetAfterFurtherScrub = screen.getByRole('slider').getAttribute('aria-valuenow');
+    expect(offsetAfterFurtherScrub).not.toBe(offsetBeforeSchedule);
+
+    resolveSchedule('evt-1');
+    expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
+    expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe(offsetAfterFurtherScrub);
   });
 });
 

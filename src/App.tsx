@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AddLocationForm } from './clock/AddLocationForm';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -47,6 +47,14 @@ function App() {
   // flight — there's no form/disabled-fieldset to lean on here
   const [isQuickScheduling, setIsQuickScheduling] = useState(false);
   const [isRemovingMeeting, setIsRemovingMeeting] = useState(false);
+  // scrubbing isn't gated by isQuickScheduling/isRemovingMeeting (only ControlCluster's
+  // buttons are, via isBusy) — the ring itself stays draggable while a schedule/remove
+  // request is in flight. Kept in sync with scrubOffsetMs on every render so
+  // handleQuickSchedule/handleRemoveMatchedMeeting can tell, once their await resolves,
+  // whether the user has since scrubbed elsewhere — and skip resetScrub() if so, instead
+  // of silently snapping a newer preview back to "now"
+  const liveScrubOffsetRef = useRef(scrubOffsetMs);
+  liveScrubOffsetRef.current = scrubOffsetMs;
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
@@ -83,6 +91,7 @@ function App() {
   const handleQuickSchedule = useCallback(async () => {
     if (isQuickScheduling) return;
     setIsQuickScheduling(true);
+    const startOffsetMs = scrubOffsetMs;
     const title = buildOverlapMeetingTitle(previewInstant, config.home, config.rings);
     try {
       const googleEventId = await scheduleMeetingOnGoogleCalendar(title, previewInstant.toISOString(), DEFAULT_MEETING_DURATION_MINUTES);
@@ -93,14 +102,16 @@ function App() {
       // connected flag flips, so re-read it here instead of polling it
       setIsConnectedToGoogleCalendar(isGoogleCalendarConnected());
       showToast('Meeting scheduled');
-      resetScrub();
+      // only return to "now" if the user hasn't scrubbed elsewhere while this request
+      // was in flight — otherwise this would silently discard their newer preview
+      if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
       console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
     } finally {
       setIsQuickScheduling(false);
     }
-  }, [isQuickScheduling, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub]);
+  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub]);
 
   // ControlCluster's scrub "Remove Meeting" (only present when matchedMeeting
   // is set): mirrors handleQuickSchedule's sign-in-then-mutate flow and error
@@ -108,6 +119,7 @@ function App() {
   const handleRemoveMatchedMeeting = useCallback(async () => {
     if (!matchedMeeting || isRemovingMeeting) return;
     setIsRemovingMeeting(true);
+    const startOffsetMs = scrubOffsetMs;
     try {
       // a meeting with no googleEventId (pre-migration, or synced in from someone
       // else's share link) is still removable locally — just skip the Calendar call
@@ -116,14 +128,16 @@ function App() {
       }
       removeMeeting(matchedMeeting.id);
       showToast('Meeting removed');
-      resetScrub();
+      // only return to "now" if the user hasn't scrubbed elsewhere while this request
+      // was in flight — otherwise this would silently discard their newer preview
+      if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
       console.error('overlap: failed to remove the matched meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
     } finally {
       setIsRemovingMeeting(false);
     }
-  }, [matchedMeeting, isRemovingMeeting, removeMeeting, showToast, resetScrub]);
+  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub]);
 
   const modePanelContent =
     mode === 'edit' ? (
