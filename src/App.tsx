@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { usePostHog } from '@posthog/react';
+import { useAnalytics } from './analytics/useAnalytics';
 import { AddLocationForm } from './clock/AddLocationForm';
 import { isGoogleCalendarConnected } from './clock/googleCalendar';
 import { findMeetingAtInstant } from './clock/meetingForm';
@@ -28,7 +28,7 @@ const MARK_SCRUBBED_DEBOUNCE_MS = 300;
 const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
-  const posthog = usePostHog();
+  const analytics = useAnalytics();
   const now = useNow();
   const { config, addLocation, removeLocation, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
@@ -61,9 +61,9 @@ function App() {
       // get no toast — the OS UI already gave feedback, or there's nothing to report
       const message = SHARE_TOAST_MESSAGE[outcome];
       if (message) showToast(message);
-      posthog?.capture('clock_shared', { outcome });
+      analytics.trackEvent('clock_shared', { outcome });
     });
-  }, [showToast, posthog]);
+  }, [showToast, analytics]);
 
   const handleScheduled = useCallback(
     (meeting: Meeting) => {
@@ -89,11 +89,11 @@ function App() {
         setHasScrubbed(false);
       }
       if (nextMode === 'schedule' && mode !== 'schedule') {
-        posthog?.capture('schedule_form_opened');
+        analytics.trackEvent('schedule_form_opened');
       }
       setMode(nextMode);
     },
-    [mode, resetScrub, posthog],
+    [mode, resetScrub, analytics],
   );
 
   const exitToView = useCallback(() => changeMode('view'), [changeMode]);
@@ -138,11 +138,11 @@ function App() {
     // and then explicitly opens Schedule doesn't hit the scrub-gate again
     setHasScrubbed(true);
     if (isPortrait) return;
-    setMode((current) => (current === 'view' ? 'schedule' : current));
+    changeMode('schedule');
     // reveal the ControlCluster menu too, in case it's still collapsed — otherwise
     // the schedule panel opens with no visible (highlighted) Schedule button
     setIsMenuExpanded(true);
-  }, [isPortrait]);
+  }, [isPortrait, changeMode]);
 
   const scrubBindWithGate: RingScrubBind = useMemo(
     () => ({
