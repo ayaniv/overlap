@@ -2,6 +2,18 @@
   box-sizing: border-box;
 }
 
+/* without this, a second quick tap on the same button (e.g. tapping
+   Manage-locations' row toggle again to collapse it) can land inside iOS
+   Safari's native double-tap-to-zoom window instead of registering as a
+   click — the click event never fires, so the tap silently does nothing.
+   `manipulation` keeps panning/scrolling but drops the double-tap-zoom
+   gesture. Elements with their own custom gesture (the drag handle, the
+   clock-face scrub slider) already set touch-action: none with higher
+   specificity, so this doesn't affect them. */
+button {
+  touch-action: manipulation;
+}
+
 html,
 body,
 #root {

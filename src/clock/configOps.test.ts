@@ -21,6 +21,17 @@ describe('setHomeOp', () => {
     expect(next.rings).toEqual([SF, HOME]);
   });
 
+  // regression: ManageLocationsList passes its own display copy of a location
+  // (spread with an extra `isHome` flag for rendering, not part of `Location`)
+  // — only the id should be trusted for the lookup, so that flag (or any other
+  // stray property) never leaks into the persisted config
+  it('uses the canonical ring object as the new home, ignoring extra properties on the passed-in value', () => {
+    const config: ClockConfig = { ...BASE_CONFIG, rings: [SF, NY] };
+    const next = setHomeOp(config, { ...NY, isHome: false } as Location);
+    expect(next.home).toEqual(NY);
+    expect(next.home).not.toHaveProperty('isHome');
+  });
+
   it('is a no-op when asked to set home to the already-current home', () => {
     const next = setHomeOp(BASE_CONFIG, HOME);
     expect(next).toBe(BASE_CONFIG);
@@ -102,6 +113,20 @@ describe('updateLocationOp', () => {
   it('leaves rings unchanged when the id does not match anything', () => {
     const next = updateLocationOp(BASE_CONFIG, 'not-a-real-id', { color: '#000000' });
     expect(next.rings).toEqual(BASE_CONFIG.rings);
+  });
+
+  // regression: home lives in its own `config.home` field, not `rings` — this
+  // used to only ever map over `rings`, so editing color/hours for whichever
+  // location currently is home silently did nothing at all
+  it('patches home when id matches the current home, not a ring', () => {
+    const next = updateLocationOp(BASE_CONFIG, HOME.id, { color: '#000000' });
+    expect(next.home).toEqual({ ...HOME, color: '#000000' });
+    expect(next.rings).toEqual(BASE_CONFIG.rings);
+  });
+
+  it('leaves home unchanged when the id does not match anything', () => {
+    const next = updateLocationOp(BASE_CONFIG, 'not-a-real-id', { color: '#000000' });
+    expect(next.home).toEqual(BASE_CONFIG.home);
   });
 });
 
