@@ -1,6 +1,8 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { WorldClock } from './WorldClock';
 import { MS_PER_HOUR, meetingAngle, pointOnCircle, ringRadius } from './geometry';
 import { DEFAULT_IDLE_TIMEOUT_MS } from '../hooks/useIsIdle';
@@ -27,19 +29,21 @@ const NOW = new Date('2026-01-01T12:00:00.000Z');
 function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] = []) {
   const onRemoveLocation = vi.fn();
   render(
-    <WorldClock
-      now={NOW}
-      home={HOME}
-      rings={rings}
-      meetings={meetings}
-      mode={mode}
-      onSetMode={vi.fn()}
-      isMenuExpanded={false}
-      onMenuExpandedChange={vi.fn()}
-      onShare={vi.fn()}
-      onRemoveLocation={onRemoveLocation}
-      onReorder={vi.fn()}
-    />,
+    <AnalyticsProvider service={createMockAnalyticsService()}>
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={rings}
+        meetings={meetings}
+        mode={mode}
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={onRemoveLocation}
+        onReorder={vi.fn()}
+      />
+    </AnalyticsProvider>,
   );
   return { onRemoveLocation };
 }
@@ -57,20 +61,22 @@ const SCRUB_BIND: RingScrubBind = {
 
 function renderClockWithPanel(mode: Mode, onReorder = vi.fn()) {
   render(
-    <WorldClock
-      now={NOW}
-      home={HOME}
-      rings={[SF]}
-      meetings={[]}
-      mode={mode}
-      onSetMode={vi.fn()}
-      isMenuExpanded={false}
-      onMenuExpandedChange={vi.fn()}
-      onShare={vi.fn()}
-      onRemoveLocation={vi.fn()}
-      onReorder={onReorder}
-      modePanelContent={<div>Form</div>}
-    />,
+    <AnalyticsProvider service={createMockAnalyticsService()}>
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode={mode}
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={onReorder}
+        modePanelContent={<div>Form</div>}
+      />
+    </AnalyticsProvider>,
   );
 }
 
