@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AnalyticsContext } from './AnalyticsProvider';
+import { AnalyticsContext } from './AnalyticsContext';
 import type { AnalyticsService } from './AnalyticsService';
 
 export function useAnalytics(): AnalyticsService {
