@@ -8,9 +8,8 @@ import { createMockAnalyticsService } from './mockAnalyticsService';
 afterEach(cleanup);
 
 describe('useAnalytics / AnalyticsProvider', () => {
-  it('returns the real singleton when no provider is present', () => {
-    const { result } = renderHook(() => useAnalytics());
-    expect(result.current).toBe(analytics);
+  it('throws when no provider is present, instead of silently using the real singleton', () => {
+    expect(() => renderHook(() => useAnalytics())).toThrow(/AnalyticsProvider/);
   });
 
   it('returns the real singleton by default when AnalyticsProvider has no service prop', () => {

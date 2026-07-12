@@ -1,5 +1,8 @@
 import { createContext } from 'react';
-import { analytics } from './analytics';
 import type { AnalyticsService } from './AnalyticsService';
 
-export const AnalyticsContext = createContext<AnalyticsService>(analytics);
+// no real default: useAnalytics() throws when this is still undefined, so a
+// render tree that forgets to wrap in <AnalyticsProvider> (most commonly a
+// test rendering a component in isolation) fails loudly instead of silently
+// falling through to the real, unmocked posthog-js singleton
+export const AnalyticsContext = createContext<AnalyticsService | undefined>(undefined);

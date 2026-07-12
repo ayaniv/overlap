@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
 import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { AddLocationForm } from './AddLocationForm';
+import type { AddLocationFormProps } from './AddLocationForm';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, PALETTE } from './defaultCities';
 
 afterEach(cleanup);
@@ -13,22 +14,23 @@ async function pickTokyo(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: /Tokyo/ }));
 }
 
+function renderForm(overrides: Partial<AddLocationFormProps> = {}) {
+  const onAdd = vi.fn();
+  const onDone = vi.fn();
+  const analytics = createMockAnalyticsService();
+  render(
+    <AnalyticsProvider service={analytics}>
+      <AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={onDone} {...overrides} />
+    </AnalyticsProvider>,
+  );
+  return { onAdd, onDone, analytics };
+}
+
 describe('AddLocationForm', () => {
   it('searches, selects a city, and adds a location with an unused default color and default work hours', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    const analytics = createMockAnalyticsService();
     // every palette swatch but the last is already in use, so the suggested default is deterministic
-    render(
-      <AnalyticsProvider service={analytics}>
-        <AddLocationForm
-          existingIds={['tel-aviv']}
-          existingColors={PALETTE.slice(0, PALETTE.length - 1)}
-          onAdd={onAdd}
-          onDone={vi.fn()}
-        />
-      </AnalyticsProvider>,
-    );
+    const { onAdd, analytics } = renderForm({ existingIds: ['tel-aviv'], existingColors: PALETTE.slice(0, PALETTE.length - 1) });
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -52,8 +54,7 @@ describe('AddLocationForm', () => {
 
   it('defaults to some palette color when none are in use yet', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} />);
+    const { onAdd } = renderForm();
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -63,8 +64,7 @@ describe('AddLocationForm', () => {
 
   it('lets the user pick a color swatch before submitting', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} />);
+    const { onAdd } = renderForm();
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: `Color ${PALETTE[2]}` }));
@@ -75,8 +75,7 @@ describe('AddLocationForm', () => {
 
   it('shows an inline validation error and does not call onAdd for an invalid hex color', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} />);
+    const { onAdd } = renderForm();
 
     await pickTokyo(user);
     const hexInput = screen.getByLabelText('Hex color');
@@ -90,8 +89,7 @@ describe('AddLocationForm', () => {
 
   it('does not call onAdd when no city has been selected', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} />);
+    const { onAdd } = renderForm();
 
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
@@ -101,8 +99,7 @@ describe('AddLocationForm', () => {
 
   it('shows Cancel and calls onDone before anything has been added', async () => {
     const user = userEvent.setup();
-    const onDone = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={onDone} />);
+    const { onDone } = renderForm();
 
     expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -112,8 +109,7 @@ describe('AddLocationForm', () => {
 
   it('switches to Done (still calling onDone) once a location has been added', async () => {
     const user = userEvent.setup();
-    const onDone = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={onDone} />);
+    const { onDone } = renderForm();
 
     await pickTokyo(user);
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -131,8 +127,7 @@ describe('AddLocationForm', () => {
 describe('AddLocationForm isPortrait (mobile immediate add)', () => {
   it('adds the location immediately on picking a suggestion, with default color and hours, no Add tap needed', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} isPortrait />);
+    const { onAdd } = renderForm({ isPortrait: true });
 
     await pickTokyo(user);
 
@@ -145,7 +140,7 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
 
   it('does not render color swatches, hex input, hours, or the Cancel/Add/Done row', async () => {
     const user = userEvent.setup();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={vi.fn()} isPortrait />);
+    renderForm({ isPortrait: true });
 
     expect(screen.queryByLabelText('Hex color')).toBeNull();
     expect(screen.queryByRole('button', { name: `Color ${PALETTE[0]}` })).toBeNull();
@@ -158,7 +153,7 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
 
   it('clears the search box after adding, ready for the next pick', async () => {
     const user = userEvent.setup();
-    render(<AddLocationForm existingIds={[]} existingColors={[]} onAdd={vi.fn()} onDone={vi.fn()} isPortrait />);
+    renderForm({ isPortrait: true });
 
     await pickTokyo(user);
 
@@ -167,8 +162,7 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
 
   it('supports adding a second location right after the first, with no manual reset step', async () => {
     const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<AddLocationForm existingIds={['tokyo']} existingColors={[]} onAdd={onAdd} onDone={vi.fn()} isPortrait />);
+    const { onAdd } = renderForm({ existingIds: ['tokyo'], isPortrait: true });
 
     await user.type(screen.getByLabelText('Search city'), 'London');
     await user.click(await screen.findByRole('button', { name: /London/ }));
