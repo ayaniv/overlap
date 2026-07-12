@@ -155,6 +155,11 @@ export function ManageLocationsList({
     setLiveOrder(null);
   };
 
+  const handleRemove = (id: string) => () => {
+    analytics.trackEvent('location_removed');
+    onRemove(id);
+  };
+
   return (
     <div className={styles.panel}>
       <ul className={styles.list}>
@@ -192,10 +197,7 @@ export function ManageLocationsList({
                     className={styles.removeButton}
                     aria-label={`Remove ${location.label}`}
                     title={`Remove ${location.label}`}
-                    onClick={() => {
-                      analytics.trackEvent('location_removed');
-                      onRemove(location.id);
-                    }}
+                    onClick={handleRemove(location.id)}
                   >
                     <TrashIcon />
                   </button>
