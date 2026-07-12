@@ -15,18 +15,26 @@
   list-style: none;
 }
 
+/* column, not row: holds .rowMain plus the .expanded editor beneath it once a
+   row is tapped open */
 .row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  flex-direction: column;
   border-radius: 8px;
   background: rgba(20, 22, 29, 0.5);
+  overflow: hidden;
 }
 
 .rowDragging {
   composes: row;
   opacity: 0.5;
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
 }
 
 .dragHandle {
@@ -48,6 +56,42 @@
 .dragHandle:hover {
   background: rgba(56, 189, 248, 0.12);
   color: #f5f6f8;
+}
+
+/* the tappable region that expands/collapses the row's editor — stretches to
+   the row's full height (matching dragHandle/removeButton) for a comfortable
+   tap target, not just the height of its own swatch+label content */
+.rowToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  border: none;
+  background: transparent;
+  padding: 0 4px;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  outline: none;
+}
+
+.rowToggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* subtle tie-in to the editor revealed below, instead of relying on the
+   browser's default (visually loud, mismatched) focus ring */
+.rowToggle[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rowToggle:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.5);
+  outline-offset: -2px;
 }
 
 .swatch {
@@ -76,6 +120,9 @@
 
 .removeButton {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -83,14 +130,65 @@
   border-radius: 6px;
   background: transparent;
   color: #c4c8cf;
-  font-size: 11px;
-  line-height: 1;
   cursor: pointer;
+}
+
+.removeButton svg {
+  width: 13px;
+  height: 13px;
 }
 
 .removeButton:hover {
   background: rgba(251, 113, 133, 0.12);
   color: #fb7185;
+}
+
+/* the row's inline editor (color/hours via LocationColorAndHoursFields, plus
+   set-as-home), revealed by tapping .rowToggle. Generous spacing + a quiet
+   fade/slide-in (not a bounce) so it reads as a calm sub-panel rather than an
+   abrupt pop-in. */
+.expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 12px 18px;
+  border-top: 1px solid #3a3e46;
+  animation: expandIn 0.16s ease;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expanded {
+    animation: none;
+  }
+}
+
+.setHomeButton {
+  align-self: flex-start;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  color: #f5f6f8;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.setHomeButton:hover {
+  background: rgba(56, 189, 248, 0.2);
 }
 
 .actions {
@@ -115,4 +213,38 @@
 .closeButton:hover {
   border-color: #565b64;
   color: #f5f6f8;
+}
+
+/* mobile touch targets: no hover state to fall back on there, so the drag
+   handle (a continuous drag gesture, most sensitive to a cramped hit area)
+   and remove button need Apple's 44px minimum, not the desktop-density 22px.
+   LocationColorAndHoursFields applies its own portrait sizing for the hex/
+   hours/swatch/picker controls it owns. */
+@media (orientation: portrait) {
+  .rowMain {
+    padding: 8px;
+  }
+
+  .dragHandle,
+  .removeButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dragHandle svg {
+    width: 18px;
+    height: 24px;
+  }
+
+  .removeButton svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .setHomeButton,
+  .closeButton {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 15px;
+  }
 }

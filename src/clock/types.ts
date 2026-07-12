@@ -23,4 +23,4 @@ export type ClockConfig = {
   meetings: Meeting[];
 };
 
-export type Mode = 'view' | 'edit' | 'schedule';
+export type Mode = 'view' | 'edit';

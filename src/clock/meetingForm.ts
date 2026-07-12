@@ -1,5 +1,6 @@
+import { getCityTime, isWithinWorkingHours } from './cityTime';
 import { parseMeetingInstant } from './geometry';
-import type { Meeting } from './types';
+import type { Location, Meeting } from './types';
 
 // validates form input before it becomes a Meeting; returns a user-facing error
 // message, or null when the input is ready to submit
@@ -23,6 +24,22 @@ function buildMeetingId(existingIds: string[]): string {
 export function buildMeeting(title: string, instant: Date, existingIds: string[], googleEventId?: string): Meeting {
   const meeting: Meeting = { id: buildMeetingId(existingIds), startISO: instant.toISOString(), title: title.trim() };
   return googleEventId ? { ...meeting, googleEventId } : meeting;
+}
+
+const OVERLAP_MEETING_TITLE_PREFIX = 'Overlap-Clock Meeting: ';
+
+// mobile quick-schedule (ControlCluster's scrub Schedule action) skips the form
+// entirely, so the title is auto-generated: every location (home first, then
+// rings) whose working hours cover the previewed instant — the same
+// isWithinWorkingHours check WorldClock's status line/ring dots use, just
+// listing names instead of a count. Falls back to just home's label in the
+// (rare) case nobody, including home, is in hours at that instant.
+export function buildOverlapMeetingTitle(previewInstant: Date, home: Location, rings: Location[]): string {
+  const inHoursLabels = [home, ...rings]
+    .filter((location) => isWithinWorkingHours(getCityTime(previewInstant, location.timezoneId).frac, location.workStart, location.workEnd))
+    .map((location) => location.label);
+  const labels = inHoursLabels.length > 0 ? inHoursLabels : [home.label];
+  return `${OVERLAP_MEETING_TITLE_PREFIX}${labels.join(' <> ')}`;
 }
 
 // matches `instant` against `meetings` by actual time proximity (within
