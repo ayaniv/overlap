@@ -1,6 +1,6 @@
 # overlap
 
-[![Live demo](https://img.shields.io/badge/live%20demo-overlap--clock.vercel.app-4c9a6b)](https://overlap-clock.vercel.app)
+[![Live demo](https://img.shields.io/badge/live%20demo-overlapclock.com-4c9a6b)](https://overlapclock.com)
 
 A radial multi-timezone clock. Five cities are drawn as concentric rings around a
 central local time; each ring shows a colored arc for that city's working hours with
@@ -54,5 +54,5 @@ Released under the [MIT License](./LICENSE).
 
 ## Privacy
 
-See the [privacy policy](https://overlap-clock.vercel.app/privacy.html) for what
+See the [privacy policy](https://overlapclock.com/privacy.html) for what
 data the app collects (none, server-side) and how the Google Calendar scope is used.

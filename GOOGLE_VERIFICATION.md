@@ -10,7 +10,7 @@ deployed; lives only in the repo for the developer's own reference.
 Google's verification form asks, for each sensitive/restricted scope requested,
 "How will the requested scope be used?" Use this for `.../auth/calendar.events`:
 
-> overlap is a free, open-source world clock (https://overlap-clock.vercel.app)
+> overlap is a free, open-source world clock (https://overlapclock.com)
 > that lets a user compare working hours across timezones and schedule a
 > meeting at an overlapping time. When a user drags the clock face to preview a
 > meeting time and taps "Schedule," the app requests the calendar.events scope
@@ -39,15 +39,17 @@ link it separately in the field provided for that.
    the **App name**, **support email**, and **app logo** (optional) are filled
    in.
 3. Under **App domain**:
-   - **Application home page**: `https://overlap-clock.vercel.app` (confirm
-     this is the actual live URL — the README badge and this doc both assume
-     `overlap-clock.vercel.app`; double check against the current Vercel
-     project before submitting).
+   - **Application home page**: `https://overlapclock.com`
    - **Application privacy policy link**:
-     `https://overlap-clock.vercel.app/privacy.html`
+     `https://overlapclock.com/privacy.html`
    - **Application terms of service link**: optional; skip unless you want one.
-4. Under **Authorized domains**, confirm `vercel.app` (or your custom domain,
-   if you add one later) is listed.
+4. Under **Authorized domains**, confirm `overlapclock.com` is listed — **not**
+   `vercel.app`. `vercel.app` is on the public suffix list (like
+   `blogspot.com`, `appspot.com`), so Google refuses to treat it as something
+   you can "own," and branding verification will permanently fail with "the
+   website of your home page URL is not registered to you" no matter how many
+   times you re-verify it in Search Console. This is why the app now has its
+   own custom domain instead of the free `overlap-clock.vercel.app` subdomain.
 5. Under **Scopes**, confirm `.../auth/calendar.events` is listed as a
    requested scope, and paste the justification text from section 1 above
    into its "how will you use this scope" field.
@@ -70,7 +72,7 @@ Google's reviewers watch this to confirm the scope is used the way the
 justification text describes. Keep it short (2–3 minutes), screen-recorded,
 narrated or captioned. Suggested shot list:
 
-1. **Open the app** at the public URL (`overlap-clock.vercel.app`) in a normal
+1. **Open the app** at the public URL (`overlapclock.com`) in a normal
    (not signed-in) browser window — show the clock loads with no login wall.
 2. **Show the base experience** working without Google at all: drag/scrub the
    clock face to preview a different time, point out the working-hours rings
