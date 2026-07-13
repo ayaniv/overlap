@@ -126,7 +126,7 @@ describe('App — sharing fires an analytics event with the outcome', () => {
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Share' }));
 
-    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { action: 'click', outcome: 'copied' }));
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
   });
 });
 
@@ -226,7 +226,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting removed')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
-    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted', { action: 'click' });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted');
   });
 
   it('removes a meeting with no googleEventId locally, without calling the Calendar API', async () => {
@@ -306,7 +306,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
-    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { action: 'click', duration_minutes: 30 });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { duration_minutes: 30 });
   });
 
   it('shows an error toast and keeps the scrub preview (so the user can retry) when scheduling fails', async () => {

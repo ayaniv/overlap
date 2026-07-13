@@ -34,7 +34,7 @@ function markGoogleCalendarConnected(): void {
   } catch (err) {
     console.error('overlap: failed to persist Google Calendar connection state', err);
   }
-  analytics.trackEvent('google_calendar_connected', { action: 'click' });
+  analytics.trackEvent('google_calendar_connected');
 }
 
 export type EventPayload = {

@@ -149,14 +149,14 @@ export function ManageLocationsList({
     }
     if (liveOrder && liveOrder.some((id, index) => id !== originalOrder[index])) {
       onReorder(liveOrder);
-      analytics.trackEvent('locations_reordered', { action: 'click', location_count: liveOrder.length });
+      analytics.trackEvent('locations_reordered', { location_count: liveOrder.length });
     }
     setDraggedId(null);
     setLiveOrder(null);
   };
 
   const handleRemove = (id: string) => () => {
-    analytics.trackEvent('location_removed', { action: 'click' });
+    analytics.trackEvent('location_removed');
     onRemove(id);
   };
 

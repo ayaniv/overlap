@@ -66,7 +66,7 @@ function App() {
       // get no toast — the OS UI already gave feedback, or there's nothing to report
       const message = SHARE_TOAST_MESSAGE[outcome];
       if (message) showToast(message);
-      analytics.trackEvent('clock_shared', { action: 'click', outcome });
+      analytics.trackEvent('clock_shared', { outcome });
     });
   }, [showToast, analytics]);
 
@@ -107,7 +107,7 @@ function App() {
       // connected flag flips, so re-read it here instead of polling it
       setIsConnectedToGoogleCalendar(isGoogleCalendarConnected());
       showToast('Meeting scheduled');
-      analytics.trackEvent('meeting_scheduled', { action: 'click', duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
+      analytics.trackEvent('meeting_scheduled', { duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
@@ -134,7 +134,7 @@ function App() {
       }
       removeMeeting(matchedMeeting.id);
       showToast('Meeting removed');
-      analytics.trackEvent('meeting_deleted', { action: 'click' });
+      analytics.trackEvent('meeting_deleted');
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();

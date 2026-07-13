@@ -47,7 +47,6 @@ describe('AddLocationForm', () => {
       }),
     );
     expect(analytics.trackEvent).toHaveBeenCalledWith('location_added', {
-      action: 'submit',
       timezone_id: 'Asia/Tokyo',
       country: 'Japan',
     });

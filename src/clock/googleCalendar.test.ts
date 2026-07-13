@@ -76,7 +76,7 @@ describe('requestAccessToken', () => {
     const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
     await requestAccessToken('client-id', oauth2);
     expect(isGoogleCalendarConnected()).toBe(true);
-    expect(analytics.trackEvent).toHaveBeenCalledWith('google_calendar_connected', { action: 'click' });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('google_calendar_connected');
   });
 
   it('rejects and logs when the token response has no access token', async () => {

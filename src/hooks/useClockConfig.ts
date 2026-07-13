@@ -89,7 +89,6 @@ export function useClockConfig() {
   useEffect(() => {
     if (loadedFromShare) {
       analytics.trackEvent('shared_config_loaded', {
-        action: 'load',
         location_count: loadedFromShare.rings.length + 1,
         has_meetings: loadedFromShare.meetings.length > 0,
       });

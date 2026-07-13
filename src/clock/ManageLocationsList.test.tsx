@@ -105,7 +105,7 @@ describe('ManageLocationsList', () => {
 
     expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onRemove).toHaveBeenCalledWith('san-francisco');
-    expect(analytics.trackEvent).toHaveBeenCalledWith('location_removed', { action: 'click' });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('location_removed');
   });
 
   it('dragging a ring down past its outward neighbor swaps them, keeping home in place', () => {
@@ -116,7 +116,7 @@ describe('ManageLocationsList', () => {
 
     expect(onReorder).toHaveBeenCalledTimes(1);
     expect(onReorder).toHaveBeenCalledWith(['tel-aviv', 'new-york', 'san-francisco']);
-    expect(analytics.trackEvent).toHaveBeenCalledWith('locations_reordered', { action: 'click', location_count: 3 });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('locations_reordered', { location_count: 3 });
   });
 
   it('dragging a ring up past home promotes it to home', () => {
