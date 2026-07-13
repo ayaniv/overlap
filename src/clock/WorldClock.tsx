@@ -483,6 +483,13 @@ export function WorldClock({
         <span className={styles.statusText}>{statusText}</span>
       </div>
 
+      {/* always visible (not part of the idle-fade group above) so the privacy
+          policy stays a genuinely reachable, linked page rather than an
+          orphaned route */}
+      <a className={styles.privacyLink} href="/privacy.html">
+        Privacy
+      </a>
+
       <p className={styles.srOnly} role="status">
         {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
