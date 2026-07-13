@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Privacy policy for Overlap Clock." />
+    <title>Privacy Policy — overlap</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 48px 24px 80px;
+        background: #0a0b0f;
+        color: #d6d9de;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        color: #f5f6f8;
+        margin-bottom: 4px;
+      }
+      .updated {
+        color: #7b808a;
+        font-size: 13px;
+        margin-bottom: 40px;
+      }
+      h2 {
+        font-size: 17px;
+        color: #f0ede3;
+        margin-top: 36px;
+      }
+      p,
+      li {
+        color: #c4c8cf;
+        font-size: 15px;
+      }
+      a {
+        color: #38bdf8;
+      }
+      code {
+        background: #14161d;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      .back {
+        display: inline-block;
+        margin-bottom: 32px;
+        color: #7b808a;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .back:hover {
+        color: #d6d9de;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">&larr; Back to overlap</a>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: 2026-07-13</p>
+
+      <p>
+        <strong>overlap</strong> ("the app") is a static, backend-free world clock and
+        meeting-scheduling tool. There is no server that overlap's developer operates or
+        controls, and no account system. This page explains what data the app touches and
+        where it goes.
+      </p>
+
+      <h2>What the app collects</h2>
+      <p>
+        Nothing is collected or stored by the developer. The app runs entirely in your
+        browser:
+      </p>
+      <ul>
+        <li>
+          Your clock configuration (which cities you've added, their colors, working
+          hours, and any scheduled meetings) is stored only in your browser's
+          <code>localStorage</code>, on your own device.
+        </li>
+        <li>
+          When you use the "Share" button, that same configuration is encoded into the
+          URL itself (after the <code>#</code>) so the link works for whoever you send it
+          to — it is never uploaded anywhere.
+        </li>
+        <li>No analytics, tracking scripts, or cookies are used.</li>
+      </ul>
+
+      <h2>Google Calendar access</h2>
+      <p>
+        If you choose to schedule a meeting, overlap asks you to sign in with Google and
+        requests the <code>calendar.events</code> scope. This is used only to:
+      </p>
+      <ul>
+        <li>
+          Create an event on your primary Google Calendar at the time you selected, via a
+          direct call from your browser to Google's Calendar API
+          (<code>POST /calendars/primary/events</code>).
+        </li>
+        <li>
+          Delete that event later, if you remove the meeting from the app
+          (<code>DELETE /calendars/primary/events/{eventId}</code>).
+        </li>
+      </ul>
+      <p>
+        This entire flow is client-side: your browser talks directly to Google using
+        Google Identity Services' token-based OAuth flow. overlap's developer never
+        receives, sees, or stores your Google access token, your calendar data, or any
+        event you create — there is no backend in the request path at all. The access
+        token Google issues is held only in memory for the duration of the request and is
+        not persisted by the app (a separate, non-sensitive flag is saved to
+        <code>localStorage</code> noting only that you've connected before, so the app
+        knows to show your existing meetings on this device).
+      </p>
+
+      <h2>Third parties</h2>
+      <p>
+        The only third-party service the app talks to is Google (Google Identity
+        Services for sign-in, and the Google Calendar API), and only when you explicitly
+        choose to schedule or remove a meeting. No data is sent to any other server.
+      </p>
+
+      <h2>Data retention and deletion</h2>
+      <p>
+        Since nothing is stored outside your own browser, you can remove all app data at
+        any time by clearing your browser's site data for this domain, or by using the
+        app's own remove-location / remove-meeting controls. Calendar events created via
+        the app live in your Google Calendar and are governed by your Google account —
+        remove them there, or via the app's delete action, at any time.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or the app's use of your data: <a href="mailto:ayaniv@gmail.com">ayaniv@gmail.com</a>.
+      </p>
+    </main>
+  </body>
+</html>

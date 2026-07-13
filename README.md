@@ -51,3 +51,8 @@ enable it; without it, the Schedule panel shows a note instead of the form.
 ## License
 
 Released under the [MIT License](./LICENSE).
+
+## Privacy
+
+See the [privacy policy](https://overlap-clock.vercel.app/privacy.html) for what
+data the app collects (none, server-side) and how the Google Calendar scope is used.
