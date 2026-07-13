@@ -1,0 +1,16 @@
+{
+  "name": "Overlap Clock",
+  "short_name": "Overlap",
+  "description": "A world clock for seeing shared working hours across timezones, sharing views via a link, and scheduling meetings via Google Calendar.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0b0f",
+  "theme_color": "#0a0b0f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}
