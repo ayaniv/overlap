@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { analytics } from './analytics';
 import { AnalyticsContext } from './AnalyticsContext';
 import type { AnalyticsService } from './AnalyticsService';
@@ -9,5 +9,7 @@ export type AnalyticsProviderProps = {
 };
 
 export function AnalyticsProvider({ children, service = analytics }: AnalyticsProviderProps) {
-  return <AnalyticsContext.Provider value={service}>{children}</AnalyticsContext.Provider>;
+  const contextValue = useMemo(() => ({ service }), [service]);
+
+  return <AnalyticsContext.Provider value={contextValue}>{children}</AnalyticsContext.Provider>;
 }

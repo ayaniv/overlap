@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from './analytics/useAnalytics';
+import { useLogger } from './logger/useLogger';
 import { AddLocationForm } from './clock/AddLocationForm';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -31,6 +32,7 @@ const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
   const analytics = useAnalytics();
+  const logger = useLogger();
   const now = useNow();
   const { config, addLocation, removeLocation, updateLocation, setHome, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
@@ -112,11 +114,11 @@ function App() {
     } catch (err) {
       console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
-      analytics.captureException(err);
+      logger.error(err);
     } finally {
       setIsQuickScheduling(false);
     }
-  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub, analytics]);
+  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub, analytics, logger]);
 
   // ControlCluster's scrub "Remove Meeting" (only present when matchedMeeting
   // is set): mirrors handleQuickSchedule's sign-in-then-mutate flow and error
@@ -140,11 +142,11 @@ function App() {
     } catch (err) {
       console.error('overlap: failed to remove the matched meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
-      analytics.captureException(err);
+      logger.error(err);
     } finally {
       setIsRemovingMeeting(false);
     }
-  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub, analytics]);
+  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub, analytics, logger]);
 
   const modePanelContent =
     mode === 'edit' ? (

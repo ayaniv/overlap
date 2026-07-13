@@ -13,7 +13,7 @@ import {
 import type { GoogleOAuth2, TokenResponse } from './googleCalendar';
 
 vi.mock('../analytics/analytics', () => ({
-  analytics: { trackEvent: vi.fn(), captureException: vi.fn() },
+  analytics: { trackEvent: vi.fn() },
 }));
 
 afterEach(() => {

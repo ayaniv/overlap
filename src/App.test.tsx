@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
 import { createMockAnalyticsService } from './analytics/mockAnalyticsService';
+import { LoggerProvider } from './logger/LoggerProvider';
+import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
@@ -52,13 +54,15 @@ async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Menu' }));
 }
 
-function renderApp(service = createMockAnalyticsService()) {
+function renderApp(analyticsService = createMockAnalyticsService(), loggerService = createMockLoggerService()) {
   render(
-    <AnalyticsProvider service={service}>
-      <App />
+    <AnalyticsProvider service={analyticsService}>
+      <LoggerProvider service={loggerService}>
+        <App />
+      </LoggerProvider>
     </AnalyticsProvider>,
   );
-  return service;
+  return { analytics: analyticsService, logger: loggerService };
 }
 
 // scheduling has no separate mode/form/icon of its own anymore — scrubbing
@@ -117,7 +121,7 @@ describe('App — sharing fires an analytics event with the outcome', () => {
     // clipboard only (no .share) forces the deterministic "copied" fallback path
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     const user = userEvent.setup();
-    const analytics = renderApp();
+    const { analytics } = renderApp();
 
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Share' }));
@@ -213,7 +217,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
     vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockResolvedValue(undefined);
     const user = userEvent.setup();
-    const analytics = renderApp();
+    const { analytics } = renderApp();
 
     await scrubOntoMeeting(user);
     await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
@@ -243,7 +247,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     const deleteError = new Error('boom');
     vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(deleteError);
     const user = userEvent.setup();
-    const analytics = renderApp();
+    const { logger } = renderApp();
 
     await scrubOntoMeeting(user);
     await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
@@ -251,7 +255,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
-    expect(analytics.captureException).toHaveBeenCalledWith(deleteError);
+    expect(logger.error).toHaveBeenCalledWith(deleteError);
   });
 
   // mirrors the equivalent quick-schedule regression test: the ring stays
@@ -290,7 +294,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     stubMatchMedia(true);
     vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockResolvedValue('evt-1');
     const user = userEvent.setup();
-    const analytics = renderApp();
+    const { analytics } = renderApp();
 
     await scrubForward(user);
     await user.click(screen.getByText('Schedule'));
@@ -310,7 +314,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     const scheduleError = new Error('boom');
     vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockRejectedValue(scheduleError);
     const user = userEvent.setup();
-    const analytics = renderApp();
+    const { logger } = renderApp();
 
     await scrubForward(user);
     await user.click(screen.getByText('Schedule'));
@@ -318,7 +322,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(analytics.captureException).toHaveBeenCalledWith(scheduleError);
+    expect(logger.error).toHaveBeenCalledWith(scheduleError);
   });
 
   it('Cancel resets the scrub preview without scheduling anything', async () => {

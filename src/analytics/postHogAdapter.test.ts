@@ -4,7 +4,6 @@ vi.mock('posthog-js', () => ({
   default: {
     init: vi.fn(),
     capture: vi.fn(),
-    captureException: vi.fn(),
   },
 }));
 
@@ -45,46 +44,8 @@ describe('postHogAdapter', () => {
     expect(posthog.capture).toHaveBeenNthCalledWith(2, 'location_removed', undefined);
   });
 
-  it('delegates captureException to posthog.captureException', async () => {
-    vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'test-token');
-    vi.stubEnv('VITE_POSTHOG_HOST', 'https://posthog.example.com');
-    vi.resetModules();
-    const posthog = (await import('posthog-js')).default;
-    const { postHogAdapter } = await import('./postHogAdapter');
-    const error = new Error('boom');
-
-    postHogAdapter.captureException(error);
-
-    expect(posthog.captureException).toHaveBeenCalledWith(error);
-  });
-
-  it('skips init and logs a warning, without throwing, when the token or host env var is missing', async () => {
-    vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', '');
-    vi.stubEnv('VITE_POSTHOG_HOST', '');
-    vi.resetModules();
-    const posthog = (await import('posthog-js')).default;
-    const { postHogAdapter } = await import('./postHogAdapter');
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    expect(() => postHogAdapter.trackEvent('location_added', { timezone_id: 'Asia/Tokyo' })).not.toThrow();
-
-    expect(posthog.init).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('logs and does not throw when posthog.init itself throws', async () => {
-    vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'test-token');
-    vi.stubEnv('VITE_POSTHOG_HOST', 'https://posthog.example.com');
-    vi.resetModules();
-    const posthog = (await import('posthog-js')).default;
-    vi.mocked(posthog.init).mockImplementation(() => {
-      throw new Error('network unreachable');
-    });
-    const { postHogAdapter } = await import('./postHogAdapter');
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => postHogAdapter.trackEvent('location_added')).not.toThrow();
-
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-  });
 });
+
+// config-missing/init-throws edge cases live in ../posthog/posthogClient.test.ts —
+// ensurePostHogInitialized is shared by every adapter, so those cases are only
+// covered once, at the source, rather than re-verified per adapter.
