@@ -8,25 +8,23 @@ deployed; lives only in the repo for the developer's own reference.
 ## 1. Scope justification (paste into the consent-screen form)
 
 Google's verification form asks, for each sensitive/restricted scope requested,
-"How will the requested scope be used?" Use this for `.../auth/calendar.events`:
+"How will the requested scope be used?" — capped at **1000 characters**. Use
+this for `.../auth/calendar.events` (919 characters):
 
-> overlap is a free, open-source world clock (https://overlapclock.com)
-> that lets a user compare working hours across timezones and schedule a
-> meeting at an overlapping time. When a user drags the clock face to preview a
-> meeting time and taps "Schedule," the app requests the calendar.events scope
-> so it can create a single event on that user's own primary Google Calendar,
-> at the exact time they selected, with a title summarizing which locations are
-> meeting. If the user later removes that meeting from the app, the app uses
-> the same scope to delete the corresponding event from their calendar.
+> overlap (https://overlapclock.com) is a free world clock that lets a user
+> compare working hours across timezones and schedule a meeting at an
+> overlapping time. When a user previews a time and taps Schedule, the app
+> requests calendar.events to create a single event on that user's own
+> primary Google Calendar at the selected time, with a title summarizing
+> which locations are meeting. If the user removes that meeting from the app,
+> the same scope deletes the corresponding event.
 >
 > This is the only use of the scope: creating and deleting events the user
-> explicitly initiates through the app's UI. The app never reads, lists, or
-> browses the user's existing calendar events, never creates events the user
-> didn't request, and never shares calendar data with any third party. The
-> entire flow is client-side — there is no backend server; the user's browser
-> calls the Google Calendar API directly using a Google Identity Services
-> access token that is held in memory only and is never transmitted to or
-> stored by the app's developer.
+> explicitly initiates. The app never reads or lists existing events, never
+> creates events the user didn't request, and never shares calendar data with
+> any third party. The flow is entirely client-side (no backend); the browser
+> calls the Calendar API directly using a Google Identity Services token held
+> in memory only, never transmitted to or stored by the developer.
 
 Keep this to what the reviewer asked; don't paste the whole privacy policy —
 link it separately in the field provided for that.
