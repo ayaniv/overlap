@@ -12,8 +12,8 @@ export const postHogLogger: LoggerService = {
   warn(message) {
     console.warn(`overlap: ${message}`);
   },
-  error(error) {
+  error(error, context) {
     ensurePostHogInitialized();
-    posthog.captureException(error);
+    posthog.captureException(error, { context });
   },
 };

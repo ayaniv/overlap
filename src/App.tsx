@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useAnalytics } from './analytics/useAnalytics';
-import { useLogger } from './logger/useLogger';
+import { useAnalytics } from './analytics/AnalyticsProvider';
+import { useLogger } from './logger/LoggerProvider';
 import { AddLocationForm } from './clock/AddLocationForm';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -112,9 +112,8 @@ function App() {
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
-      logger.error(err);
+      logger.error(err, 'failed to quick-schedule a meeting from the scrub buttons');
     } finally {
       setIsQuickScheduling(false);
     }
@@ -140,9 +139,8 @@ function App() {
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to remove the matched meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
-      logger.error(err);
+      logger.error(err, 'failed to remove the matched meeting from the scrub buttons');
     } finally {
       setIsRemovingMeeting(false);
     }

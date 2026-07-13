@@ -255,7 +255,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
-    expect(logger.error).toHaveBeenCalledWith(deleteError);
+    expect(logger.error).toHaveBeenCalledWith(deleteError, 'failed to remove the matched meeting from the scrub buttons');
   });
 
   // mirrors the equivalent quick-schedule regression test: the ring stays
@@ -322,7 +322,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(logger.error).toHaveBeenCalledWith(scheduleError);
+    expect(logger.error).toHaveBeenCalledWith(scheduleError, 'failed to quick-schedule a meeting from the scrub buttons');
   });
 
   it('Cancel resets the scrub preview without scheduling anything', async () => {

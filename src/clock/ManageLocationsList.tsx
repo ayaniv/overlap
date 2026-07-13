@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { useAnalytics } from '../analytics/useAnalytics';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { TrashIcon } from './icons/TrashIcon';

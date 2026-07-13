@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useAnalytics } from '../analytics/useAnalytics';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START } from './defaultCities';

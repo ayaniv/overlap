@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAnalytics } from '../analytics/useAnalytics';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
