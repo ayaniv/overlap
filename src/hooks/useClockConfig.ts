@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAnalytics } from '../analytics/useAnalytics';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
@@ -89,6 +89,7 @@ export function useClockConfig() {
   useEffect(() => {
     if (loadedFromShare) {
       analytics.trackEvent('shared_config_loaded', {
+        action: 'load',
         location_count: loadedFromShare.rings.length + 1,
         has_meetings: loadedFromShare.meetings.length > 0,
       });

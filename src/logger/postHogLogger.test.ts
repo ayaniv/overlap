@@ -32,14 +32,14 @@ describe('postHogLogger', () => {
     const { postHogLogger } = await import('./postHogLogger');
     const error = new Error('boom');
 
-    postHogLogger.error(error);
+    postHogLogger.error(error, 'failed to schedule a meeting');
 
     expect(posthog.init).toHaveBeenCalledTimes(1);
     expect(posthog.init).toHaveBeenCalledWith('test-token', {
       api_host: 'https://posthog.example.com',
       defaults: '2026-05-30',
     });
-    expect(posthog.captureException).toHaveBeenCalledWith(error);
+    expect(posthog.captureException).toHaveBeenCalledWith(error, { context: 'failed to schedule a meeting' });
   });
 
   it('delegates debug/info/warn to the console, without touching PostHog', async () => {

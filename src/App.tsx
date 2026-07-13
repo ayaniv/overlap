@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useAnalytics } from './analytics/useAnalytics';
-import { useLogger } from './logger/useLogger';
+import { useAnalytics } from './analytics/AnalyticsProvider';
+import { useLogger } from './logger/LoggerProvider';
 import { AddLocationForm } from './clock/AddLocationForm';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -66,7 +66,7 @@ function App() {
       // get no toast — the OS UI already gave feedback, or there's nothing to report
       const message = SHARE_TOAST_MESSAGE[outcome];
       if (message) showToast(message);
-      analytics.trackEvent('clock_shared', { outcome });
+      analytics.trackEvent('clock_shared', { action: 'click', outcome });
     });
   }, [showToast, analytics]);
 
@@ -107,14 +107,13 @@ function App() {
       // connected flag flips, so re-read it here instead of polling it
       setIsConnectedToGoogleCalendar(isGoogleCalendarConnected());
       showToast('Meeting scheduled');
-      analytics.trackEvent('meeting_scheduled', { duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
+      analytics.trackEvent('meeting_scheduled', { action: 'click', duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
-      logger.error(err);
+      logger.error(err, 'failed to quick-schedule a meeting from the scrub buttons');
     } finally {
       setIsQuickScheduling(false);
     }
@@ -135,14 +134,13 @@ function App() {
       }
       removeMeeting(matchedMeeting.id);
       showToast('Meeting removed');
-      analytics.trackEvent('meeting_deleted');
+      analytics.trackEvent('meeting_deleted', { action: 'click' });
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to remove the matched meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
-      logger.error(err);
+      logger.error(err, 'failed to remove the matched meeting from the scrub buttons');
     } finally {
       setIsRemovingMeeting(false);
     }

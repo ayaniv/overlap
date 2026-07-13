@@ -126,7 +126,7 @@ describe('App — sharing fires an analytics event with the outcome', () => {
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Share' }));
 
-    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { action: 'click', outcome: 'copied' }));
   });
 });
 
@@ -226,7 +226,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting removed')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
-    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted');
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted', { action: 'click' });
   });
 
   it('removes a meeting with no googleEventId locally, without calling the Calendar API', async () => {
@@ -255,7 +255,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
-    expect(logger.error).toHaveBeenCalledWith(deleteError);
+    expect(logger.error).toHaveBeenCalledWith(deleteError, 'failed to remove the matched meeting from the scrub buttons');
   });
 
   // mirrors the equivalent quick-schedule regression test: the ring stays
@@ -306,7 +306,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
-    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { duration_minutes: 30 });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { action: 'click', duration_minutes: 30 });
   });
 
   it('shows an error toast and keeps the scrub preview (so the user can retry) when scheduling fails', async () => {
@@ -322,7 +322,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(logger.error).toHaveBeenCalledWith(scheduleError);
+    expect(logger.error).toHaveBeenCalledWith(scheduleError, 'failed to quick-schedule a meeting from the scrub buttons');
   });
 
   it('Cancel resets the scrub preview without scheduling anything', async () => {

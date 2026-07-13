@@ -1,7 +1,6 @@
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AnalyticsProvider } from './AnalyticsProvider';
-import { useAnalytics } from './useAnalytics';
+import { AnalyticsProvider, useAnalytics } from './AnalyticsProvider';
 import { analytics } from './analytics';
 import { createMockAnalyticsService } from './mockAnalyticsService';
 

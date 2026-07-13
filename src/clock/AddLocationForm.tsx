@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useAnalytics } from '../analytics/useAnalytics';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START } from './defaultCities';
@@ -59,6 +59,7 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
     }
     onAdd(buildNewLocation(input, existingIds));
     analytics.trackEvent('location_added', {
+      action: 'submit',
       timezone_id: selectedCity?.timezoneId,
       country: selectedCity?.country,
     });

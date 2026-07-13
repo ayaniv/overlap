@@ -1,7 +1,6 @@
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { LoggerProvider } from './LoggerProvider';
-import { useLogger } from './useLogger';
+import { LoggerProvider, useLogger } from './LoggerProvider';
 import { logger } from './logger';
 import { createMockLoggerService } from './mockLoggerService';
 
