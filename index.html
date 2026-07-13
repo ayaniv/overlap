@@ -62,17 +62,19 @@
   </head>
   <body>
     <div id="root">
-      <main style="max-width: 640px; margin: 80px auto; padding: 0 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #d6d9de; background: #0a0b0f;">
-        <h1 style="color: #f5f6f8; font-size: 26px;">Overlap Clock</h1>
-        <p style="font-size: 15px; line-height: 1.6;">
-          Overlap Clock is a free, open-source world clock for scheduling across timezones. Add
-          any cities as configurable rings around your local time, each colored by its own
-          working hours, so you can see at a glance who's currently available. Share the exact
-          view with a link — no signup, no account, no backend — and schedule a meeting straight
-          to Google Calendar.
-        </p>
-        <p style="font-size: 15px; line-height: 1.6;">Loading the interactive clock…</p>
-      </main>
+      <div style="position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; background: #0a0b0f;">
+        <main style="box-sizing: border-box; max-width: 640px; width: 100%; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #d6d9de;">
+          <h1 style="color: #f5f6f8; font-size: 26px;">Overlap Clock</h1>
+          <p style="font-size: 15px; line-height: 1.6;">
+            Overlap Clock is a free, open-source world clock for scheduling across timezones. Add
+            any cities as configurable rings around your local time, each colored by its own
+            working hours, so you can see at a glance who's currently available. Share the exact
+            view with a link — no signup, no account, no backend — and schedule a meeting straight
+            to Google Calendar.
+          </p>
+          <p style="font-size: 15px; line-height: 1.6;">Loading the interactive clock…</p>
+        </main>
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
