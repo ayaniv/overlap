@@ -33,6 +33,9 @@ the clock just rotates predictably; no simulation needed to compute a future pos
   - The center home-time **digit** CAN tick live via system `Text(date, style: .time)`.
   - Context: a true minute-precise analog clock widget has long been a known pain point on iOS.
 - Set expectations accordingly: rings refresh periodically, not smoothly.
+- **Decided (2026-07-12): acceptable.** Live sweeping needle stays app-only; the widget is just
+  the clock state, refreshed periodically. This isn't a fallback compromise, it's the spec —
+  removes the main open concern about Option A.
 
 ## Two ways to package it
 
@@ -79,3 +82,48 @@ the web app itself as an App Store app.
 1. Decide A vs B (default: A).
 2. Confirm distribution intent (App Store vs TestFlight-only) — both need the $99 account.
 3. Re-run `superpowers:brainstorming` to lock the design, then `writing-plans` for the plan.
+
+## Update 2026-07-12 — scope pivot: account/backend needed
+
+Started a brainstorming pass to lock the widget design; it surfaced a scope change big
+enough to invalidate part of the plan above before design questions (widget sizes, config
+UX, etc.) were reached. Decisions made so far:
+
+- **A vs B: A confirmed** (lean native SwiftUI app + widget). RN was also considered and
+  ruled out for the same reason as B — WidgetKit extensions only render SwiftUI regardless
+  of host app framework, so neither buys anything for the one genuinely hard part.
+- **Live sweep: accepted as app-only.** Widget shows periodically-refreshed state (rings
+  every few minutes, center digit ticks live via system `Text(date, style: .time)`). Not a
+  fallback — this is the spec.
+- **Distribution: public App Store release** (not TestFlight-only). Raises the bar: real
+  onboarding, App Store screenshots, privacy nutrition label, general-audience polish —
+  not just "good enough for me."
+- **Config source: needs a backend + login**, not the "independent native config, no App
+  Group bridge" idea Option A originally assumed. Reasoning: a public app needs each user's
+  own city list, and the plan is to let users log in and pull their config from an account
+  — which the web app doesn't have today (it's pure client-side, config in
+  `localStorage`, no backend at all per `README.md`).
+
+### Why this invalidates a premise of Option A
+
+Option A's pitch was "web app stays a plain Vercel site, **untouched**." Adding
+account-based config sync means:
+- The web app likely needs to move off pure `localStorage` config to support login +
+  synced config too (otherwise web and iOS configs diverge, defeating the point of
+  syncing).
+- A real backend + auth is a new subsystem — data model, auth provider (note: if Google
+  OAuth is offered as a login option the way it already is for Calendar scheduling, Apple
+  requires "Sign in with Apple" alongside it for App Store approval), hosting, and a config
+  API — independent of anything WidgetKit-specific.
+
+This doesn't change the SwiftUI-vs-alternatives conclusion (still A), but it does mean
+"the widget project" is now at minimum two coupled projects: **(1) account/backend + config
+sync** (touches the web app too) and **(2) iOS app + widget** (consumes that backend).
+
+### Next step (per user direction, 2026-07-12)
+
+User will pick this up with a broader approach that includes designing the backend
+(likely a dedicated agent/session for the backend piece). Recommended when resuming:
+run `superpowers:brainstorming` again, scoped to the account/backend + config-sync system
+first (since it also reshapes the web app), decomposing into its own spec before the iOS
+app + widget spec is brainstormed against a settled API contract.
