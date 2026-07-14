@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useAnalytics } from './analytics/AnalyticsProvider';
+import { useLogger } from './logger/LoggerProvider';
 import { AddLocationForm } from './clock/AddLocationForm';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -29,6 +31,8 @@ const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
 const MEETING_MATCH_TOLERANCE_MS = 5 * 60_000;
 
 function App() {
+  const analytics = useAnalytics();
+  const logger = useLogger();
   const now = useNow();
   const { config, addLocation, removeLocation, updateLocation, setHome, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
@@ -62,8 +66,9 @@ function App() {
       // get no toast — the OS UI already gave feedback, or there's nothing to report
       const message = SHARE_TOAST_MESSAGE[outcome];
       if (message) showToast(message);
+      analytics.trackEvent('clock_shared', { outcome });
     });
-  }, [showToast]);
+  }, [showToast, analytics]);
 
   // memoized (mirrors WorldClock's effectiveNow) so matchedMeeting below only
   // recomputes when the previewed instant actually moves, not on every render —
@@ -102,16 +107,17 @@ function App() {
       // connected flag flips, so re-read it here instead of polling it
       setIsConnectedToGoogleCalendar(isGoogleCalendarConnected());
       showToast('Meeting scheduled');
+      analytics.trackEvent('meeting_scheduled', { duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to quick-schedule a meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
+      logger.error(err, 'failed to quick-schedule a meeting from the scrub buttons');
     } finally {
       setIsQuickScheduling(false);
     }
-  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub]);
+  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub, analytics, logger]);
 
   // ControlCluster's scrub "Remove Meeting" (only present when matchedMeeting
   // is set): mirrors handleQuickSchedule's sign-in-then-mutate flow and error
@@ -128,16 +134,17 @@ function App() {
       }
       removeMeeting(matchedMeeting.id);
       showToast('Meeting removed');
+      analytics.trackEvent('meeting_deleted');
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
       if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
     } catch (err) {
-      console.error('overlap: failed to remove the matched meeting from the scrub buttons', err);
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
+      logger.error(err, 'failed to remove the matched meeting from the scrub buttons');
     } finally {
       setIsRemovingMeeting(false);
     }
-  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub]);
+  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub, analytics, logger]);
 
   const modePanelContent =
     mode === 'edit' ? (

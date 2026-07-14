@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START } from './defaultCities';
@@ -26,6 +27,7 @@ export type AddLocationFormProps = {
 // (swatches + free hex + native picker), and per-location work hours. On
 // mobile (isPortrait), it's just the search box — see isPortrait above.
 export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, isPortrait = false }: AddLocationFormProps) {
+  const analytics = useAnalytics();
   const [query, setQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<CityEntry | null>(null);
   const [color, setColor] = useState<string>(() => pickAvailableColor(existingColors));
@@ -56,6 +58,10 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
       return;
     }
     onAdd(buildNewLocation(input, existingIds));
+    analytics.trackEvent('location_added', {
+      timezone_id: selectedCity?.timezoneId,
+      country: selectedCity?.country,
+    });
     setHasAdded(true);
     resetForm([...existingColors, input.color]);
   };

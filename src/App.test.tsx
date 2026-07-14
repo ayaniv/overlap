@@ -1,6 +1,10 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AnalyticsProvider } from './analytics/AnalyticsProvider';
+import { createMockAnalyticsService } from './analytics/mockAnalyticsService';
+import { LoggerProvider } from './logger/LoggerProvider';
+import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
@@ -50,13 +54,24 @@ async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Menu' }));
 }
 
+function renderApp(analyticsService = createMockAnalyticsService(), loggerService = createMockLoggerService()) {
+  render(
+    <AnalyticsProvider service={analyticsService}>
+      <LoggerProvider service={loggerService}>
+        <App />
+      </LoggerProvider>
+    </AnalyticsProvider>,
+  );
+  return { analytics: analyticsService, logger: loggerService };
+}
+
 // scheduling has no separate mode/form/icon of its own anymore — scrubbing
 // always swaps ControlCluster's Config/Share icon menu for Cancel/Schedule,
 // on any platform (see WorldClock's isScrubActionBarVisible)
 describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any platform', () => {
   it('swaps to Cancel/Schedule on the first scrub, in landscape/desktop', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
 
@@ -68,7 +83,7 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
   it('swaps to Cancel/Schedule on the first scrub in portrait too — same behavior as desktop', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
 
@@ -79,7 +94,7 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
 
   it('Cancel resets the scrub and restores the normal Config/Share menu', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
@@ -92,11 +107,26 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
 
   it('Config is unreachable while a scrub preview is active (no way to leave a stale preview stuck behind it)', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
 
     expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+  });
+});
+
+describe('App — sharing fires an analytics event with the outcome', () => {
+  it('fires clock_shared with the share outcome when the Share button is clicked', async () => {
+    // jsdom implements neither navigator.share nor navigator.clipboard; stubbing
+    // clipboard only (no .share) forces the deterministic "copied" fallback path
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    const user = userEvent.setup();
+    const { analytics } = renderApp();
+
+    await openClusterMenu(user);
+    await user.click(screen.getByRole('button', { name: 'Share' }));
+
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
   });
 });
 
@@ -121,7 +151,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
   it('surfaces a Remove Meeting button once the preview lands within the match tolerance', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     const slider = screen.getByRole('slider');
     slider.focus();
@@ -135,7 +165,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
   it('stops surfacing Remove Meeting once scrubbed back out of the match tolerance', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     const slider = screen.getByRole('slider');
     slider.focus();
@@ -153,7 +183,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
     window.localStorage.removeItem('overlap:google-connected:v1');
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     const slider = screen.getByRole('slider');
     slider.focus();
@@ -187,7 +217,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
     vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<App />);
+    const { analytics } = renderApp();
 
     await scrubOntoMeeting(user);
     await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
@@ -196,12 +226,13 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting removed')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted');
   });
 
   it('removes a meeting with no googleEventId locally, without calling the Calendar API', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString());
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubOntoMeeting(user);
     await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
@@ -213,9 +244,10 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
 
   it('shows an error toast and keeps the scrub preview when the Calendar delete fails', async () => {
     seedConfigWithMeeting(new Date(Date.now() + 3 * 60_000).toISOString(), 'evt-1');
-    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(new Error('boom'));
+    const deleteError = new Error('boom');
+    vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockRejectedValue(deleteError);
     const user = userEvent.setup();
-    render(<App />);
+    const { logger } = renderApp();
 
     await scrubOntoMeeting(user);
     await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
@@ -223,6 +255,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+    expect(logger.error).toHaveBeenCalledWith(deleteError, 'failed to remove the matched meeting from the scrub buttons');
   });
 
   // mirrors the equivalent quick-schedule regression test: the ring stays
@@ -233,7 +266,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     let resolveDelete: () => void = () => {};
     vi.mocked(googleCalendar.deleteMeetingFromGoogleCalendar).mockImplementation(() => new Promise<void>((resolve) => (resolveDelete = resolve)));
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubOntoMeeting(user);
     const offsetBeforeRemove = screen.getByRole('slider').getAttribute('aria-valuenow');
@@ -261,7 +294,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     stubMatchMedia(true);
     vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockResolvedValue('evt-1');
     const user = userEvent.setup();
-    render(<App />);
+    const { analytics } = renderApp();
 
     await scrubForward(user);
     await user.click(screen.getByText('Schedule'));
@@ -273,13 +306,15 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { duration_minutes: 30 });
   });
 
   it('shows an error toast and keeps the scrub preview (so the user can retry) when scheduling fails', async () => {
     stubMatchMedia(true);
-    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockRejectedValue(new Error('boom'));
+    const scheduleError = new Error('boom');
+    vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mockRejectedValue(scheduleError);
     const user = userEvent.setup();
-    render(<App />);
+    const { logger } = renderApp();
 
     await scrubForward(user);
     await user.click(screen.getByText('Schedule'));
@@ -287,12 +322,13 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
     expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(logger.error).toHaveBeenCalledWith(scheduleError, 'failed to quick-schedule a meeting from the scrub buttons');
   });
 
   it('Cancel resets the scrub preview without scheduling anything', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
@@ -313,7 +349,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
       () => new Promise<string>((resolve) => (resolveSchedule = resolve)),
     );
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await scrubForward(user);
     const offsetBeforeSchedule = screen.getByRole('slider').getAttribute('aria-valuenow');
@@ -339,7 +375,7 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
   it('opens the full-screen MobileConfigView (both sections, no accordion) instead of the floating panel', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Config' }));
@@ -354,7 +390,7 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
   it('Done returns to view mode, closing the full-screen view', async () => {
     stubMatchMedia(true);
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Config' }));
@@ -365,7 +401,7 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 
   it('keeps the desktop floating accordion panel on non-portrait, unaffected', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await openClusterMenu(user);
     await user.click(screen.getByRole('button', { name: 'Config' }));

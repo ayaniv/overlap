@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -111,6 +112,7 @@ export function ManageLocationsList({
   onUpdateLocation,
   onSetHome,
 }: ManageLocationsListProps) {
+  const analytics = useAnalytics();
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [liveOrder, setLiveOrder] = useState<string[] | null>(null);
@@ -147,9 +149,15 @@ export function ManageLocationsList({
     }
     if (liveOrder && liveOrder.some((id, index) => id !== originalOrder[index])) {
       onReorder(liveOrder);
+      analytics.trackEvent('locations_reordered', { location_count: liveOrder.length });
     }
     setDraggedId(null);
     setLiveOrder(null);
+  };
+
+  const handleRemove = (id: string) => () => {
+    analytics.trackEvent('location_removed');
+    onRemove(id);
   };
 
   return (
@@ -189,7 +197,7 @@ export function ManageLocationsList({
                     className={styles.removeButton}
                     aria-label={`Remove ${location.label}`}
                     title={`Remove ${location.label}`}
-                    onClick={() => onRemove(location.id)}
+                    onClick={handleRemove(location.id)}
                   >
                     <TrashIcon />
                   </button>

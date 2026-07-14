@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { analytics } from '../analytics/analytics';
 import {
   buildEventPayload,
   createCalendarEvent,
@@ -11,10 +12,15 @@ import {
 } from './googleCalendar';
 import type { GoogleOAuth2, TokenResponse } from './googleCalendar';
 
+vi.mock('../analytics/analytics', () => ({
+  analytics: { trackEvent: vi.fn() },
+}));
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.mocked(analytics.trackEvent).mockClear();
   window.localStorage.clear();
 });
 
@@ -70,6 +76,7 @@ describe('requestAccessToken', () => {
     const oauth2 = fakeOAuth2((callback) => callback({ access_token: 'tok-123' }));
     await requestAccessToken('client-id', oauth2);
     expect(isGoogleCalendarConnected()).toBe(true);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('google_calendar_connected');
   });
 
   it('rejects and logs when the token response has no access token', async () => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
@@ -59,6 +60,22 @@ function persistConfig(config: ClockConfig): void {
 }
 
 export function useClockConfig() {
+  const analytics = useAnalytics();
+
+  // Detect if this session loaded config from a share link (hash present but no
+  // matching localStorage config), computed once at mount so it's stable
+  const [loadedFromShare] = useState<ClockConfig | null>(() => {
+    const hashConfig = parseHashConfig(window.location.hash);
+    if (!hashConfig) return null;
+    let storedRaw: string | null = null;
+    try {
+      storedRaw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    return parseStoredConfig(storedRaw) ? null : hashConfig;
+  });
+
   const [config, setConfig] = useState<ClockConfig>(() => {
     let storedRaw: string | null = null;
     try {
@@ -68,6 +85,15 @@ export function useClockConfig() {
     }
     return resolveInitialConfig(window.location.hash, storedRaw);
   });
+
+  useEffect(() => {
+    if (loadedFromShare) {
+      analytics.trackEvent('shared_config_loaded', {
+        location_count: loadedFromShare.rings.length + 1,
+        has_meetings: loadedFromShare.meetings.length > 0,
+      });
+    }
+  }, [loadedFromShare, analytics]);
 
   useEffect(() => {
     persistConfig(config);
