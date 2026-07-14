@@ -98,8 +98,19 @@
       <h2>Google Calendar access</h2>
       <p>
         If you choose to schedule a meeting, overlap asks you to sign in with Google and
-        requests the <code>calendar.events</code> scope. This is used only to:
+        requests the <code>calendar.events</code> scope.
       </p>
+
+      <h3>Data Access</h3>
+      <p>
+        overlap never reads or lists your existing Google Calendar events. The only
+        Google user data it accesses is the event it creates on your behalf — the title,
+        start time, and end time you chose in the app — and, if you remove that meeting,
+        the ID of that same event so it can be deleted.
+      </p>
+
+      <h3>Data Use</h3>
+      <p>The <code>calendar.events</code> scope is used only to:</p>
       <ul>
         <li>
           Create an event on your primary Google Calendar at the time you selected, via a
@@ -111,6 +122,9 @@
           (<code>DELETE /calendars/primary/events/{eventId}</code>).
         </li>
       </ul>
+      <p>No other use is made of this scope or of any Google user data.</p>
+
+      <h3>Data Protection</h3>
       <p>
         This entire flow is client-side: your browser talks directly to Google using
         Google Identity Services' token-based OAuth flow. overlap's developer never
@@ -122,14 +136,16 @@
         knows to show your existing meetings on this device).
       </p>
 
-      <h2>Third parties</h2>
+      <h2>Data Transfer</h2>
       <p>
         The only third-party service the app talks to is Google (Google Identity
         Services for sign-in, and the Google Calendar API), and only when you explicitly
-        choose to schedule or remove a meeting. No data is sent to any other server.
+        choose to schedule or remove a meeting. No Google user data is sold, shared, or
+        transferred to any other party, service, or server — there is nowhere else for it
+        to go, since the app has no backend of its own.
       </p>
 
-      <h2>Data retention and deletion</h2>
+      <h2>Data Retention &amp; Deletion</h2>
       <p>
         Since nothing is stored outside your own browser, you can remove all app data at
         any time by clearing your browser's site data for this domain, or by using the

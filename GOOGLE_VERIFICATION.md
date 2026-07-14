@@ -75,7 +75,12 @@ narrated or captioned. Suggested shot list:
 2. **Show the base experience** working without Google at all: drag/scrub the
    clock face to preview a different time, point out the working-hours rings
    overlapping — this establishes the scope isn't required for the app's core
-   value.
+   value. Keep this in the same continuous shot as step 3: the "Schedule"
+   button only replaces the normal menu once a time is being previewed (it is
+   not visible on the plain homepage), so narrate that explicitly — e.g. "once
+   you drag to preview a time, the menu switches to a Schedule button" —
+   since Google's checklist requires the API entry point to be clear from the
+   video if it isn't obvious from the homepage alone.
 3. **Trigger the OAuth flow**: tap the schedule/calendar action. Show the
    Google sign-in popup, then the **consent screen itself** listing the
    `calendar.events` scope — pause here so the reviewer can read it.
@@ -84,9 +89,13 @@ narrated or captioned. Suggested shot list:
 5. **Switch to Google Calendar** (a real tab) and show the event that was just
    created — same title, same time — proving the scope did exactly what was
    claimed.
-6. **Optional but recommended**: repeat the flow to show *removing* a meeting
-   from the app, then flip back to Google Calendar to show the event is gone —
-   demonstrates the delete path also stays inside the claimed scope.
+6. **Required, not optional**: repeat the flow to show *removing* a meeting
+   from the app, then flip back to Google Calendar to show the event is gone.
+   Google's checklist explicitly requires this for any scope with write/delete
+   access ("Source Account Impact" — deletion demos must show the item purged
+   in the source account): since `calendar.events` includes delete, the video
+   must show both the created event appearing in Google Calendar *and* the
+   deleted event disappearing from it, not just success toasts in the app UI.
 7. Close with the privacy page (`/privacy.html`) on screen for a beat, so the
    reviewer can see it's linked and matches what was described.
 
