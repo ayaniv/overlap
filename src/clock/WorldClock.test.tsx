@@ -1,11 +1,10 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
 import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
 import { WorldClock } from './WorldClock';
 import { MS_PER_HOUR, meetingAngle, pointOnCircle, ringRadius } from './geometry';
-import { DEFAULT_IDLE_TIMEOUT_MS } from '../hooks/useIsIdle';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 
@@ -534,13 +533,8 @@ describe('WorldClock meeting dot', () => {
 });
 
 describe('WorldClock ambient idle mode', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('marks the stage data-chrome-hidden after DEFAULT_IDLE_TIMEOUT_MS of no activity, in view mode', () => {
-    vi.useFakeTimers();
-    const { container } = render(
+  it('marks the stage data-chrome-hidden when isIdle is true, in view mode', () => {
+    const { container, rerender } = render(
       <WorldClock
         now={NOW}
         home={HOME}
@@ -555,18 +549,35 @@ describe('WorldClock ambient idle mode', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
+        isIdle={false}
       />,
     );
     const stage = container.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
 
-    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+    rerender(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        isIdle={true}
+      />,
+    );
 
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
-  it('does not mark data-chrome-hidden while a panel is open (mode !== view)', () => {
-    vi.useFakeTimers();
+  it('does not mark data-chrome-hidden when isIdle is true but a panel is open (mode !== view)', () => {
     const { container } = render(
       <WorldClock
         now={NOW}
@@ -582,18 +593,42 @@ describe('WorldClock ambient idle mode', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
+        isIdle={true}
       />,
     );
-
-    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
 
     const stage = container.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
+});
 
-  it('clears data-chrome-hidden immediately on activity (e.g. a keydown)', () => {
-    vi.useFakeTimers();
-    const { container } = render(
+describe('WorldClock scrub hint', () => {
+  it('renders the scrub hint overlay when showScrubHint is true', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        showScrubHint={true}
+        onDismissScrubHint={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+  });
+
+  it('does not render the scrub hint overlay by default', () => {
+    render(
       <WorldClock
         now={NOW}
         home={HOME}
@@ -610,13 +645,61 @@ describe('WorldClock ambient idle mode', () => {
         onSetHome={vi.fn()}
       />,
     );
-    const stage = container.querySelector('section');
 
-    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+  });
 
-    act(() => window.dispatchEvent(new Event('keydown')));
+  it('calls onDismissScrubHint when Got it is clicked', async () => {
+    const user = userEvent.setup();
+    const onDismissScrubHint = vi.fn();
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        showScrubHint={true}
+        onDismissScrubHint={onDismissScrubHint}
+      />,
+    );
 
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+
+    expect(onDismissScrubHint).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the scrub action bar even with a nonzero previewOffsetMs while the hint is showing', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        previewOffsetMs={60 * 60_000}
+        showScrubHint={true}
+        onDismissScrubHint={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Schedule')).toBeNull();
+    expect(screen.queryByText('Cancel')).toBeNull();
   });
 });

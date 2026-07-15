@@ -23,13 +23,13 @@ import {
 } from './geometry';
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
-import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
+import { ScrubHint } from './ScrubHint.tsx';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
@@ -97,6 +97,15 @@ export type WorldClockProps = {
   // had no scroll container, so the keyboard could push its Add/Manage-locations
   // content off-screen with no way back to it
   isPortrait?: boolean;
+  // ambient "wall display" idle state — now owned by App.tsx (hoisted so both
+  // the chrome-fade behavior here and the scrub-hint gating in App.tsx share
+  // one idle-timer instance instead of two independent listener sets)
+  isIdle?: boolean;
+  // first-time scrub-hint overlay (see ScrubHint.tsx); App.tsx computes the
+  // full "should this actually be visible right now" gate and passes the
+  // result straight through here
+  showScrubHint?: boolean;
+  onDismissScrubHint?: () => void;
 };
 
 export function WorldClock({
@@ -126,6 +135,9 @@ export function WorldClock({
   onRemoveMeeting,
   isRemovingMeeting = false,
   isPortrait = false,
+  isIdle = false,
+  showScrubHint = false,
+  onDismissScrubHint,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -138,8 +150,7 @@ export function WorldClock({
   // clock left running on a wall reads as a clean ambient display rather than an
   // app waiting for input. Only while `mode === 'view'` — fading the chrome out
   // from under an open Config/Schedule panel would strand it with no visible way
-  // to close.
-  const isIdle = useIsIdle();
+  // to close. `isIdle` itself now comes from App.tsx (see WorldClockProps).
   const isChromeHidden = isIdle && mode === 'view';
 
   // dragging the clock face (useRingScrub) previews a different instant; every
@@ -257,7 +268,11 @@ export function WorldClock({
   // has no separate mode/form to switch into anymore, so `mode` just stays
   // 'view' throughout. Swaps ControlCluster's icon menu for Cancel/Schedule
   // (and, if the preview lands on an existing meeting, Remove Meeting too).
-  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
+  // suppressed while the scrub hint is showing — its demo animation also
+  // drives a nonzero previewOffsetMs, and the real Cancel/Schedule/Remove
+  // actions must not appear (or be clickable) over a preview the user didn't
+  // actually choose
+  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0 && !showScrubHint;
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
   // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
@@ -473,6 +488,10 @@ export function WorldClock({
           <div className={styles.centerTime}>{homeTime.label}</div>
           <div className={styles.centerDate}>{homeDateLabel}</div>
         </div>
+
+        {showScrubHint && (
+          <ScrubHint offsetMs={previewOffsetMs} totalRings={totalRings} onDismiss={() => onDismissScrubHint?.()} />
+        )}
       </div>
 
       <div className={styles.statusRow} aria-hidden="true">
