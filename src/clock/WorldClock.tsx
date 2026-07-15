@@ -268,11 +268,11 @@ export function WorldClock({
   // has no separate mode/form to switch into anymore, so `mode` just stays
   // 'view' throughout. Swaps ControlCluster's icon menu for Cancel/Schedule
   // (and, if the preview lands on an existing meeting, Remove Meeting too).
-  // suppressed while the scrub hint is showing — its demo animation also
-  // drives a nonzero previewOffsetMs, and the real Cancel/Schedule/Remove
-  // actions must not appear (or be clickable) over a preview the user didn't
-  // actually choose
-  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0 && !showScrubHint;
+  // also visible during the scrub hint — the demo drives a real
+  // previewOffsetMs, so the real Schedule action pops visible to show what
+  // the gesture leads to (see scrubActions.disabled below, which keeps it
+  // visible-but-inert during the demo specifically).
+  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
   // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
@@ -285,8 +285,12 @@ export function WorldClock({
       onCancel: () => onBackToNow?.(),
       isScheduling: isQuickScheduling,
       matchedMeeting: hasMatchedMeeting ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting } : undefined,
+      // visible during the scrub-hint demo (see isScrubActionBarVisible), but
+      // must not be clickable — the preview they'd act on is the automated
+      // demo's, not something the user actually chose.
+      disabled: showScrubHint,
     };
-  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
+  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting, showScrubHint]);
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;

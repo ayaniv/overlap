@@ -13,7 +13,7 @@ describe('ScrubHint', () => {
     render(<ScrubHint offsetMs={0} totalRings={2} onDismiss={vi.fn()} />);
 
     expect(screen.getByText('👆')).toBeTruthy();
-    expect(screen.getByText('Find the right time to schedule a meeting')).toBeTruthy();
+    expect(screen.getByText('Find an overlap to schedule a meeting')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
   });
 

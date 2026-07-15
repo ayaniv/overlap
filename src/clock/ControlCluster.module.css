@@ -145,6 +145,21 @@
   gap: 8px;
   height: auto;
   max-width: 220px;
+  animation: scrubActionsIn 0.3s ease 1s backwards;
+}
+
+/* fades in 1s after a scrub preview starts (including the scrub-hint
+   demo) rather than immediately, so it reads clearly as "this appeared
+   because you're scrubbing" instead of just being there from the start.
+   `backwards` fill-mode holds the `from` (opacity 0) state during the delay
+   so it stays invisible rather than flashing visible then hiding. */
+@keyframes scrubActionsIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .scrubCancelButton,

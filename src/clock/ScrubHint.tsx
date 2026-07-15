@@ -1,5 +1,5 @@
 // src/clock/ScrubHint.tsx
-import { DEGREES_PER_HOUR, MS_PER_HOUR, pointOnCircle, sweepHandOuterRadius } from './geometry';
+import { DEGREES_PER_HOUR, MS_PER_HOUR, pointOnCircle, ringRadius } from './geometry';
 import styles from './ScrubHint.module.css';
 
 export type ScrubHintProps = {
@@ -8,17 +8,29 @@ export type ScrubHintProps = {
   onDismiss: () => void;
 };
 
-const HINT_TEXT = 'Find the right time to schedule a meeting';
+const HINT_TEXT = 'Find an overlap to schedule a meeting';
+// must match useScrubHintDemo's ANGLE_REST_DEG — the hand starts from the
+// clock's current real position, goes 5h forward then eases back 2h to this
+// exact spot, so the tooltip sits right where the hand ends up
+const TOOLTIP_ANCHOR_DEG = 45;
 
-// first-time-visitor hint: overlays the clock face with an animated hand
-// tracking the same offsetMs the real ring preview uses (driven by
-// useScrubHintDemo via App.tsx), so the demo shows the actual clock being
-// scrubbed rather than a decorative copy. The caller (WorldClock.tsx)
-// decides whether to mount this at all — it always renders its markup
-// unconditionally, since "not shown" must mean "not in the DOM."
+// hand rides between the 3rd and 4th ring from the outside (clamped so it
+// still makes sense with fewer rings) rather than out past the bezel.
+function handRadius(totalRings: number): number {
+  const clamp = (index: number) => Math.max(0, Math.min(totalRings - 1, index));
+  return (ringRadius(clamp(2), totalRings) + ringRadius(clamp(3), totalRings)) / 2;
+}
+
+// overlays the clock face with a scrim, an animated hand tracking the live
+// offsetMs (driven by useScrubHintDemo's forward-then-partial-reverse
+// sweep), riding between rings rather than out past the bezel, and a
+// tooltip fading in at the hand's fixed rest position (see
+// ScrubHint.module.css — also overridden for portrait/mobile there).
 export function ScrubHint({ offsetMs, totalRings, onDismiss }: ScrubHintProps) {
   const angleDeg = (offsetMs / MS_PER_HOUR) * DEGREES_PER_HOUR;
-  const handPoint = pointOnCircle(sweepHandOuterRadius(totalRings), angleDeg);
+  const radius = handRadius(totalRings);
+  const handPoint = pointOnCircle(radius, angleDeg);
+  const tooltipPoint = pointOnCircle(radius, TOOLTIP_ANCHOR_DEG);
 
   return (
     <div className={styles.overlay}>
@@ -29,10 +41,12 @@ export function ScrubHint({ offsetMs, totalRings, onDismiss }: ScrubHintProps) {
       >
         👆
       </span>
-      <p className={styles.text}>{HINT_TEXT}</p>
-      <button type="button" className={styles.button} onClick={onDismiss}>
-        Got it
-      </button>
+      <div className={styles.tooltip} style={{ left: `${tooltipPoint.x / 10}%`, top: `${tooltipPoint.y / 10}%` }}>
+        <p className={styles.text}>{HINT_TEXT}</p>
+        <button type="button" className={styles.button} onClick={onDismiss}>
+          Got it
+        </button>
+      </div>
     </div>
   );
 }

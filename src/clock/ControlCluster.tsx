@@ -18,6 +18,12 @@ export type ScrubActions = {
     onRemove: () => void;
     isRemoving: boolean;
   };
+  // true while the scrub-hint demo is animating — the buttons stay
+  // visible (so the gesture's payoff is shown) but must not be clickable,
+  // since the preview they'd act on is the automated demo's, not something
+  // the user actually chose. Kept separate from `isScheduling` so the
+  // "Scheduling…" label swap doesn't fire for this reason too.
+  disabled?: boolean;
 };
 
 export type ControlClusterProps = {
@@ -79,17 +85,29 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
             type="button"
             className={styles.scrubRemoveMeetingButton}
             onClick={scrubActions.matchedMeeting.onRemove}
-            disabled={scrubActions.matchedMeeting.isRemoving}
+            disabled={scrubActions.matchedMeeting.isRemoving || scrubActions.disabled}
           >
             <TrashIcon isOpen={scrubActions.matchedMeeting.isRemoving} />
             {scrubActions.matchedMeeting.isRemoving ? 'Removing…' : 'Remove Meeting'}
           </button>
         ) : (
           <>
-            <button type="button" className={styles.scrubCancelButton} onClick={scrubActions.onCancel} disabled={scrubActions.isScheduling}>
+            <button
+              type="button"
+              data-testid="scrub-cancel-button"
+              className={styles.scrubCancelButton}
+              onClick={scrubActions.onCancel}
+              disabled={scrubActions.isScheduling || scrubActions.disabled}
+            >
               Cancel
             </button>
-            <button type="button" className={styles.scrubScheduleButton} onClick={scrubActions.onSchedule} disabled={scrubActions.isScheduling}>
+            <button
+              type="button"
+              data-testid="scrub-schedule-button"
+              className={styles.scrubScheduleButton}
+              onClick={scrubActions.onSchedule}
+              disabled={scrubActions.isScheduling || scrubActions.disabled}
+            >
               {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
             </button>
           </>

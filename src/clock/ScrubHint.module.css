@@ -2,43 +2,66 @@
 .overlay {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
   border-radius: 50%;
   background: rgba(10, 11, 15, 0.55);
 }
 
 .hand {
   position: absolute;
-  transform: translate(-50%, -50%);
-  font-size: 40px;
+  transform: translate(-50%, calc(-50% + 70px)) rotate(-15deg);
+  font-size: 32px;
   line-height: 1;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
+.tooltip {
+  position: absolute;
+  transform: translate(20px, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.95);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  white-space: nowrap;
+  opacity: 0;
+  animation: tooltipIn 0.3s ease forwards;
+}
+
+/* fades in immediately alongside the hand */
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .text {
-  max-width: 220px;
+  max-width: 180px;
   margin: 0;
-  padding: 0 16px;
-  text-align: center;
+  white-space: normal;
   color: #f5f6f8;
   font-family: 'Space Grotesk', -apple-system, sans-serif;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
 }
 
 .button {
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.6);
+  background: rgba(255, 255, 255, 0.04);
   color: #c4c8cf;
   font-family: 'Space Grotesk', -apple-system, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.2px;
   cursor: pointer;
@@ -51,4 +74,36 @@
 .button:focus-visible {
   border-color: #565b64;
   color: #f5f6f8;
+}
+
+/* on portrait/mobile, pin the tooltip to the dead center of the
+   viewport instead of the ring-relative position ScrubHint.tsx computes for
+   desktop (which, combined with the clock's deliberate horizontal bleed —
+   see WorldClock.module.css's `.clockContainer` at `width: min(165vw,
+   760px)` — could land off the visible edge). */
+@media (orientation: portrait) {
+  /* !important required: ScrubHint.tsx sets `left`/`top` as inline styles
+     (ring-relative percentages, for the desktop case), and inline styles
+     otherwise beat any stylesheet rule regardless of media queries. */
+  .tooltip {
+    position: fixed;
+    left: 50% !important;
+    top: calc(50% + 100px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%);
+    align-items: center;
+    text-align: center;
+    max-width: min(280px, calc(100vw - 32px));
+    white-space: normal;
+  }
+
+  .text {
+    max-width: none;
+  }
+
+  .button {
+    min-height: 44px;
+    padding: 8px 20px;
+  }
 }

@@ -677,7 +677,7 @@ describe('WorldClock scrub hint', () => {
     expect(onDismissScrubHint).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the scrub action bar even with a nonzero previewOffsetMs while the hint is showing', () => {
+  it('shows the scrub action bar but disables it while the hint is showing, so the demo preview cannot be acted on', () => {
     render(
       <WorldClock
         now={NOW}
@@ -699,7 +699,7 @@ describe('WorldClock scrub hint', () => {
       />,
     );
 
-    expect(screen.queryByText('Schedule')).toBeNull();
-    expect(screen.queryByText('Cancel')).toBeNull();
+    expect((screen.getByTestId('scrub-schedule-button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('scrub-cancel-button') as HTMLButtonElement).disabled).toBe(true);
   });
 });
