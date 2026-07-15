@@ -23,7 +23,7 @@ export type ScrubActions = {
   // since the preview they'd act on is the automated demo's, not something
   // the user actually chose. Kept separate from `isScheduling` so the
   // "Scheduling…" label swap doesn't fire for this reason too.
-  disabled?: boolean;
+  isDisabled?: boolean;
 };
 
 export type ControlClusterProps = {
@@ -85,7 +85,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
             type="button"
             className={styles.scrubRemoveMeetingButton}
             onClick={scrubActions.matchedMeeting.onRemove}
-            disabled={scrubActions.matchedMeeting.isRemoving || scrubActions.disabled}
+            disabled={scrubActions.matchedMeeting.isRemoving || scrubActions.isDisabled}
           >
             <TrashIcon isOpen={scrubActions.matchedMeeting.isRemoving} />
             {scrubActions.matchedMeeting.isRemoving ? 'Removing…' : 'Remove Meeting'}
@@ -97,7 +97,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
               data-testid="scrub-cancel-button"
               className={styles.scrubCancelButton}
               onClick={scrubActions.onCancel}
-              disabled={scrubActions.isScheduling || scrubActions.disabled}
+              disabled={scrubActions.isScheduling || scrubActions.isDisabled}
             >
               Cancel
             </button>
@@ -106,7 +106,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
               data-testid="scrub-schedule-button"
               className={styles.scrubScheduleButton}
               onClick={scrubActions.onSchedule}
-              disabled={scrubActions.isScheduling || scrubActions.disabled}
+              disabled={scrubActions.isScheduling || scrubActions.isDisabled}
             >
               {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
             </button>

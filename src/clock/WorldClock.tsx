@@ -104,7 +104,7 @@ export type WorldClockProps = {
   // first-time scrub-hint overlay (see ScrubHint.tsx); App.tsx computes the
   // full "should this actually be visible right now" gate and passes the
   // result straight through here
-  showScrubHint?: boolean;
+  isScrubHintVisible?: boolean;
   onDismissScrubHint?: () => void;
 };
 
@@ -136,7 +136,7 @@ export function WorldClock({
   isRemovingMeeting = false,
   isPortrait = false,
   isIdle = false,
-  showScrubHint = false,
+  isScrubHintVisible = false,
   onDismissScrubHint,
 }: WorldClockProps) {
   const idPrefix = useId();
@@ -288,9 +288,9 @@ export function WorldClock({
       // visible during the scrub-hint demo (see isScrubActionBarVisible), but
       // must not be clickable — the preview they'd act on is the automated
       // demo's, not something the user actually chose.
-      disabled: showScrubHint,
+      isDisabled: isScrubHintVisible,
     };
-  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting, showScrubHint]);
+  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting, isScrubHintVisible]);
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
@@ -493,7 +493,7 @@ export function WorldClock({
           <div className={styles.centerDate}>{homeDateLabel}</div>
         </div>
 
-        {showScrubHint && (
+        {isScrubHintVisible && (
           <ScrubHint offsetMs={previewOffsetMs} totalRings={totalRings} onDismiss={() => onDismissScrubHint?.()} />
         )}
       </div>

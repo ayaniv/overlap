@@ -53,16 +53,16 @@ function App() {
   const isPortrait = useIsPortrait();
   const isIdle = useIsIdle();
   const hasBeenActive = useHasBeenActive();
-  const [showScrubHint, setShowScrubHint] = useState(() => !hasSeenScrubHint());
+  const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
-  // narrower `showScrubHint` state only tracks permanent dismissal.
+  // narrower `isScrubHintUnseen` state only tracks permanent dismissal.
   // `!isScrubbing` closes a same-render race: if the very first activity
   // event that flips `hasBeenActive` is itself a real pointerdown on the
   // ring, useRingScrub's onPointerDown already set isScrubbing true in that
   // same event/render, so this stays false instead of transiently yanking
   // scrubBind out from under an in-progress real drag (see the plan's
   // "Deviation from the approved spec" note for the full reasoning).
-  const scrubHintActive = showScrubHint && mode === 'view' && hasBeenActive && !isIdle && !isScrubbing;
+  const scrubHintActive = isScrubHintUnseen && mode === 'view' && hasBeenActive && !isIdle && !isScrubbing;
   useScrubHintDemo({ active: scrubHintActive, setOffsetMs: scrubSetOffsetMs });
 
   // falls back to real "now" if idle kicks in while the hint would otherwise
@@ -74,14 +74,14 @@ function App() {
   useEffect(() => {
     const wasIdle = wasIdleRef.current;
     wasIdleRef.current = isIdle;
-    if (!wasIdle && isIdle && showScrubHint) {
+    if (!wasIdle && isIdle && isScrubHintUnseen) {
       resetScrub();
     }
-  }, [isIdle, showScrubHint, resetScrub]);
+  }, [isIdle, isScrubHintUnseen, resetScrub]);
 
   const handleDismissScrubHint = useCallback(() => {
     markScrubHintSeen();
-    setShowScrubHint(false);
+    setIsScrubHintUnseen(false);
     resetScrub();
     analytics.trackEvent('scrub_hint_dismissed');
   }, [resetScrub, analytics]);
@@ -231,7 +231,7 @@ function App() {
       isRemovingMeeting={isRemovingMeeting}
       isPortrait={isPortrait}
       isIdle={isIdle}
-      showScrubHint={scrubHintActive}
+      isScrubHintVisible={scrubHintActive}
       onDismissScrubHint={handleDismissScrubHint}
     />
   );

@@ -11,7 +11,7 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 // clock's circle exactly; this only smooths its speed along that arc.
 const ANGLE_START_DEG = 0; // current real position ("now") — not a fixed clock-face spot
 const ANGLE_PEAK_DEG = 75; // +5h forward from the start
-export const ANGLE_REST_DEG = 45; // 2h back from the peak; matches ScrubHint's TOOLTIP_ANCHOR_DEG
+export const ANGLE_REST_DEG = 45; // 2h back from the peak; ScrubHint imports this for its tooltip anchor
 
 const PHASE_1_MS = 3_600; // 0 -> +5h
 const PHASE_2_MS = 1_800; // +5h -> +3h
@@ -35,7 +35,7 @@ export type UseScrubHintDemoParams = {
 
 // plays the forward-then-partial-reverse sweep once, then holds at the rest
 // position — does not loop. The hint stays visible (App.tsx controls that
-// separately via `active`/showScrubHint); only the demo motion is one-shot.
+// separately via `active`/isScrubHintVisible); only the demo motion is one-shot.
 // Under prefers-reduced-motion, the demo doesn't run at all (never touches
 // setOffsetMs), matching useSweepAngle.ts's precedent.
 export function useScrubHintDemo({ active, setOffsetMs }: UseScrubHintDemoParams): void {

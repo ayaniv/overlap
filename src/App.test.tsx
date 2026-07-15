@@ -7,6 +7,7 @@ import { LoggerProvider } from './logger/LoggerProvider';
 import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
+import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
 import type { ClockConfig } from './clock/types';
@@ -37,7 +38,7 @@ beforeEach(() => {
   // (written before this feature existed) keep exercising the app's steady
   // state, not a fresh first-run; the dedicated describe block below removes
   // this key explicitly wherever it wants the first-run scenario instead
-  window.localStorage.setItem('overlap:scrub-hint-seen:v1', 'true');
+  window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
   window.history.replaceState(null, '', '/');
 });
 
@@ -419,56 +420,61 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 
 describe('App — first-time scrub hint', () => {
   beforeEach(() => {
-    window.localStorage.removeItem('overlap:scrub-hint-seen:v1');
+    window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
   });
 
   it('does not show before any real activity has occurred', () => {
     renderApp();
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('shows once real activity occurs, in view mode, not yet dismissed', () => {
     renderApp();
     act(() => window.dispatchEvent(new Event('pointermove')));
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
   it('never shows if already marked as seen, even with activity', () => {
-    window.localStorage.setItem('overlap:scrub-hint-seen:v1', 'true');
+    window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
     renderApp();
     act(() => window.dispatchEvent(new Event('pointermove')));
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
     const user = userEvent.setup();
     const { unmount } = renderApp();
     act(() => window.dispatchEvent(new Event('pointermove')));
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
-    expect(window.localStorage.getItem('overlap:scrub-hint-seen:v1')).toBe('true');
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
 
     unmount();
     renderApp();
     act(() => window.dispatchEvent(new Event('pointermove')));
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('hides when the screen goes idle (removed from the DOM, not just paused)', () => {
     // fake timers must be installed *before* renderApp mounts useIsIdle's effect:
     // sinon/vitest fake-timer installation only intercepts *future* setTimeout
     // calls, so a real setTimeout already scheduled during mount would never be
-    // advanced by vi.advanceTimersByTime below.
+    // advanced by vi.advanceTimersByTime below. try/finally (rather than a bare
+    // trailing vi.useRealTimers() call) guarantees fake-timer state doesn't leak
+    // into later tests if an assertion in between throws.
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
-    renderApp();
-    act(() => window.dispatchEvent(new Event('pointermove')));
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+    try {
+      renderApp();
+      act(() => window.dispatchEvent(new Event('pointermove')));
+      expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
 
-    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
-    vi.useRealTimers();
+      act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
 
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+      expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

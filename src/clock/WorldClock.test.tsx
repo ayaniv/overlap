@@ -603,7 +603,7 @@ describe('WorldClock ambient idle mode', () => {
 });
 
 describe('WorldClock scrub hint', () => {
-  it('renders the scrub hint overlay when showScrubHint is true', () => {
+  it('renders the scrub hint overlay when isScrubHintVisible is true', () => {
     render(
       <WorldClock
         now={NOW}
@@ -619,12 +619,12 @@ describe('WorldClock scrub hint', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
-        showScrubHint={true}
+        isScrubHintVisible={true}
         onDismissScrubHint={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
   it('does not render the scrub hint overlay by default', () => {
@@ -646,7 +646,7 @@ describe('WorldClock scrub hint', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('calls onDismissScrubHint when Got it is clicked', async () => {
@@ -667,12 +667,12 @@ describe('WorldClock scrub hint', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
-        showScrubHint={true}
+        isScrubHintVisible={true}
         onDismissScrubHint={onDismissScrubHint}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
 
     expect(onDismissScrubHint).toHaveBeenCalledTimes(1);
   });
@@ -694,7 +694,7 @@ describe('WorldClock scrub hint', () => {
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
         previewOffsetMs={60 * 60_000}
-        showScrubHint={true}
+        isScrubHintVisible={true}
         onDismissScrubHint={vi.fn()}
       />,
     );

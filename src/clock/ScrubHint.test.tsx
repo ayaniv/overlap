@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ScrubHint } from './ScrubHint.tsx';
+import { HINT_TEXT, ScrubHint } from './ScrubHint.tsx';
 
 afterEach(() => {
   cleanup();
@@ -12,9 +12,9 @@ describe('ScrubHint', () => {
   it('renders the hand, the hint text, and a Got it button', () => {
     render(<ScrubHint offsetMs={0} totalRings={2} onDismiss={vi.fn()} />);
 
-    expect(screen.getByText('👆')).toBeTruthy();
-    expect(screen.getByText('Find an overlap to schedule a meeting')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+    expect(screen.getByTestId('scrub-hint-hand')).toBeTruthy();
+    expect(screen.getByTestId('scrub-hint-text').textContent).toBe(HINT_TEXT);
+    expect(screen.getByTestId('scrub-hint-dismiss-button').textContent).toBe('Got it');
   });
 
   it('calls onDismiss when Got it is clicked', async () => {
@@ -22,7 +22,7 @@ describe('ScrubHint', () => {
     const onDismiss = vi.fn();
     render(<ScrubHint offsetMs={0} totalRings={2} onDismiss={onDismiss} />);
 
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
