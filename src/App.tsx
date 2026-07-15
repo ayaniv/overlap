@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from './analytics/AnalyticsProvider';
 import { useLogger } from './logger/LoggerProvider';
 import { AddLocationForm } from './clock/AddLocationForm';
@@ -9,12 +9,16 @@ import {
   scheduleMeetingOnGoogleCalendar,
 } from './clock/googleCalendar';
 import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
+import { hasSeenScrubHint, markScrubHintSeen } from './clock/scrubHint';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
 import { useRingScrub } from './clock/useRingScrub';
+import { useScrubHintDemo } from './clock/useScrubHintDemo';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
+import { useHasBeenActive } from './hooks/useHasBeenActive';
+import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
@@ -37,10 +41,51 @@ function App() {
   const { config, addLocation, removeLocation, updateLocation, setHome, addMeeting, removeMeeting, reorder } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
-  const { previewOffsetMs: scrubOffsetMs, isDragging: isScrubbing, reset: resetScrub, bind: scrubBind } = useRingScrub();
+  const {
+    previewOffsetMs: scrubOffsetMs,
+    isDragging: isScrubbing,
+    reset: resetScrub,
+    setOffsetMs: scrubSetOffsetMs,
+    bind: scrubBind,
+  } = useRingScrub();
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
+  const isIdle = useIsIdle();
+  const hasBeenActive = useHasBeenActive();
+  const [showScrubHint, setShowScrubHint] = useState(() => !hasSeenScrubHint());
+  // full gate for "is the hint actually visible/animating right now" — the
+  // narrower `showScrubHint` state only tracks permanent dismissal.
+  // `!isScrubbing` closes a same-render race: if the very first activity
+  // event that flips `hasBeenActive` is itself a real pointerdown on the
+  // ring, useRingScrub's onPointerDown already set isScrubbing true in that
+  // same event/render, so this stays false instead of transiently yanking
+  // scrubBind out from under an in-progress real drag (see the plan's
+  // "Deviation from the approved spec" note for the full reasoning).
+  const scrubHintActive = showScrubHint && mode === 'view' && hasBeenActive && !isIdle && !isScrubbing;
+  useScrubHintDemo({ active: scrubHintActive, setOffsetMs: scrubSetOffsetMs });
+
+  // falls back to real "now" if idle kicks in while the hint would otherwise
+  // be animating, so an unattended ambient display never freezes mid-sweep;
+  // isIdle can't become true while a real drag is in progress (any pointer
+  // activity continuously resets useIsIdle's own timer), so this never fires
+  // mid-real-scrub
+  const wasIdleRef = useRef(isIdle);
+  useEffect(() => {
+    const wasIdle = wasIdleRef.current;
+    wasIdleRef.current = isIdle;
+    if (!wasIdle && isIdle && showScrubHint) {
+      resetScrub();
+    }
+  }, [isIdle, showScrubHint, resetScrub]);
+
+  const handleDismissScrubHint = useCallback(() => {
+    markScrubHintSeen();
+    setShowScrubHint(false);
+    resetScrub();
+    analytics.trackEvent('scrub_hint_dismissed');
+  }, [resetScrub, analytics]);
+
   // isGoogleCalendarConnected() reads localStorage; read it once on mount rather
   // than on every render (App re-renders every second via useNow's tick) — it only
   // ever changes at the one moment a schedule attempt succeeds, so handleQuickSchedule
@@ -175,7 +220,7 @@ function App() {
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={canScrub ? scrubOffsetMs : 0}
-      scrubBind={canScrub ? scrubBind : undefined}
+      scrubBind={canScrub && !scrubHintActive ? scrubBind : undefined}
       isScrubbing={isScrubbing}
       isGoogleCalendarConnected={isConnectedToGoogleCalendar}
       onQuickSchedule={handleQuickSchedule}
@@ -185,6 +230,9 @@ function App() {
       onRemoveMeeting={handleRemoveMatchedMeeting}
       isRemovingMeeting={isRemovingMeeting}
       isPortrait={isPortrait}
+      isIdle={isIdle}
+      showScrubHint={scrubHintActive}
+      onDismissScrubHint={handleDismissScrubHint}
     />
   );
 }

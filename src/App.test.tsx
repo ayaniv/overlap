@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
@@ -8,6 +8,7 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
+import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -32,6 +33,11 @@ function stubMatchMedia(portrait = false) {
 beforeEach(() => {
   stubMatchMedia();
   window.localStorage.clear();
+  // pre-seed "already dismissed" so the ~400 existing assertions in this file
+  // (written before this feature existed) keep exercising the app's steady
+  // state, not a fresh first-run; the dedicated describe block below removes
+  // this key explicitly wherever it wants the first-run scenario instead
+  window.localStorage.setItem('overlap:scrub-hint-seen:v1', 'true');
   window.history.replaceState(null, '', '/');
 });
 
@@ -55,14 +61,14 @@ async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 function renderApp(analyticsService = createMockAnalyticsService(), loggerService = createMockLoggerService()) {
-  render(
+  const { unmount } = render(
     <AnalyticsProvider service={analyticsService}>
       <LoggerProvider service={loggerService}>
         <App />
       </LoggerProvider>
     </AnalyticsProvider>,
   );
-  return { analytics: analyticsService, logger: loggerService };
+  return { analytics: analyticsService, logger: loggerService, unmount };
 }
 
 // scheduling has no separate mode/form/icon of its own anymore — scrubbing
@@ -408,5 +414,61 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 
     expect(screen.queryByText('Manage clock')).toBeNull();
     expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+  });
+});
+
+describe('App — first-time scrub hint', () => {
+  beforeEach(() => {
+    window.localStorage.removeItem('overlap:scrub-hint-seen:v1');
+  });
+
+  it('does not show before any real activity has occurred', () => {
+    renderApp();
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+  });
+
+  it('shows once real activity occurs, in view mode, not yet dismissed', () => {
+    renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+  });
+
+  it('never shows if already marked as seen, even with activity', () => {
+    window.localStorage.setItem('overlap:scrub-hint-seen:v1', 'true');
+    renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+  });
+
+  it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+    expect(window.localStorage.getItem('overlap:scrub-hint-seen:v1')).toBe('true');
+
+    unmount();
+    renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
+  });
+
+  it('hides when the screen goes idle (removed from the DOM, not just paused)', () => {
+    // fake timers must be installed *before* renderApp mounts useIsIdle's effect:
+    // sinon/vitest fake-timer installation only intercepts *future* setTimeout
+    // calls, so a real setTimeout already scheduled during mount would never be
+    // advanced by vi.advanceTimersByTime below.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+    vi.useRealTimers();
+
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull();
   });
 });
