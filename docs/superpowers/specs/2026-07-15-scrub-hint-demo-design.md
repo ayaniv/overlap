@@ -56,6 +56,13 @@ UI must never appear, or get stuck, on a screen nobody is touching.
   listener sets for the same question. `useHasBeenActive` is a **separate**
   new hook (not merged into `useIsIdle`) so the existing hook's behavior and
   tests are untouched.
+- **`useHasBeenActive` tracks `pointermove`/`pointerdown`/`touchstart` only —
+  not `keydown`** (updated during plan-writing; see the implementation
+  plan's "Deviation from the approved spec" note for the full reasoning).
+  Sharing `useIsIdle`'s full activity list would let the same arrow-key
+  press that performs a real keyboard scrub also flip this hook true,
+  risking the hint activating mid-gesture and yanking `scrubBind` away from
+  a keyboard-only user who's already successfully using it.
 - **Persistence follows the `googleCalendar.ts` convention exactly**: a
   `localStorage` key (`overlap:scrub-hint-seen:v1`), a getter/setter pair
   with try/catch (never a raw `localStorage` call at the point of use), read
