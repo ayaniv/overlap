@@ -18,12 +18,6 @@ export type ScrubActions = {
     onRemove: () => void;
     isRemoving: boolean;
   };
-  // true while the scrub-hint demo is animating — the buttons stay
-  // visible (so the gesture's payoff is shown) but must not be clickable,
-  // since the preview they'd act on is the automated demo's, not something
-  // the user actually chose. Kept separate from `isScheduling` so the
-  // "Scheduling…" label swap doesn't fire for this reason too.
-  isDisabled?: boolean;
 };
 
 export type ControlClusterProps = {
@@ -85,7 +79,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
             type="button"
             className={styles.scrubRemoveMeetingButton}
             onClick={scrubActions.matchedMeeting.onRemove}
-            disabled={scrubActions.matchedMeeting.isRemoving || scrubActions.isDisabled}
+            disabled={scrubActions.matchedMeeting.isRemoving}
           >
             <TrashIcon isOpen={scrubActions.matchedMeeting.isRemoving} />
             {scrubActions.matchedMeeting.isRemoving ? 'Removing…' : 'Remove Meeting'}
@@ -97,7 +91,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
               data-testid="scrub-cancel-button"
               className={styles.scrubCancelButton}
               onClick={scrubActions.onCancel}
-              disabled={scrubActions.isScheduling || scrubActions.isDisabled}
+              disabled={scrubActions.isScheduling}
             >
               Cancel
             </button>
@@ -106,7 +100,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
               data-testid="scrub-schedule-button"
               className={styles.scrubScheduleButton}
               onClick={scrubActions.onSchedule}
-              disabled={scrubActions.isScheduling || scrubActions.isDisabled}
+              disabled={scrubActions.isScheduling}
             >
               {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
             </button>

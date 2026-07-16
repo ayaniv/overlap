@@ -16,6 +16,10 @@
 
 .tooltip {
   position: absolute;
+  /* above WorldClock.module.css's .scrubHintBlocker (z-index: 4) — that
+     transparent layer covers the whole stage to block clicks everywhere
+     else while the hint is showing, but "Got it" must stay reachable. */
+  z-index: 5;
   transform: translate(20px, -50%);
   display: flex;
   flex-direction: column;

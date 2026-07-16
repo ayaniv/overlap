@@ -285,12 +285,8 @@ export function WorldClock({
       onCancel: () => onBackToNow?.(),
       isScheduling: isQuickScheduling,
       matchedMeeting: hasMatchedMeeting ? { onRemove: () => onRemoveMeeting?.(), isRemoving: isRemovingMeeting } : undefined,
-      // visible during the scrub-hint demo (see isScrubActionBarVisible), but
-      // must not be clickable — the preview they'd act on is the automated
-      // demo's, not something the user actually chose.
-      isDisabled: isScrubHintVisible,
     };
-  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting, isScrubHintVisible]);
+  }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
 
   const availableCount = ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
@@ -324,6 +320,7 @@ export function WorldClock({
           scrubActions={scrubActions}
         />
       </div>
+      {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
       {mode === 'edit' &&
         modePanelContent &&
         (isPortrait ? (

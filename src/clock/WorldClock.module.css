@@ -25,6 +25,18 @@
   transition: opacity 0.8s ease;
 }
 
+/* invisible click/tap-capture layer covering the whole stage while the
+   scrub-hint demo is active — blocks interaction with everything (including
+   any future buttons added to ControlCluster) without threading a disabled
+   flag through each one individually. Sits above ControlCluster's z-index
+   (3) but below ScrubHint's own tooltip (see ScrubHint.module.css), so "Got
+   it" stays clickable. */
+.scrubHintBlocker {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
 /* ambient "wall display" mode (useIsIdle): fades the header, footer status
    line, and ControlCluster after a stretch of no activity — the clock face
    itself stays fully visible. Only ever set while mode === 'view' (see

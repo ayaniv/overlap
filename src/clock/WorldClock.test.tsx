@@ -677,7 +677,7 @@ describe('WorldClock scrub hint', () => {
     expect(onDismissScrubHint).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the scrub action bar but disables it while the hint is showing, so the demo preview cannot be acted on', () => {
+  it('shows the scrub action bar (not disabled) alongside a full-stage click blocker while the hint is showing', () => {
     render(
       <WorldClock
         now={NOW}
@@ -699,7 +699,36 @@ describe('WorldClock scrub hint', () => {
       />,
     );
 
-    expect((screen.getByTestId('scrub-schedule-button') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId('scrub-cancel-button') as HTMLButtonElement).disabled).toBe(true);
+    // the buttons themselves stay enabled — a transparent full-stage blocker
+    // (rendered above them, below the tooltip) is what actually prevents
+    // interaction, so any button ControlCluster adds in the future is
+    // covered automatically rather than needing its own disabled wiring
+    expect((screen.getByTestId('scrub-schedule-button') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('scrub-cancel-button') as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByTestId('scrub-hint-blocker')).toBeTruthy();
+  });
+
+  it('does not render the click blocker when the hint is not visible', () => {
+    render(
+      <WorldClock
+        now={NOW}
+        home={HOME}
+        rings={[SF]}
+        meetings={[]}
+        mode="view"
+        onSetMode={vi.fn()}
+        isMenuExpanded={false}
+        onMenuExpandedChange={vi.fn()}
+        onShare={vi.fn()}
+        onRemoveLocation={vi.fn()}
+        onReorder={vi.fn()}
+        onUpdateLocation={vi.fn()}
+        onSetHome={vi.fn()}
+        previewOffsetMs={60 * 60_000}
+        onDismissScrubHint={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('scrub-hint-blocker')).toBeNull();
   });
 });
