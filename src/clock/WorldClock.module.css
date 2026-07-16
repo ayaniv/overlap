@@ -28,13 +28,12 @@
 /* invisible click/tap-capture layer covering the whole stage while the
    scrub-hint demo is active — blocks interaction with everything (including
    any future buttons added to ControlCluster) without threading a disabled
-   flag through each one individually. Sits above ControlCluster's z-index
-   (3) but below ScrubHint's own tooltip (see ScrubHint.module.css), so "Got
-   it" stays clickable. */
+   flag through each one individually. --z-overlay-top (ScrubHint's own
+   tooltip, see ScrubHint.module.css) stays reachable above it. */
 .scrubHintBlocker {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: var(--z-overlay);
 }
 
 /* ambient "wall display" mode (useIsIdle): fades the header, footer status
@@ -158,7 +157,7 @@
   position: absolute;
   top: 86px;
   right: 44px;
-  z-index: 2;
+  z-index: var(--z-panel);
   border-radius: 14px;
   border: 1px solid #3a3e46;
   background: #14161d;

@@ -1,12 +1,12 @@
 /* full-screen, self-scrolling (unlike the desktop .modePanel it replaces on
    mobile) — the stage behind it is overflow:hidden, so this needs its own
    scroll container to ever be safe against the keyboard eating half the
-   viewport. z-index clears ControlCluster (3) and the desktop .modePanel (2):
-   this is a full takeover, not an overlay meant to coexist with either. */
+   viewport. --z-overlay clears --z-cluster and --z-panel: this is a full
+   takeover, not an overlay meant to coexist with either. */
 .page {
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   background: #0a0b0f;

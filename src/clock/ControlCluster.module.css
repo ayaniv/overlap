@@ -8,10 +8,10 @@
      can grow tall enough to reach this same screen area; with both left at
      the default z-index:auto, paint order falls back to DOM order and the
      SVG (which comes after this cluster in WorldClock's JSX) wins, silently
-     swallowing taps on the menu button. An explicit z-index (above
-     WorldClock's .modePanel, so the toggle can still close an open panel)
-     keeps the cluster on top regardless of how far the clock face extends. */
-  z-index: 3;
+     swallowing taps on the menu button. --z-cluster (above --z-panel, so the
+     toggle can still close an open panel) keeps the cluster on top
+     regardless of how far the clock face extends. */
+  z-index: var(--z-cluster);
   pointer-events: auto;
 }
 

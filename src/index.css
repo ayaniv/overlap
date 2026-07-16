@@ -2,6 +2,31 @@
   box-sizing: border-box;
 }
 
+/* shared stacking-order tiers for anything that needs to sit above normal
+   in-flow content — a small, padded set of semantic values (rather than a
+   dense run of adjacent integers) so a new layer can usually reuse an
+   existing tier, and the few cases that need a strict order relative to a
+   specific sibling (see .modePanel/.cluster below) stay self-explanatory
+   without a comment justifying "why 4 and not 3". Leave plenty of headroom
+   between tiers for that. Purely local stacking (e.g. a sticky header
+   inside its own scroll container) doesn't need these — only layers that
+   compete with something elsewhere in the stage do. */
+:root {
+  /* small local overlays that just need to clear their own immediate
+     siblings (AddLocationForm's suggestions dropdown) */
+  --z-raised: 10;
+  /* WorldClock's floating Edit/Schedule panel */
+  --z-panel: 20;
+  /* ControlCluster — deliberately above --z-panel so its toggle can still
+     close an open panel it happens to overlap */
+  --z-cluster: 30;
+  /* full-stage takeovers (MobileConfigView, the scrub-hint's click blocker) */
+  --z-overlay: 100;
+  /* content that must render above an --z-overlay layer (the scrub-hint's
+     own "Got it" tooltip, reachable above its blocker) */
+  --z-overlay-top: 200;
+}
+
 /* without this, a second quick tap on the same button (e.g. tapping
    Manage-locations' row toggle again to collapse it) can land inside iOS
    Safari's native double-tap-to-zoom window instead of registering as a
