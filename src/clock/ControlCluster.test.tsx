@@ -169,8 +169,8 @@ describe('ControlCluster scrubActions', () => {
   it('replaces the icon menu with Cancel/Schedule, hiding Config/Share/Menu entirely', () => {
     renderClusterWithScrubActions();
 
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
@@ -180,7 +180,7 @@ describe('ControlCluster scrubActions', () => {
     const user = userEvent.setup();
     const { onSchedule } = renderClusterWithScrubActions();
 
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
 
     expect(onSchedule).toHaveBeenCalledTimes(1);
   });
@@ -189,7 +189,7 @@ describe('ControlCluster scrubActions', () => {
     const user = userEvent.setup();
     const { onCancel } = renderClusterWithScrubActions();
 
-    await user.click(screen.getByText('Cancel'));
+    await user.click(screen.getByTestId('scrub-cancel-button'));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -197,16 +197,17 @@ describe('ControlCluster scrubActions', () => {
   it('shows "Scheduling…" and disables both buttons while isScheduling is true', () => {
     renderClusterWithScrubActions({ isScheduling: true });
 
-    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    const scheduleButton = screen.getByTestId('scrub-schedule-button') as HTMLButtonElement;
+    expect(scheduleButton.textContent).toBe('Scheduling…');
     expect(scheduleButton.disabled).toBe(true);
-    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('scrub-cancel-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('does not call onSchedule when disabled by isScheduling', async () => {
     const user = userEvent.setup();
     const { onSchedule } = renderClusterWithScrubActions({ isScheduling: true });
 
-    await user.click(screen.getByText('Scheduling…'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
 
     expect(onSchedule).not.toHaveBeenCalled();
   });
@@ -214,26 +215,26 @@ describe('ControlCluster scrubActions', () => {
   it('marks the cluster data-scrub-hint-active only when the scrub-hint demo (not a real scrub) is active', () => {
     renderClusterWithScrubActions({}, true);
 
-    expect(screen.getByText('Cancel').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(true);
+    expect(screen.getByTestId('scrub-cancel-button').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(true);
   });
 
   it('does not mark data-scrub-hint-active for a real user-driven scrub', () => {
     renderClusterWithScrubActions({}, false);
 
-    expect(screen.getByText('Cancel').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(false);
+    expect(screen.getByTestId('scrub-cancel-button').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(false);
   });
 
   it('has no Remove Meeting button when matchedMeeting is not set', () => {
     renderClusterWithScrubActions();
-    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+    expect(screen.queryByTestId('scrub-remove-meeting-button')).toBeNull();
   });
 
   it('replaces Cancel/Schedule with Remove Meeting when matchedMeeting is set', () => {
     renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: false } });
 
-    expect(screen.queryByText('Cancel')).toBeNull();
-    expect(screen.queryByText('Schedule')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+    expect(screen.queryByTestId('scrub-cancel-button')).toBeNull();
+    expect(screen.queryByTestId('scrub-schedule-button')).toBeNull();
+    expect(screen.getByTestId('scrub-remove-meeting-button')).toBeTruthy();
   });
 
   it('calls matchedMeeting.onRemove when Remove Meeting is tapped', async () => {
@@ -241,7 +242,7 @@ describe('ControlCluster scrubActions', () => {
     const onRemove = vi.fn();
     renderClusterWithScrubActions({ matchedMeeting: { onRemove, isRemoving: false } });
 
-    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await user.click(screen.getByTestId('scrub-remove-meeting-button'));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
@@ -249,7 +250,8 @@ describe('ControlCluster scrubActions', () => {
   it('relabels to "Removing…" and disables the button while matchedMeeting.isRemoving is true', () => {
     renderClusterWithScrubActions({ matchedMeeting: { onRemove: vi.fn(), isRemoving: true } });
 
-    const removeButton = screen.getByRole('button', { name: 'Removing…' }) as HTMLButtonElement;
+    const removeButton = screen.getByTestId('scrub-remove-meeting-button') as HTMLButtonElement;
+    expect(removeButton.textContent).toContain('Removing…');
     expect(removeButton.disabled).toBe(true);
   });
 });

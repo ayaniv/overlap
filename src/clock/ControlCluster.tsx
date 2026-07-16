@@ -91,6 +91,7 @@ export const ControlCluster = memo(function ControlCluster({
           // already how you back out without removing anything)
           <button
             type="button"
+            data-testid="scrub-remove-meeting-button"
             className={styles.scrubRemoveMeetingButton}
             onClick={scrubActions.matchedMeeting.onRemove}
             disabled={scrubActions.matchedMeeting.isRemoving}

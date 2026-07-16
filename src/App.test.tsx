@@ -83,8 +83,8 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
     await scrubForward(user);
 
     expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
   });
 
   it('swaps to Cancel/Schedule on the first scrub in portrait too — same behavior as desktop', async () => {
@@ -95,8 +95,8 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
     await scrubForward(user);
 
     expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
   });
 
   it('Cancel resets the scrub and restores the normal Config/Share menu', async () => {
@@ -106,7 +106,7 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
 
-    await user.click(screen.getByText('Cancel'));
+    await user.click(screen.getByTestId('scrub-cancel-button'));
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
     expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
@@ -304,7 +304,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     const { analytics } = renderApp();
 
     await scrubForward(user);
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
 
     await waitFor(() => expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledTimes(1));
     const [title, , durationMinutes] = vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mock.calls[0];
@@ -324,11 +324,11 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     const { logger } = renderApp();
 
     await scrubForward(user);
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
 
     expect(await screen.findByText('boom')).toBeTruthy();
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
     expect(logger.error).toHaveBeenCalledWith(scheduleError, 'failed to quick-schedule a meeting from the scrub buttons');
   });
 
@@ -340,7 +340,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
 
-    await user.click(screen.getByText('Cancel'));
+    await user.click(screen.getByTestId('scrub-cancel-button'));
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
     expect(googleCalendar.scheduleMeetingOnGoogleCalendar).not.toHaveBeenCalled();
@@ -360,7 +360,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     await scrubForward(user);
     const offsetBeforeSchedule = screen.getByRole('slider').getAttribute('aria-valuenow');
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
     await waitFor(() => expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledTimes(1));
 
     await scrubForward(user);

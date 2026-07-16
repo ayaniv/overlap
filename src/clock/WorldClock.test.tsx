@@ -304,14 +304,14 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
 
   it('is absent before any scrub (previewOffsetMs is 0) — the normal icon menu shows instead', () => {
     renderScrubbedClock(vi.fn(), vi.fn(), 0);
-    expect(screen.queryByText('Cancel')).toBeNull();
+    expect(screen.queryByTestId('scrub-cancel-button')).toBeNull();
     expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
   });
 
   it('swaps in Cancel/Schedule once scrubbed, in view mode, replacing the icon menu', () => {
     renderScrubbedClock();
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
+    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   });
@@ -320,7 +320,7 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
     const user = userEvent.setup();
     const { onQuickSchedule } = renderScrubbedClock();
 
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('scrub-schedule-button'));
 
     expect(onQuickSchedule).toHaveBeenCalledTimes(1);
   });
@@ -329,7 +329,7 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
     const user = userEvent.setup();
     const { onBackToNow } = renderScrubbedClock();
 
-    await user.click(screen.getByText('Cancel'));
+    await user.click(screen.getByTestId('scrub-cancel-button'));
 
     expect(onBackToNow).toHaveBeenCalledTimes(1);
   });
@@ -337,9 +337,10 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
   it('reflects an in-flight quick-schedule as a disabled "Scheduling…" state', () => {
     renderScrubbedClock(vi.fn(), vi.fn(), MS_PER_HOUR, true);
 
-    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    const scheduleButton = screen.getByTestId('scrub-schedule-button') as HTMLButtonElement;
+    expect(scheduleButton.textContent).toBe('Scheduling…');
     expect(scheduleButton.disabled).toBe(true);
-    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('scrub-cancel-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('is hidden while in edit mode, even with a nonzero preview offset', () => {
