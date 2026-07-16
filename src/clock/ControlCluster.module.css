@@ -145,14 +145,17 @@
   gap: 8px;
   height: auto;
   max-width: 220px;
+  /* a real user-driven scrub still gets a quick, undelayed fade rather than
+     a hard pop-in — just without the demo's "wait for it" delay below,
+     since there's no "is this really because of scrubbing?" ambiguity to
+     clear up for a gesture the user just performed themselves */
+  animation: scrubActionsIn 0.2s ease;
 }
 
-/* only the scrub-hint demo gets the delayed reveal — a real user-driven
-   scrub still shows these buttons immediately, since there's no "wait, is
-   this really because of scrubbing?" ambiguity to clear up for a gesture
-   the user just performed themselves. `backwards` fill-mode holds the
-   `from` (opacity 0) state during the delay so it stays invisible rather
-   than flashing visible then hiding. */
+/* only the scrub-hint demo gets the delayed reveal (overrides the quick
+   fade above — equal specificity, later in the file wins). `backwards`
+   fill-mode holds the `from` (opacity 0) state during the delay so it
+   stays invisible rather than flashing visible then hiding. */
 .cluster[data-scrub-hint-active] {
   animation: scrubActionsIn 0.3s ease 1s backwards;
 }
