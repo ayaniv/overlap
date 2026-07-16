@@ -36,6 +36,12 @@ export type ControlClusterProps = {
   // is instant (see App.tsx's handleQuickSchedule) — there's no separate
   // schedule-mode/form to enter anymore, on either desktop or mobile.
   scrubActions?: ScrubActions;
+  // true only while the scrub-hint demo is animating (as opposed to a real
+  // user-driven scrub) — gates the CSS fade-in delay (see
+  // ControlCluster.module.css) so a real scrub still shows these buttons
+  // immediately, and only the automated demo gets the "this appeared
+  // because you're scrubbing" delayed reveal.
+  isScrubHintActive?: boolean;
 };
 
 // top-right entry points for edit mode + share; the mode panel and share
@@ -54,7 +60,15 @@ export type ControlClusterProps = {
 //
 // memoized because it doesn't receive `now`: without this it re-renders every
 // second along with WorldClock's once-a-second tick, for no visual benefit
-export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, onShare, isExpanded, onExpandedChange, scrubActions }: ControlClusterProps) {
+export const ControlCluster = memo(function ControlCluster({
+  mode,
+  onSetMode,
+  onShare,
+  isExpanded,
+  onExpandedChange,
+  scrubActions,
+  isScrubHintActive = false,
+}: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
   const actionTabIndex = isExpanded ? 0 : -1;
 
@@ -69,7 +83,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
 
   if (scrubActions) {
     return (
-      <div className={styles.cluster} data-scrub-mode="true">
+      <div className={styles.cluster} data-scrub-mode="true" data-scrub-hint-active={isScrubHintActive || undefined}>
         {scrubActions.matchedMeeting ? (
           // landing on an existing meeting replaces Cancel/Schedule entirely, rather
           // than adding a third button alongside them — removing it is the only

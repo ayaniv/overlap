@@ -318,6 +318,7 @@ export function WorldClock({
           isExpanded={isMenuExpanded}
           onExpandedChange={onMenuExpandedChange}
           scrubActions={scrubActions}
+          isScrubHintActive={isScrubHintVisible}
         />
       </div>
       {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
