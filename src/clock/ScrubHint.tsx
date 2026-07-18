@@ -15,6 +15,10 @@ export const HINT_TEXT = 'Find an overlap to schedule a meeting';
 // import (rather than a re-declared literal) so the two can't drift apart
 const TOOLTIP_ANCHOR_DEG = ANGLE_REST_DEG;
 
+// geometry.ts's coordinates live in the SVG viewBox's 0-1000 space; CSS
+// left/top percentages want 0-100 — this converts between the two
+const VIEWBOX_UNITS_PER_PERCENT = 10;
+
 // hand rides between the 3rd and 4th ring from the outside (clamped so it
 // still makes sense with fewer rings) rather than out past the bezel.
 const HAND_RADIUS_OUTER_RING_INDEX = 2;
@@ -36,19 +40,28 @@ export function ScrubHint({ offsetMs, totalRings, onDismiss }: ScrubHintProps) {
   const tooltipPoint = pointOnCircle(radius, TOOLTIP_ANCHOR_DEG);
 
   return (
-    <div className={styles.overlay} data-testid="scrub-hint-overlay">
+    <div className={styles.overlay}>
       <span
         className={styles.hand}
         data-testid="scrub-hint-hand"
-        style={{ left: `${handPoint.x / 10}%`, top: `${handPoint.y / 10}%` }}
+        style={
+          {
+            '--hint-hand-left': `${handPoint.x / VIEWBOX_UNITS_PER_PERCENT}%`,
+            '--hint-hand-top': `${handPoint.y / VIEWBOX_UNITS_PER_PERCENT}%`,
+          } as React.CSSProperties
+        }
         aria-hidden="true"
       >
         👆
       </span>
       <div
         className={styles.tooltip}
-        data-testid="scrub-hint-tooltip"
-        style={{ left: `${tooltipPoint.x / 10}%`, top: `${tooltipPoint.y / 10}%` }}
+        style={
+          {
+            '--hint-tooltip-left': `${tooltipPoint.x / VIEWBOX_UNITS_PER_PERCENT}%`,
+            '--hint-tooltip-top': `${tooltipPoint.y / VIEWBOX_UNITS_PER_PERCENT}%`,
+          } as React.CSSProperties
+        }
       >
         <p className={styles.text} data-testid="scrub-hint-text">
           {HINT_TEXT}

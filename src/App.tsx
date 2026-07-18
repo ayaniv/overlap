@@ -61,17 +61,17 @@ function App() {
   // drag already in progress, useRingScrub's onPointerDown already set
   // isScrubbing true in that same event/render, so this stays false instead
   // of transiently yanking scrubBind out from under it.
-  const scrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
-  useScrubHintDemo({ active: scrubHintActive, setOffsetMs: scrubSetOffsetMs });
+  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
+  useScrubHintDemo({ active: isScrubHintActive, setOffsetMs: scrubSetOffsetMs });
 
   // fires once per actual appearance — the effect only re-runs when
-  // scrubHintActive changes (including the very first render, if it's
+  // isScrubHintActive changes (including the very first render, if it's
   // already true on load), not on every render while it stays visible
   useEffect(() => {
-    if (scrubHintActive) {
+    if (isScrubHintActive) {
       analytics.trackEvent('scrub_hint_shown');
     }
-  }, [scrubHintActive, analytics]);
+  }, [isScrubHintActive, analytics]);
 
   // falls back to real "now" if idle kicks in while the hint would otherwise
   // be animating, so an unattended ambient display never freezes mid-sweep;
@@ -228,7 +228,7 @@ function App() {
       modePanelContent={modePanelContent}
       toastMessage={toastMessage}
       previewOffsetMs={canScrub ? scrubOffsetMs : 0}
-      scrubBind={canScrub && !scrubHintActive ? scrubBind : undefined}
+      scrubBind={canScrub && !isScrubHintActive ? scrubBind : undefined}
       isScrubbing={isScrubbing}
       isGoogleCalendarConnected={isConnectedToGoogleCalendar}
       onQuickSchedule={handleQuickSchedule}
@@ -239,7 +239,7 @@ function App() {
       isRemovingMeeting={isRemovingMeeting}
       isPortrait={isPortrait}
       isIdle={isIdle}
-      isScrubHintVisible={scrubHintActive}
+      isScrubHintVisible={isScrubHintActive}
       onDismissScrubHint={handleDismissScrubHint}
     />
   );

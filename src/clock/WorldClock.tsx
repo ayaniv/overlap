@@ -29,6 +29,12 @@ import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
+// explicit .tsx extension required: on case-insensitive filesystems (macOS
+// default), an extension-less './ScrubHint' resolves .ts before .tsx and
+// collides with the lowercase ./scrubHint.ts (the persistence helper) —
+// silently importing the wrong module. This form is precedented elsewhere
+// (see src/main.tsx's `import App from './App.tsx'`) and works because
+// tsconfig.app.json sets allowImportingTsExtensions.
 import { ScrubHint } from './ScrubHint.tsx';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
@@ -270,8 +276,8 @@ export function WorldClock({
   // (and, if the preview lands on an existing meeting, Remove Meeting too).
   // also visible during the scrub hint — the demo drives a real
   // previewOffsetMs, so the real Schedule action pops visible to show what
-  // the gesture leads to (see scrubActions.disabled below, which keeps it
-  // visible-but-inert during the demo specifically).
+  // the gesture leads to (see .scrubHintBlocker below, which keeps it
+  // visible-but-unclickable during the demo specifically).
   const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's

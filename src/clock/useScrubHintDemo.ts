@@ -43,7 +43,7 @@ export function useScrubHintDemo({ active, setOffsetMs }: UseScrubHintDemoParams
     if (!active) return;
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) return;
 
-    let frameId: number;
+    let frameId: number | undefined;
     const startTime = Date.now();
     const tick = () => {
       const elapsedMs = Date.now() - startTime;
@@ -53,6 +53,8 @@ export function useScrubHintDemo({ active, setOffsetMs }: UseScrubHintDemoParams
     };
     frameId = requestAnimationFrame(tick);
 
-    return () => cancelAnimationFrame(frameId);
+    return () => {
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
+    };
   }, [active, setOffsetMs]);
 }

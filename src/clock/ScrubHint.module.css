@@ -8,6 +8,8 @@
 
 .hand {
   position: absolute;
+  left: var(--hint-hand-left);
+  top: var(--hint-hand-top);
   transform: translate(-50%, calc(-50% + 70px)) rotate(-15deg);
   font-size: 32px;
   line-height: 1;
@@ -16,6 +18,8 @@
 
 .tooltip {
   position: absolute;
+  left: var(--hint-tooltip-left);
+  top: var(--hint-tooltip-top);
   /* --z-overlay-top: above WorldClock.module.css's .scrubHintBlocker
      (--z-overlay) — that transparent layer covers the whole stage to block
      clicks everywhere else while the hint is showing, but "Got it" must
@@ -85,17 +89,17 @@
    viewport instead of the ring-relative position ScrubHint.tsx computes for
    desktop (which, combined with the clock's deliberate horizontal bleed —
    see WorldClock.module.css's `.clockContainer` at `width: min(165vw,
-   760px)` — could land off the visible edge). */
+   760px)` — could land off the visible edge). ScrubHint.tsx sets
+   --hint-tooltip-left/top as custom properties (not `left`/`top` directly),
+   so this can override the actual `left`/`top` properties here via normal
+   cascade order — no !important needed. */
 @media (orientation: portrait) {
-  /* !important required: ScrubHint.tsx sets `left`/`top` as inline styles
-     (ring-relative percentages, for the desktop case), and inline styles
-     otherwise beat any stylesheet rule regardless of media queries. */
   .tooltip {
     position: fixed;
-    left: 50% !important;
-    top: calc(50% + 100px) !important;
-    right: auto !important;
-    bottom: auto !important;
+    left: 50%;
+    top: calc(50% + 100px);
+    right: auto;
+    bottom: auto;
     transform: translate(-50%, -50%);
     align-items: center;
     text-align: center;
