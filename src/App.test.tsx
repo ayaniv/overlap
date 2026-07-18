@@ -428,10 +428,21 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
+  it('tracks scrub_hint_shown when it appears', () => {
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
   it('never shows if already marked as seen', () => {
     window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('does not track scrub_hint_shown when already marked as seen', () => {
+    window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
   it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
@@ -468,16 +479,20 @@ describe('App — first-time scrub hint', () => {
     }
   });
 
-  it('reappears once activity resumes after an idle hide, if still unseen', () => {
+  it('reappears once activity resumes after an idle hide, if still unseen, tracking scrub_hint_shown again', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
     try {
-      renderApp();
+      const { analytics } = renderApp();
+      expect(analytics.trackEvent).toHaveBeenCalledTimes(1);
+
       act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
       expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
 
       act(() => window.dispatchEvent(new Event('pointermove')));
 
       expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+      expect(analytics.trackEvent).toHaveBeenCalledTimes(2);
+      expect(analytics.trackEvent).toHaveBeenNthCalledWith(2, 'scrub_hint_shown');
     } finally {
       vi.useRealTimers();
     }

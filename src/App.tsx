@@ -64,6 +64,15 @@ function App() {
   const scrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
   useScrubHintDemo({ active: scrubHintActive, setOffsetMs: scrubSetOffsetMs });
 
+  // fires once per actual appearance — the effect only re-runs when
+  // scrubHintActive changes (including the very first render, if it's
+  // already true on load), not on every render while it stays visible
+  useEffect(() => {
+    if (scrubHintActive) {
+      analytics.trackEvent('scrub_hint_shown');
+    }
+  }, [scrubHintActive, analytics]);
+
   // falls back to real "now" if idle kicks in while the hint would otherwise
   // be animating, so an unattended ambient display never freezes mid-sweep;
   // isIdle can't become true while a real drag is in progress (any pointer
