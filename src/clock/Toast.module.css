@@ -4,10 +4,10 @@
   right: 44px;
   /* without an explicit z-index, this had none and stacked as z-index:auto —
      fine as long as nothing nearby had an explicit z-index either, but
-     ControlCluster's --z-cluster (an explicit positive z-index) then always
+     ControlCluster's --z-30 (an explicit positive z-index) then always
      painted on top regardless of DOM order, burying this toast whenever a
      message showed while the cluster was visible */
-  z-index: var(--z-cluster);
+  z-index: var(--z-30);
   padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid #3a3e46;

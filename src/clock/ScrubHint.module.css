@@ -20,11 +20,11 @@
   position: absolute;
   left: var(--hint-tooltip-left);
   top: var(--hint-tooltip-top);
-  /* --z-overlay-top: above WorldClock.module.css's .scrubHintBlocker
-     (--z-overlay) — that transparent layer covers the whole stage to block
+  /* --z-50: above WorldClock.module.css's .scrubHintBlocker
+     (--z-40) — that transparent layer covers the whole stage to block
      clicks everywhere else while the hint is showing, but "Got it" must
      stay reachable. */
-  z-index: var(--z-overlay-top);
+  z-index: var(--z-50);
   transform: translate(20px, -50%);
   display: flex;
   flex-direction: column;
