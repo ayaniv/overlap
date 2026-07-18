@@ -20,17 +20,17 @@ describe('MobileConfigView', () => {
   it('shows both sections at once — no accordion, unlike the desktop ConfigPanel', () => {
     renderView();
 
-    expect(screen.getByText('Add location form contents')).toBeTruthy();
-    expect(screen.getByText('Manage locations list contents')).toBeTruthy();
-    expect(screen.getByText('Add location')).toBeTruthy();
-    expect(screen.getByText('Manage locations')).toBeTruthy();
+    expect(screen.getByTestId('mobile-add-location-body')).toBeTruthy();
+    expect(screen.getByTestId('mobile-manage-locations-body')).toBeTruthy();
+    expect(screen.getByTestId('mobile-add-location-heading')).toBeTruthy();
+    expect(screen.getByTestId('mobile-manage-locations-heading')).toBeTruthy();
   });
 
   it('calls onClose when Done is tapped', async () => {
     const user = userEvent.setup();
     const { onClose } = renderView();
 
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByTestId('mobile-config-done'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

@@ -22,6 +22,8 @@ export type LocationColorAndHoursFieldsProps = {
   // disambiguates the hex/picker aria-labels when several instances of this
   // component can be on screen at once (ManageLocationsList's per-row editors)
   ariaLabelSuffix?: string;
+  // same idea as ariaLabelSuffix, but for data-testid values (kebab-case, e.g. `-${location.id}`)
+  testIdSuffix?: string;
 };
 
 // color (swatches + free hex + native picker) and work-hours controls, shared by
@@ -39,6 +41,7 @@ export function LocationColorAndHoursFields({
   onChangeWorkStart,
   onChangeWorkEnd,
   ariaLabelSuffix = '',
+  testIdSuffix = '',
 }: LocationColorAndHoursFieldsProps) {
   return (
     <>
@@ -51,6 +54,7 @@ export function LocationColorAndHoursFields({
             style={{ background: swatch }}
             aria-label={`Color ${swatch}`}
             aria-pressed={color === swatch}
+            data-testid={`color-swatch-${swatch}${testIdSuffix}`}
             onClick={() => onColorPick(swatch)}
           />
         ))}

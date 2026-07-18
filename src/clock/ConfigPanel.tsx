@@ -23,24 +23,34 @@ export function ConfigPanel({ addLocationContent, manageLocationsContent }: Conf
           type="button"
           className={styles.sectionHeader}
           aria-expanded={activeSection === 'add'}
+          data-testid="add-location-section-toggle"
           onClick={() => setActiveSection('add')}
         >
           Add location
           <ChevronIcon className={activeSection === 'add' ? styles.chevronOpen : styles.chevron} />
         </button>
-        {activeSection === 'add' && <div className={styles.sectionBody}>{addLocationContent}</div>}
+        {activeSection === 'add' && (
+          <div className={styles.sectionBody} data-testid="add-location-section-body">
+            {addLocationContent}
+          </div>
+        )}
       </div>
       <div className={styles.section}>
         <button
           type="button"
           className={styles.sectionHeader}
           aria-expanded={activeSection === 'manage'}
+          data-testid="manage-locations-section-toggle"
           onClick={() => setActiveSection('manage')}
         >
           Manage locations
           <ChevronIcon className={activeSection === 'manage' ? styles.chevronOpen : styles.chevron} />
         </button>
-        {activeSection === 'manage' && <div className={styles.sectionBody}>{manageLocationsContent}</div>}
+        {activeSection === 'manage' && (
+          <div className={styles.sectionBody} data-testid="manage-locations-section-body">
+            {manageLocationsContent}
+          </div>
+        )}
       </div>
     </div>
   );

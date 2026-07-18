@@ -10,7 +10,7 @@ export function Toast({ message }: ToastProps) {
   if (!message) return null;
 
   return (
-    <div className={styles.toast} role="status" aria-live="polite">
+    <div className={styles.toast} role="status" aria-live="polite" data-testid="toast-message">
       {message}
     </div>
   );

@@ -312,8 +312,12 @@ export function WorldClock({
       data-chrome-hidden={isChromeHidden || undefined}
     >
       <div className={styles.context} aria-hidden="true">
-        <div className={styles.eyebrow}>Overlap&nbsp;Clock</div>
-        <div className={styles.headline}>See shared hours instantly</div>
+        <div className={styles.eyebrow} data-testid="clock-eyebrow">
+          Overlap&nbsp;Clock
+        </div>
+        <div className={styles.headline} data-testid="clock-headline">
+          See shared hours instantly
+        </div>
       </div>
 
       <div className={styles.controlClusterWrap}>
@@ -507,7 +511,9 @@ export function WorldClock({
           className={styles.statusDot}
           style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
         />
-        <span className={styles.statusText}>{statusText}</span>
+        <span className={styles.statusText} data-testid="clock-status-text">
+          {statusText}
+        </span>
       </div>
 
       {/* always visible (not part of the idle-fade group above) so the privacy

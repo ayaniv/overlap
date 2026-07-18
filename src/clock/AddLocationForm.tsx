@@ -105,7 +105,12 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
           <ul className={styles.suggestions}>
             {suggestions.map((city) => (
               <li key={`${city.timezoneId}-${city.label}`}>
-                <button type="button" className={styles.suggestion} onClick={() => pickCity(city)}>
+                <button
+                  type="button"
+                  className={styles.suggestion}
+                  data-testid={`city-suggestion-${city.timezoneId}-${city.label}`}
+                  onClick={() => pickCity(city)}
+                >
                   {city.label}
                   <span className={styles.suggestionCountry}>{city.country}</span>
                 </button>
@@ -150,10 +155,10 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
 
       {!isPortrait && (
         <div className={styles.actions}>
-          <button type="button" className={styles.doneButton} onClick={onDone}>
+          <button type="button" className={styles.doneButton} data-testid="add-location-dismiss" onClick={onDone}>
             {hasAdded ? 'Done' : 'Cancel'}
           </button>
-          <button type="submit" className={styles.addButton}>
+          <button type="submit" className={styles.addButton} data-testid="add-location-submit">
             Add
           </button>
         </div>

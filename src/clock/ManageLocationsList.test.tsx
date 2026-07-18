@@ -76,7 +76,8 @@ function renderList(overrides: Partial<ManageLocationsListProps> = {}) {
 }
 
 function dragHandleFor(label: string) {
-  return screen.getByRole('button', { name: `Reorder ${label}` });
+  const id = LOCATIONS.find((location) => location.label === label)!.id;
+  return screen.getByTestId(`reorder-handle-${id}`);
 }
 
 function drag(handle: HTMLElement, fromY: number, toY: number) {
@@ -91,17 +92,17 @@ describe('ManageLocationsList', () => {
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     expect(within(rows[0]).getByLabelText('Home')).toBeTruthy();
-    expect(within(rows[0]).getByText('Tel Aviv')).toBeTruthy();
+    expect(within(rows[0]).getByTestId('location-label-tel-aviv')).toBeTruthy();
     expect(within(rows[1]).queryByLabelText('Home')).toBeNull();
-    expect(within(rows[1]).getByText('San Francisco')).toBeTruthy();
-    expect(within(rows[2]).getByText('New York')).toBeTruthy();
+    expect(within(rows[1]).getByTestId('location-label-san-francisco')).toBeTruthy();
+    expect(within(rows[2]).getByTestId('location-label-new-york')).toBeTruthy();
   });
 
   it('has no remove button on the home row, and a working remove button on other rows', () => {
     const { onRemove, analytics } = renderList();
 
-    expect(screen.queryByRole('button', { name: 'Remove Tel Aviv' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove San Francisco' }));
+    expect(screen.queryByTestId('remove-location-tel-aviv')).toBeNull();
+    fireEvent.click(screen.getByTestId('remove-location-san-francisco'));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onRemove).toHaveBeenCalledWith('san-francisco');
@@ -150,7 +151,7 @@ describe('ManageLocationsList', () => {
   it('renders a Close button that calls onClose when clicked', () => {
     const { onClose } = renderList();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByTestId('manage-locations-close'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -160,7 +161,7 @@ describe('ManageLocationsList', () => {
   it('omits the Close button when hideCloseButton is set', () => {
     renderList({ hideCloseButton: true });
 
-    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+    expect(screen.queryByTestId('manage-locations-close')).toBeNull();
   });
 });
 
@@ -173,40 +174,40 @@ describe('ManageLocationsList row expand/edit', () => {
     renderList();
 
     expect(screen.queryByLabelText('Hex color for San Francisco')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Set as home' })).toBeNull();
+    expect(screen.queryByTestId('set-as-home-san-francisco')).toBeNull();
   });
 
   it('expands a row on tap to reveal color, hours, and Set as home (for non-home rows)', async () => {
     const user = userEvent.setup();
     renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
 
     expect(screen.getByLabelText('Hex color for San Francisco')).toBeTruthy();
     expect(screen.getByLabelText('Start')).toBeTruthy();
     expect(screen.getByLabelText('End')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Set as home' })).toBeTruthy();
+    expect(screen.getByTestId('set-as-home-san-francisco')).toBeTruthy();
   });
 
   it('does not show Set as home for the already-home row', async () => {
     const user = userEvent.setup();
     renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit Tel Aviv' }));
+    await user.click(screen.getByTestId('row-toggle-tel-aviv'));
 
     expect(screen.getByLabelText('Hex color for Tel Aviv')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Set as home' })).toBeNull();
+    expect(screen.queryByTestId('set-as-home-tel-aviv')).toBeNull();
   });
 
   it('collapses again on a second tap', async () => {
     const user = userEvent.setup();
     renderList();
-    const toggle = screen.getByRole('button', { name: 'Edit San Francisco' });
+    const toggle = screen.getByTestId('row-toggle-san-francisco');
 
     await user.click(toggle);
     expect(screen.getByLabelText('Hex color for San Francisco')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Hide San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     expect(screen.queryByLabelText('Hex color for San Francisco')).toBeNull();
   });
 
@@ -214,10 +215,10 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     expect(screen.getByLabelText('Hex color for San Francisco')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Edit New York' }));
+    await user.click(screen.getByTestId('row-toggle-new-york'));
     expect(screen.queryByLabelText('Hex color for San Francisco')).toBeNull();
     expect(screen.getByLabelText('Hex color for New York')).toBeTruthy();
   });
@@ -226,8 +227,8 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
-    await user.click(screen.getByRole('button', { name: 'Color #38BDF8' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
+    await user.click(screen.getByTestId('color-swatch-#38BDF8-san-francisco'));
 
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { color: '#38BDF8' });
   });
@@ -236,7 +237,7 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     const hexInput = screen.getByLabelText('Hex color for San Francisco');
     fireEvent.change(hexInput, { target: { value: '#123456' } });
 
@@ -251,7 +252,7 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     const hexInput = screen.getByLabelText('Hex color for San Francisco');
     await user.clear(hexInput);
     await user.type(hexInput, '#3644'); // incomplete — not yet a full 6-digit hex
@@ -264,7 +265,7 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     const hexInput = screen.getByLabelText('Hex color for San Francisco');
     await user.clear(hexInput);
     await user.type(hexInput, '#364449');
@@ -276,7 +277,7 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onUpdateLocation } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
     fireEvent.change(screen.getByLabelText('Start'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('End'), { target: { value: '19' } });
 
@@ -288,8 +289,8 @@ describe('ManageLocationsList row expand/edit', () => {
     const user = userEvent.setup();
     const { onSetHome } = renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Edit San Francisco' }));
-    await user.click(screen.getByRole('button', { name: 'Set as home' }));
+    await user.click(screen.getByTestId('row-toggle-san-francisco'));
+    await user.click(screen.getByTestId('set-as-home-san-francisco'));
 
     expect(onSetHome).toHaveBeenCalledWith(LOCATIONS[1]);
   });

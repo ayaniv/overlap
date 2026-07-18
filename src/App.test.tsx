@@ -58,7 +58,7 @@ async function scrubForward(user: ReturnType<typeof userEvent.setup>) {
 // ControlCluster starts collapsed behind the hamburger toggle (M7); open it before
 // reaching for one of its action buttons
 async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Menu' }));
+  await user.click(screen.getByTestId('control-menu-toggle'));
 }
 
 function renderApp(analyticsService = createMockAnalyticsService(), loggerService = createMockLoggerService()) {
@@ -82,9 +82,9 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
 
     await scrubForward(user);
 
-    expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
-    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
-    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
+    expect(screen.queryByTestId('control-menu-toggle')).toBeNull();
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
   });
 
   it('swaps to Cancel/Schedule on the first scrub in portrait too — same behavior as desktop', async () => {
@@ -94,9 +94,9 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
 
     await scrubForward(user);
 
-    expect(screen.queryByRole('button', { name: 'Menu' })).toBeNull();
-    expect(screen.getByTestId('scrub-cancel-button')).toBeTruthy();
-    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
+    expect(screen.queryByTestId('control-menu-toggle')).toBeNull();
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
   });
 
   it('Cancel resets the scrub and restores the normal Config/Share menu', async () => {
@@ -106,10 +106,10 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
 
-    await user.click(screen.getByTestId('scrub-cancel-button'));
+    await user.click(screen.getByTestId('control-scrub-cancel-button'));
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
-    expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
+    expect(screen.getByTestId('control-menu-toggle')).toBeTruthy();
   });
 
   it('Config is unreachable while a scrub preview is active (no way to leave a stale preview stuck behind it)', async () => {
@@ -118,7 +118,7 @@ describe('App — scrubbing swaps ControlCluster to Cancel/Schedule, on any plat
 
     await scrubForward(user);
 
-    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
+    expect(screen.queryByTestId('control-config-button')).toBeNull();
   });
 });
 
@@ -131,7 +131,7 @@ describe('App — sharing fires an analytics event with the outcome', () => {
     const { analytics } = renderApp();
 
     await openClusterMenu(user);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByTestId('control-share-button'));
 
     await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
   });
@@ -166,7 +166,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
       await user.keyboard('{ArrowUp}');
     }
 
-    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+    expect(screen.getByTestId('control-remove-meeting-button')).toBeTruthy();
   });
 
   it('stops surfacing Remove Meeting once scrubbed back out of the match tolerance', async () => {
@@ -179,11 +179,11 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
     for (let step = 0; step < 3; step += 1) {
       await user.keyboard('{ArrowUp}');
     }
-    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+    expect(screen.getByTestId('control-remove-meeting-button')).toBeTruthy();
 
     await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
 
-    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+    expect(screen.queryByTestId('control-remove-meeting-button')).toBeNull();
   });
 
   it('does not surface Remove Meeting when this browser has never connected to Google Calendar', async () => {
@@ -198,7 +198,7 @@ describe('App — matchedMeeting reflects an already-scheduled meeting as the sc
       await user.keyboard('{ArrowUp}');
     }
 
-    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+    expect(screen.queryByTestId('control-remove-meeting-button')).toBeNull();
   });
 });
 
@@ -227,12 +227,12 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     const { analytics } = renderApp();
 
     await scrubOntoMeeting(user);
-    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await user.click(screen.getByTestId('control-remove-meeting-button'));
 
     await waitFor(() => expect(googleCalendar.deleteMeetingFromGoogleCalendar).toHaveBeenCalledWith('evt-1'));
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
-    expect(await screen.findByText('Meeting removed')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Remove Meeting' })).toBeNull();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('Meeting removed');
+    expect(screen.queryByTestId('control-remove-meeting-button')).toBeNull();
     expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_deleted');
   });
 
@@ -242,11 +242,11 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     renderApp();
 
     await scrubOntoMeeting(user);
-    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await user.click(screen.getByTestId('control-remove-meeting-button'));
 
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
     expect(googleCalendar.deleteMeetingFromGoogleCalendar).not.toHaveBeenCalled();
-    expect(await screen.findByText('Meeting removed')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('Meeting removed');
   });
 
   it('shows an error toast and keeps the scrub preview when the Calendar delete fails', async () => {
@@ -257,11 +257,11 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     const { logger } = renderApp();
 
     await scrubOntoMeeting(user);
-    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await user.click(screen.getByTestId('control-remove-meeting-button'));
 
-    expect(await screen.findByText('boom')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('boom');
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-    expect(screen.getByRole('button', { name: 'Remove Meeting' })).toBeTruthy();
+    expect(screen.getByTestId('control-remove-meeting-button')).toBeTruthy();
     expect(logger.error).toHaveBeenCalledWith(deleteError, 'failed to remove the matched meeting from the scrub buttons');
   });
 
@@ -277,7 +277,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
 
     await scrubOntoMeeting(user);
     const offsetBeforeRemove = screen.getByRole('slider').getAttribute('aria-valuenow');
-    await user.click(screen.getByRole('button', { name: 'Remove Meeting' }));
+    await user.click(screen.getByTestId('control-remove-meeting-button'));
     await waitFor(() => expect(googleCalendar.deleteMeetingFromGoogleCalendar).toHaveBeenCalledTimes(1));
 
     screen.getByRole('slider').focus();
@@ -286,7 +286,7 @@ describe('App — Remove Meeting (ControlCluster scrub button)', () => {
     expect(offsetAfterFurtherScrub).not.toBe(offsetBeforeRemove);
 
     resolveDelete();
-    expect(await screen.findByText('Meeting removed')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('Meeting removed');
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe(offsetAfterFurtherScrub);
   });
 });
@@ -304,7 +304,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     const { analytics } = renderApp();
 
     await scrubForward(user);
-    await user.click(screen.getByTestId('scrub-schedule-button'));
+    await user.click(screen.getByTestId('control-scrub-schedule-button'));
 
     await waitFor(() => expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledTimes(1));
     const [title, , durationMinutes] = vi.mocked(googleCalendar.scheduleMeetingOnGoogleCalendar).mock.calls[0];
@@ -312,7 +312,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(durationMinutes).toBe(30);
 
     await waitFor(() => expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0'));
-    expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('Meeting scheduled');
     expect(analytics.trackEvent).toHaveBeenCalledWith('meeting_scheduled', { duration_minutes: 30 });
   });
 
@@ -324,11 +324,11 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     const { logger } = renderApp();
 
     await scrubForward(user);
-    await user.click(screen.getByTestId('scrub-schedule-button'));
+    await user.click(screen.getByTestId('control-scrub-schedule-button'));
 
-    expect(await screen.findByText('boom')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('boom');
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
-    expect(screen.getByTestId('scrub-schedule-button')).toBeTruthy();
+    expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
     expect(logger.error).toHaveBeenCalledWith(scheduleError, 'failed to quick-schedule a meeting from the scrub buttons');
   });
 
@@ -340,7 +340,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     await scrubForward(user);
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).not.toBe('0');
 
-    await user.click(screen.getByTestId('scrub-cancel-button'));
+    await user.click(screen.getByTestId('control-scrub-cancel-button'));
 
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe('0');
     expect(googleCalendar.scheduleMeetingOnGoogleCalendar).not.toHaveBeenCalled();
@@ -360,7 +360,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
 
     await scrubForward(user);
     const offsetBeforeSchedule = screen.getByRole('slider').getAttribute('aria-valuenow');
-    await user.click(screen.getByTestId('scrub-schedule-button'));
+    await user.click(screen.getByTestId('control-scrub-schedule-button'));
     await waitFor(() => expect(googleCalendar.scheduleMeetingOnGoogleCalendar).toHaveBeenCalledTimes(1));
 
     await scrubForward(user);
@@ -368,7 +368,7 @@ describe('App — quick-schedule (ControlCluster scrub buttons)', () => {
     expect(offsetAfterFurtherScrub).not.toBe(offsetBeforeSchedule);
 
     resolveSchedule('evt-1');
-    expect(await screen.findByText('Meeting scheduled')).toBeTruthy();
+    expect((await screen.findByTestId('toast-message')).textContent).toBe('Meeting scheduled');
     expect(screen.getByRole('slider').getAttribute('aria-valuenow')).toBe(offsetAfterFurtherScrub);
   });
 });
@@ -385,9 +385,9 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
     renderApp();
 
     await openClusterMenu(user);
-    await user.click(screen.getByRole('button', { name: 'Config' }));
+    await user.click(screen.getByTestId('control-config-button'));
 
-    expect(screen.getByText('Manage clock')).toBeTruthy();
+    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
     expect(screen.getByLabelText('Search city')).toBeTruthy();
     // Manage locations' rows visible at once, alongside Add location — no
     // accordion click needed to reach them (unlike the desktop ConfigPanel)
@@ -400,10 +400,10 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
     renderApp();
 
     await openClusterMenu(user);
-    await user.click(screen.getByRole('button', { name: 'Config' }));
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByTestId('control-config-button'));
+    await user.click(screen.getByTestId('mobile-config-done'));
 
-    expect(screen.queryByText('Manage clock')).toBeNull();
+    expect(screen.queryByTestId('mobile-config-title')).toBeNull();
   });
 
   it('keeps the desktop floating accordion panel on non-portrait, unaffected', async () => {
@@ -411,10 +411,10 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
     renderApp();
 
     await openClusterMenu(user);
-    await user.click(screen.getByRole('button', { name: 'Config' }));
+    await user.click(screen.getByTestId('control-config-button'));
 
-    expect(screen.queryByText('Manage clock')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+    expect(screen.queryByTestId('mobile-config-title')).toBeNull();
+    expect(screen.getByTestId('manage-locations-section-toggle')).toBeTruthy();
   });
 });
 

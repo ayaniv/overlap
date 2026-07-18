@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 async function pickTokyo(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Search city'), 'Tokyo');
-  await user.click(await screen.findByRole('button', { name: /Tokyo/ }));
+  await user.click(await screen.findByTestId('city-suggestion-Asia/Tokyo-Tokyo'));
 }
 
 function renderForm(overrides: Partial<AddLocationFormProps> = {}) {
@@ -33,7 +33,7 @@ describe('AddLocationForm', () => {
     const { onAdd, analytics } = renderForm({ existingIds: ['tel-aviv'], existingColors: PALETTE.slice(0, PALETTE.length - 1) });
 
     await pickTokyo(user);
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId('add-location-submit'));
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAdd).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe('AddLocationForm', () => {
     const { onAdd } = renderForm();
 
     await pickTokyo(user);
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId('add-location-submit'));
 
     expect(PALETTE).toContain(onAdd.mock.calls[0][0].color);
   });
@@ -67,8 +67,8 @@ describe('AddLocationForm', () => {
     const { onAdd } = renderForm();
 
     await pickTokyo(user);
-    await user.click(screen.getByRole('button', { name: `Color ${PALETTE[2]}` }));
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId(`color-swatch-${PALETTE[2]}`));
+    await user.click(screen.getByTestId('add-location-submit'));
 
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ color: PALETTE[2] }));
   });
@@ -81,7 +81,7 @@ describe('AddLocationForm', () => {
     const hexInput = screen.getByLabelText('Hex color');
     await user.clear(hexInput);
     await user.type(hexInput, 'notahex');
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId('add-location-submit'));
 
     expect(onAdd).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toMatch(/color must be a hex value/i);
@@ -91,7 +91,7 @@ describe('AddLocationForm', () => {
     const user = userEvent.setup();
     const { onAdd } = renderForm();
 
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId('add-location-submit'));
 
     expect(onAdd).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toMatch(/pick a city/i);
@@ -101,8 +101,8 @@ describe('AddLocationForm', () => {
     const user = userEvent.setup();
     const { onDone } = renderForm();
 
-    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByTestId('add-location-dismiss').textContent).toBe('Cancel');
+    await user.click(screen.getByTestId('add-location-dismiss'));
 
     expect(onDone).toHaveBeenCalledTimes(1);
   });
@@ -112,10 +112,10 @@ describe('AddLocationForm', () => {
     const { onDone } = renderForm();
 
     await pickTokyo(user);
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByTestId('add-location-submit'));
 
-    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByTestId('add-location-dismiss').textContent).toBe('Done');
+    await user.click(screen.getByTestId('add-location-dismiss'));
 
     expect(onDone).toHaveBeenCalledTimes(1);
   });
@@ -143,12 +143,12 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
     renderForm({ isPortrait: true });
 
     expect(screen.queryByLabelText('Hex color')).toBeNull();
-    expect(screen.queryByRole('button', { name: `Color ${PALETTE[0]}` })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    expect(screen.queryByTestId(`color-swatch-${PALETTE[0]}`)).toBeNull();
+    expect(screen.queryByTestId('add-location-submit')).toBeNull();
+    expect(screen.queryByTestId('add-location-dismiss')).toBeNull();
 
     await pickTokyo(user);
-    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
+    expect(screen.queryByTestId('add-location-dismiss')).toBeNull();
   });
 
   it('clears the search box after adding, ready for the next pick', async () => {
@@ -165,7 +165,7 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
     const { onAdd } = renderForm({ existingIds: ['tokyo'], isPortrait: true });
 
     await user.type(screen.getByLabelText('Search city'), 'London');
-    await user.click(await screen.findByRole('button', { name: /London/ }));
+    await user.click(await screen.findByTestId('city-suggestion-Europe/London-London'));
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAdd.mock.calls[0][0].label).toBe('London');
