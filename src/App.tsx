@@ -17,7 +17,6 @@ import { useScrubHintDemo } from './clock/useScrubHintDemo';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
-import { useHasBeenActive } from './hooks/useHasBeenActive';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -52,17 +51,17 @@ function App() {
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
   const isIdle = useIsIdle();
-  const hasBeenActive = useHasBeenActive();
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
-  // narrower `isScrubHintUnseen` state only tracks permanent dismissal.
-  // `!isScrubbing` closes a same-render race: if the very first activity
-  // event that flips `hasBeenActive` is itself a real pointerdown on the
-  // ring, useRingScrub's onPointerDown already set isScrubbing true in that
-  // same event/render, so this stays false instead of transiently yanking
-  // scrubBind out from under an in-progress real drag (see the plan's
-  // "Deviation from the approved spec" note for the full reasoning).
-  const scrubHintActive = isScrubHintUnseen && mode === 'view' && hasBeenActive && !isIdle && !isScrubbing;
+  // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
+  // by default (like the header/title/ControlCluster chrome) and hidden by
+  // the same ambient-idle mechanism, rather than waiting for a first touch.
+  // `!isScrubbing` closes a same-render race: if the activity that clears
+  // `isIdle` (resuming from an ambient/idle state) is itself a real pointer
+  // drag already in progress, useRingScrub's onPointerDown already set
+  // isScrubbing true in that same event/render, so this stays false instead
+  // of transiently yanking scrubBind out from under it.
+  const scrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
   useScrubHintDemo({ active: scrubHintActive, setOffsetMs: scrubSetOffsetMs });
 
   // falls back to real "now" if idle kicks in while the hint would otherwise

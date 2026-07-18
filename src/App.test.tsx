@@ -423,28 +423,20 @@ describe('App — first-time scrub hint', () => {
     window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
   });
 
-  it('does not show before any real activity has occurred', () => {
+  it('shows immediately on load when not yet dismissed — same as the header/title/buttons, no activity required', () => {
     renderApp();
-    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
-  });
-
-  it('shows once real activity occurs, in view mode, not yet dismissed', () => {
-    renderApp();
-    act(() => window.dispatchEvent(new Event('pointermove')));
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('never shows if already marked as seen, even with activity', () => {
+  it('never shows if already marked as seen', () => {
     window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
     renderApp();
-    act(() => window.dispatchEvent(new Event('pointermove')));
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
     const user = userEvent.setup();
     const { unmount } = renderApp();
-    act(() => window.dispatchEvent(new Event('pointermove')));
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
 
     await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
@@ -453,11 +445,10 @@ describe('App — first-time scrub hint', () => {
 
     unmount();
     renderApp();
-    act(() => window.dispatchEvent(new Event('pointermove')));
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
-  it('hides when the screen goes idle (removed from the DOM, not just paused)', () => {
+  it('hides when the screen goes idle (removed from the DOM, not just paused) — same ambient-idle mechanism as the header/title/buttons', () => {
     // fake timers must be installed *before* renderApp mounts useIsIdle's effect:
     // sinon/vitest fake-timer installation only intercepts *future* setTimeout
     // calls, so a real setTimeout already scheduled during mount would never be
@@ -467,12 +458,26 @@ describe('App — first-time scrub hint', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
     try {
       renderApp();
-      act(() => window.dispatchEvent(new Event('pointermove')));
       expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
 
       act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
 
       expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reappears once activity resumes after an idle hide, if still unseen', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    try {
+      renderApp();
+      act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+      expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+
+      act(() => window.dispatchEvent(new Event('pointermove')));
+
+      expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
