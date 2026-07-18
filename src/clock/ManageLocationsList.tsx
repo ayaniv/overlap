@@ -50,9 +50,15 @@ function LocationEditor({ location, onUpdateLocation, onSetHome }: LocationEdito
         onChangeWorkStart={(value) => onUpdateLocation(location.id, { workStart: value })}
         onChangeWorkEnd={(value) => onUpdateLocation(location.id, { workEnd: value })}
         ariaLabelSuffix={` for ${location.label}`}
+        testIdSuffix={`-${location.id}`}
       />
       {!location.isHome && (
-        <button type="button" className={styles.setHomeButton} onClick={() => onSetHome(location)}>
+        <button
+          type="button"
+          className={styles.setHomeButton}
+          data-testid={`set-as-home-${location.id}`}
+          onClick={() => onSetHome(location)}
+        >
           Set as home
         </button>
       )}
@@ -174,6 +180,7 @@ export function ManageLocationsList({
                   type="button"
                   className={styles.dragHandle}
                   aria-label={`Reorder ${location.label}`}
+                  data-testid={`reorder-handle-${location.id}`}
                   onPointerDown={handlePointerDown(id)}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
@@ -185,11 +192,14 @@ export function ManageLocationsList({
                   className={styles.rowToggle}
                   aria-expanded={isExpanded}
                   aria-label={`${isExpanded ? 'Hide' : 'Edit'} ${location.label}`}
+                  data-testid={`row-toggle-${location.id}`}
                   onClick={() => toggleExpanded(location.id)}
                 >
                   <span className={styles.swatch} style={{ background: location.color }} aria-hidden="true" />
                   {location.isHome && <HomeIcon className={styles.homeIcon} aria-label="Home" />}
-                  <span className={styles.label}>{location.label}</span>
+                  <span className={styles.label} data-testid={`location-label-${location.id}`}>
+                    {location.label}
+                  </span>
                 </button>
                 {!location.isHome && (
                   <button
@@ -197,6 +207,7 @@ export function ManageLocationsList({
                     className={styles.removeButton}
                     aria-label={`Remove ${location.label}`}
                     title={`Remove ${location.label}`}
+                    data-testid={`remove-location-${location.id}`}
                     onClick={handleRemove(location.id)}
                   >
                     <TrashIcon />
@@ -211,7 +222,7 @@ export function ManageLocationsList({
       </ul>
       {!hideCloseButton && (
         <div className={styles.actions}>
-          <button type="button" className={styles.closeButton} onClick={onClose}>
+          <button type="button" className={styles.closeButton} data-testid="manage-locations-close" onClick={onClose}>
             Close
           </button>
         </div>

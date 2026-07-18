@@ -78,6 +78,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
           <button
             type="button"
             className={styles.scrubRemoveMeetingButton}
+            data-testid="control-remove-meeting-button"
             onClick={scrubActions.matchedMeeting.onRemove}
             disabled={scrubActions.matchedMeeting.isRemoving}
           >
@@ -86,10 +87,22 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
           </button>
         ) : (
           <>
-            <button type="button" className={styles.scrubCancelButton} onClick={scrubActions.onCancel} disabled={scrubActions.isScheduling}>
+            <button
+              type="button"
+              className={styles.scrubCancelButton}
+              data-testid="control-scrub-cancel-button"
+              onClick={scrubActions.onCancel}
+              disabled={scrubActions.isScheduling}
+            >
               Cancel
             </button>
-            <button type="button" className={styles.scrubScheduleButton} onClick={scrubActions.onSchedule} disabled={scrubActions.isScheduling}>
+            <button
+              type="button"
+              className={styles.scrubScheduleButton}
+              data-testid="control-scrub-schedule-button"
+              onClick={scrubActions.onSchedule}
+              disabled={scrubActions.isScheduling}
+            >
               {scrubActions.isScheduling ? 'Scheduling…' : 'Schedule'}
             </button>
           </>
@@ -108,11 +121,20 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
           aria-pressed={mode === 'edit'}
           aria-label="Config"
           title="Config"
+          data-testid="control-config-button"
           onClick={() => toggleMode('edit')}
         >
           <CogwheelIcon />
         </button>
-        <button type="button" tabIndex={actionTabIndex} className={styles.iconButton} onClick={onShare} aria-label="Share" title="Share">
+        <button
+          type="button"
+          tabIndex={actionTabIndex}
+          className={styles.iconButton}
+          onClick={onShare}
+          aria-label="Share"
+          title="Share"
+          data-testid="control-share-button"
+        >
           <ShareIcon />
         </button>
       </div>
@@ -122,6 +144,7 @@ export const ControlCluster = memo(function ControlCluster({ mode, onSetMode, on
         className={styles.toggle}
         aria-expanded={isExpanded}
         aria-label="Menu"
+        data-testid="control-menu-toggle"
         onClick={handleToggleClick}
       >
         {/* cross-fades between two static glyphs instead of rotating the hamburger

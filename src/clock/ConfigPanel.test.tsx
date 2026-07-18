@@ -18,42 +18,42 @@ describe('ConfigPanel', () => {
   it('defaults to the Add location section expanded, Manage locations collapsed', () => {
     renderPanel();
 
-    expect(screen.getByText('Add location form contents')).toBeTruthy();
-    expect(screen.queryByText('Manage locations list contents')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Add location' }).getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Manage locations' }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByTestId('add-location-section-body')).toBeTruthy();
+    expect(screen.queryByTestId('manage-locations-section-body')).toBeNull();
+    expect(screen.getByTestId('add-location-section-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('manage-locations-section-toggle').getAttribute('aria-expanded')).toBe('false');
   });
 
   it('switches to Manage locations when its header is clicked, collapsing Add location', async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
+    await user.click(screen.getByTestId('manage-locations-section-toggle'));
 
-    expect(screen.getByText('Manage locations list contents')).toBeTruthy();
-    expect(screen.queryByText('Add location form contents')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Manage locations' }).getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Add location' }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByTestId('manage-locations-section-body')).toBeTruthy();
+    expect(screen.queryByTestId('add-location-section-body')).toBeNull();
+    expect(screen.getByTestId('manage-locations-section-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('add-location-section-toggle').getAttribute('aria-expanded')).toBe('false');
   });
 
   it('switches back to Add location when its header is clicked again', async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
-    await user.click(screen.getByRole('button', { name: 'Add location' }));
+    await user.click(screen.getByTestId('manage-locations-section-toggle'));
+    await user.click(screen.getByTestId('add-location-section-toggle'));
 
-    expect(screen.getByText('Add location form contents')).toBeTruthy();
-    expect(screen.queryByText('Manage locations list contents')).toBeNull();
+    expect(screen.getByTestId('add-location-section-body')).toBeTruthy();
+    expect(screen.queryByTestId('manage-locations-section-body')).toBeNull();
   });
 
   it('does nothing when clicking the header of the already-active section', async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Add location' }));
+    await user.click(screen.getByTestId('add-location-section-toggle'));
 
-    expect(screen.getByText('Add location form contents')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Add location' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('add-location-section-body')).toBeTruthy();
+    expect(screen.getByTestId('add-location-section-toggle').getAttribute('aria-expanded')).toBe('true');
   });
 });
