@@ -90,7 +90,7 @@ describe('WorldClock manage-locations list', () => {
     const user = userEvent.setup();
     renderClockWithPanel('edit');
 
-    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
+    await user.click(screen.getByTestId('manage-locations-section-toggle'));
 
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(2);
@@ -103,9 +103,9 @@ describe('WorldClock manage-locations list', () => {
     const onReorder = vi.fn();
     renderClockWithPanel('edit', onReorder);
 
-    await user.click(screen.getByRole('button', { name: 'Manage locations' }));
+    await user.click(screen.getByTestId('manage-locations-section-toggle'));
 
-    expect(screen.getByRole('button', { name: 'Reorder San Francisco' })).toBeTruthy();
+    expect(screen.getByTestId('reorder-handle-san-francisco')).toBeTruthy();
   });
 
   it('is not rendered outside edit mode, even with a mode panel present', () => {
@@ -122,16 +122,16 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
   it('renders MobileConfigView instead of the floating ConfigPanel when isPortrait and in edit mode', () => {
     renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
 
-    expect(screen.getByText('Manage clock')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+    expect(screen.getByTestId('mobile-config-title').textContent).toBe('Manage clock');
+    expect(screen.getByTestId('mobile-config-done')).toBeTruthy();
   });
 
   it('shows both sections at once, with no accordion toggle needed to reach Manage locations', () => {
     renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
 
-    expect(screen.getByText('Form')).toBeTruthy(); // the addLocationContent passed in
+    expect(screen.getByTestId('mobile-add-location-body').textContent).toBe('Form'); // the addLocationContent passed in
     expect(screen.getAllByRole('listitem')).toHaveLength(2); // Manage locations rows, visible without any click
-    expect(screen.queryByRole('button', { name: 'Manage locations' })).toBeNull(); // no accordion header here
+    expect(screen.queryByTestId('manage-locations-section-toggle')).toBeNull(); // no accordion header here
   });
 
   it('calls onSetMode("view") when Done is tapped', async () => {
@@ -139,7 +139,7 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
     const onSetMode = vi.fn();
     renderClockWithPanel('edit', vi.fn(), { isPortrait: true, onSetMode });
 
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByTestId('mobile-config-done'));
 
     expect(onSetMode).toHaveBeenCalledWith('view');
   });
@@ -149,14 +149,14 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
   it('omits ManageLocationsList\'s own Close button, since the header Done already covers it', () => {
     renderClockWithPanel('edit', vi.fn(), { isPortrait: true });
 
-    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+    expect(screen.queryByTestId('manage-locations-close')).toBeNull();
   });
 
   it('still uses the desktop accordion ConfigPanel when isPortrait is false (default)', () => {
     renderClockWithPanel('edit');
 
-    expect(screen.queryByText('Manage clock')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Manage locations' })).toBeTruthy();
+    expect(screen.queryByTestId('mobile-config-title')).toBeNull();
+    expect(screen.getByTestId('manage-locations-section-toggle')).toBeTruthy();
     expect(screen.queryByRole('listitem')).toBeNull(); // collapsed by default, behind the accordion
   });
 
@@ -251,21 +251,21 @@ describe('WorldClock copy', () => {
   it('shows the current top-of-page branding and an accurate status line, without a global working-hours legend', () => {
     renderClock('view');
 
-    expect(screen.getByText('See shared hours instantly')).toBeTruthy();
-    expect(screen.getByText((_, node) => node?.textContent === 'Overlap Clock')).toBeTruthy();
+    expect(screen.getByTestId('clock-headline').textContent).toBe('See shared hours instantly');
+    expect(screen.getByTestId('clock-eyebrow').textContent).toBe('Overlap Clock');
     // per-location working hours are per-ring, so no single "Home working hours" line
-    expect(screen.queryByText(/Home working hours/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Home working hours/);
   });
 
   it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {
     renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT); home (Tel Aviv) is in hours
-    expect(screen.getByText('1/2 teams available • local working hours')).toBeTruthy();
+    expect(screen.getByTestId('clock-status-text').textContent).toBe('1/2 teams available • local working hours');
   });
 
   it('recomputes the count from the actual ring list instead of a hardcoded total', () => {
     const SYDNEY: Location = { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 };
     renderClock('view', [SF, SYDNEY]); // SF and Sydney are both out of hours at NOW; only home is in hours
-    expect(screen.getByText('1/3 teams available • local working hours')).toBeTruthy();
+    expect(screen.getByTestId('clock-status-text').textContent).toBe('1/3 teams available • local working hours');
   });
 });
 
@@ -305,23 +305,23 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
 
   it('is absent before any scrub (previewOffsetMs is 0) — the normal icon menu shows instead', () => {
     renderScrubbedClock(vi.fn(), vi.fn(), 0);
-    expect(screen.queryByText('Cancel')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+    expect(screen.getByTestId('control-config-button')).toBeTruthy();
   });
 
   it('swaps in Cancel/Schedule once scrubbed, in view mode, replacing the icon menu', () => {
     renderScrubbedClock();
-    expect(screen.getByText('Cancel')).toBeTruthy();
-    expect(screen.getByText('Schedule')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Config' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+    expect(screen.getByTestId('control-scrub-cancel-button').textContent).toBe('Cancel');
+    expect(screen.getByTestId('control-scrub-schedule-button').textContent).toBe('Schedule');
+    expect(screen.queryByTestId('control-config-button')).toBeNull();
+    expect(screen.queryByTestId('control-share-button')).toBeNull();
   });
 
   it('calls onQuickSchedule when Schedule is tapped', async () => {
     const user = userEvent.setup();
     const { onQuickSchedule } = renderScrubbedClock();
 
-    await user.click(screen.getByText('Schedule'));
+    await user.click(screen.getByTestId('control-scrub-schedule-button'));
 
     expect(onQuickSchedule).toHaveBeenCalledTimes(1);
   });
@@ -330,7 +330,7 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
     const user = userEvent.setup();
     const { onBackToNow } = renderScrubbedClock();
 
-    await user.click(screen.getByText('Cancel'));
+    await user.click(screen.getByTestId('control-scrub-cancel-button'));
 
     expect(onBackToNow).toHaveBeenCalledTimes(1);
   });
@@ -338,9 +338,10 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
   it('reflects an in-flight quick-schedule as a disabled "Scheduling…" state', () => {
     renderScrubbedClock(vi.fn(), vi.fn(), MS_PER_HOUR, true);
 
-    const scheduleButton = screen.getByText('Scheduling…') as HTMLButtonElement;
+    const scheduleButton = screen.getByTestId('control-scrub-schedule-button') as HTMLButtonElement;
+    expect(scheduleButton.textContent).toBe('Scheduling…');
     expect(scheduleButton.disabled).toBe(true);
-    expect((screen.getByText('Cancel') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('control-scrub-cancel-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('is hidden while in edit mode, even with a nonzero preview offset', () => {
@@ -366,8 +367,8 @@ describe('WorldClock mobile quick-schedule (ControlCluster swap)', () => {
       />,
     );
 
-    expect(screen.queryByText('Cancel')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Config' })).toBeTruthy();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+    expect(screen.getByTestId('control-config-button')).toBeTruthy();
   });
 });
 

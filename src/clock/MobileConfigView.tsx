@@ -18,19 +18,25 @@ export function MobileConfigView({ addLocationContent, manageLocationsContent, o
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <span className={styles.title}>Manage clock</span>
-        <button type="button" className={styles.doneButton} onClick={onClose}>
+        <span className={styles.title} data-testid="mobile-config-title">
+          Manage clock
+        </span>
+        <button type="button" className={styles.doneButton} data-testid="mobile-config-done" onClick={onClose}>
           Done
         </button>
       </div>
       <div className={styles.body}>
         <section className={styles.section}>
-          <h2 className={styles.sectionHeading}>Add location</h2>
-          {addLocationContent}
+          <h2 className={styles.sectionHeading} data-testid="mobile-add-location-heading">
+            Add location
+          </h2>
+          <div data-testid="mobile-add-location-body">{addLocationContent}</div>
         </section>
         <section className={styles.section}>
-          <h2 className={styles.sectionHeading}>Manage locations</h2>
-          {manageLocationsContent}
+          <h2 className={styles.sectionHeading} data-testid="mobile-manage-locations-heading">
+            Manage locations
+          </h2>
+          <div data-testid="mobile-manage-locations-body">{manageLocationsContent}</div>
         </section>
       </div>
     </div>
