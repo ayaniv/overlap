@@ -251,10 +251,18 @@ describe('WorldClock copy', () => {
   it('shows the current top-of-page branding and an accurate status line, without a global working-hours legend', () => {
     renderClock('view');
 
-    expect(screen.getByTestId('clock-headline').textContent).toBe('See shared hours instantly');
+    expect(screen.getByTestId('clock-headline').textContent).toBe('World Clock at a Glance');
     expect(screen.getByTestId('clock-eyebrow').textContent).toBe('Overlap Clock');
     // per-location working hours are per-ring, so no single "Home working hours" line
     expect(document.body.textContent).not.toMatch(/Home working hours/);
+  });
+
+  it('links to the source repo at the bottom of the page', () => {
+    renderClock('view');
+
+    const link = screen.getByTestId('github-link');
+    expect(link.getAttribute('href')).toBe('https://github.com/ayaniv/overlap');
+    expect(link.getAttribute('target')).toBe('_blank');
   });
 
   it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {

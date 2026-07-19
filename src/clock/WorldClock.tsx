@@ -295,7 +295,7 @@ export function WorldClock({
           Overlap&nbsp;Clock
         </div>
         <div className={styles.headline} data-testid="clock-headline">
-          See shared hours instantly
+          World Clock at a Glance
         </div>
       </div>
 
@@ -489,12 +489,26 @@ export function WorldClock({
         </span>
       </div>
 
-      {/* always visible (not part of the idle-fade group above) so the privacy
-          policy stays a genuinely reachable, linked page rather than an
-          orphaned route */}
-      <a className={styles.privacyLink} href="/privacy.html">
-        Privacy
-      </a>
+      {/* part of the idle-fade chrome group, like the header and ControlCluster:
+          in ambient "wall display" mode only the clock face stays lit. Any
+          interaction brings these back before they can be clicked. */}
+      <div className={styles.bottomLinks} data-testid="bottom-links">
+        <a
+          className={styles.githubLink}
+          data-testid="github-link"
+          href="https://github.com/ayaniv/overlap"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub
+        </a>
+        <span className={styles.bottomLinkSeparator} aria-hidden="true">
+          •
+        </span>
+        <a className={styles.privacyLink} href="/privacy.html">
+          Privacy
+        </a>
+      </div>
 
       <p className={styles.srOnly} role="status">
         {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
