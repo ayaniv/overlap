@@ -91,9 +91,13 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open release PR if needed
+        # Uses the admin-scoped RELEASE_MERGE_TOKEN, not github.token: this repo
+        # has "Allow GitHub Actions to create and approve pull requests" disabled,
+        # which blocks the default GITHUB_TOKEN from calling gh pr create. A PAT
+        # belonging to a real user isn't subject to that restriction.
         if: steps.release_branch.outputs.pr_exists == 'false' && steps.commit.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN }}
         run: |
           cat <<'EOF' > /tmp/release-pr-body.md
           Automated release PR that batches `CHANGELOG.md` entries for PRs merged into
