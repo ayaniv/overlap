@@ -8,7 +8,7 @@ possible — the "Schedule" affordance itself only appears once a time is
 already being previewed (`ControlCluster.tsx`), so a new user who never
 tries dragging never discovers scheduling either. Google's OAuth
 verification checklist separately flagged this same discoverability gap
-(see `GOOGLE_VERIFICATION.md` on `claude/google-oauth-verification-response`)
+(see `docs/GOOGLE_VERIFICATION.md` on `claude/google-oauth-verification-response`)
 as something the demo video needs to narrate around, since the UI doesn't
 make it obvious on its own.
 

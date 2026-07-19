@@ -27,7 +27,7 @@ meaningfully shorter link out of the same compressor, for free.
   - tuple-shaped JSON + fflate raw-deflate (rejected alternative): 266 chars
     (~48% shorter) but costs a new dependency and ~2.5KB gzip added to the
     bundle (fflate's deflate/inflate ≈ 4.2KB gzip vs. lz-string's ≈ 1.7KB
-    already paid for). Given `plan.md` names "instantly-loading demo" as the
+    already paid for). Given `docs/plan.md` names "instantly-loading demo" as the
     project's top signal, the extra ~11 points of reduction isn't worth a
     bundle-size regression, so this was rejected in favor of the
     zero-dependency, zero-bundle-cost reshape-only option.
