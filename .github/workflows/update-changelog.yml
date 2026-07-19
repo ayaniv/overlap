@@ -7,8 +7,9 @@ name: Update changelog
 # `main` has branch protection requiring a PR + 1 approving review, so this
 # workflow cannot push directly to `main`. Instead it maintains a standing
 # "release PR" from RELEASE_BRANCH into `main`: each merge appends its
-# changelog entry to that branch and opens/updates the PR. A human (or a
-# future automated step with an admin-scoped token) merges it manually.
+# changelog entry to that branch and opens/updates the PR, then merges that
+# PR using an admin-scoped token (RELEASE_MERGE_TOKEN) that can bypass the
+# review requirement.
 on:
   pull_request:
     types: [closed]
@@ -99,11 +100,9 @@ jobs:
           `main`. Further merges before this PR is closed will add more entries to this
           same branch/PR rather than opening duplicates.
 
-          **This PR is not auto-merged.** main branch protection requires a human
-          approval, and the default `GITHUB_TOKEN` used by this workflow cannot bypass
-          that. Please review and merge manually, or wait for a follow-up automated
-          merge step once an admin-scoped token is wired in (see TASK.md `## Result`
-          for the exact setup needed).
+          This PR is merged automatically by a later step in this same workflow run,
+          using an admin-scoped token that can bypass main's required-review branch
+          protection. No manual merge action is needed.
           EOF
 
           gh pr create --repo "${{ github.repository }}" \
@@ -111,3 +110,23 @@ jobs:
             --head "${RELEASE_BRANCH}" \
             --title "docs: update changelog" \
             --body-file /tmp/release-pr-body.md
+
+      - name: Merge release PR
+        # Uses an admin-scoped PAT (not the default GITHUB_TOKEN) so it can
+        # bypass main's required-review branch protection. The merged commit
+        # is authored by whichever account owns the token, not by
+        # github-actions[bot] - the head.ref loop guard above (not the
+        # bot-author check) is what stops this from re-triggering the job.
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN }}
+        run: |
+          RELEASE_PR=$(gh pr list --repo "${{ github.repository }}" \
+            --head "${RELEASE_BRANCH}" --base main --state open \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "${RELEASE_PR}" ]; then
+            echo "Merging release PR #${RELEASE_PR}"
+            gh pr merge "${RELEASE_PR}" --repo "${{ github.repository }}" --squash
+          else
+            echo "No open release PR found; nothing to merge."
+          fi
