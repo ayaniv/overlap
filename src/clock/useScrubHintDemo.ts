@@ -18,14 +18,14 @@ const PHASE_2_MS = 1_800; // +5h -> +3h
 export const SCRUB_HINT_PERIOD_MS = PHASE_1_MS + PHASE_2_MS;
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easedBetween = (fromDeg: number, toDeg: number, t: number) =>
+  fromDeg + (toDeg - fromDeg) * easeInOutCubic(t);
 
+// expects elapsedMs already clamped to 0..SCRUB_HINT_PERIOD_MS (the caller does it)
 function angleAt(elapsedMs: number): number {
-  if (elapsedMs < PHASE_1_MS) {
-    const t = elapsedMs / PHASE_1_MS;
-    return ANGLE_START_DEG + (ANGLE_PEAK_DEG - ANGLE_START_DEG) * easeInOutCubic(t);
-  }
-  const t = Math.min((elapsedMs - PHASE_1_MS) / PHASE_2_MS, 1);
-  return ANGLE_PEAK_DEG + (ANGLE_REST_DEG - ANGLE_PEAK_DEG) * easeInOutCubic(t);
+  return elapsedMs < PHASE_1_MS
+    ? easedBetween(ANGLE_START_DEG, ANGLE_PEAK_DEG, elapsedMs / PHASE_1_MS)
+    : easedBetween(ANGLE_PEAK_DEG, ANGLE_REST_DEG, (elapsedMs - PHASE_1_MS) / PHASE_2_MS);
 }
 
 export type UseScrubHintDemoParams = {
@@ -43,18 +43,16 @@ export function useScrubHintDemo({ active, setOffsetMs }: UseScrubHintDemoParams
     if (!active) return;
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) return;
 
-    let frameId: number | undefined;
     const startTime = Date.now();
     const tick = () => {
-      const elapsedMs = Date.now() - startTime;
-      setOffsetMs(offsetMsFromAngle(angleAt(Math.min(elapsedMs, SCRUB_HINT_PERIOD_MS))));
-      if (elapsedMs >= SCRUB_HINT_PERIOD_MS) return;
-      frameId = requestAnimationFrame(tick);
+      // clamped once here, so the last frame lands exactly on the rest angle
+      // instead of overshooting it
+      const elapsedMs = Math.min(Date.now() - startTime, SCRUB_HINT_PERIOD_MS);
+      setOffsetMs(offsetMsFromAngle(angleAt(elapsedMs)));
+      if (elapsedMs < SCRUB_HINT_PERIOD_MS) frameId = requestAnimationFrame(tick);
     };
-    frameId = requestAnimationFrame(tick);
+    let frameId = requestAnimationFrame(tick);
 
-    return () => {
-      if (frameId !== undefined) cancelAnimationFrame(frameId);
-    };
+    return () => cancelAnimationFrame(frameId);
   }, [active, setOffsetMs]);
 }

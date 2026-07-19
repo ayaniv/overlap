@@ -17,6 +17,8 @@
 }
 
 .tooltip {
+  /* fades in immediately alongside the hand */
+  composes: fadeIn from './animations.module.css';
   position: absolute;
   left: var(--hint-tooltip-left);
   top: var(--hint-tooltip-top);
@@ -39,17 +41,6 @@
   pointer-events: auto;
   white-space: nowrap;
   opacity: 0;
-  animation: tooltipIn 0.3s ease forwards;
-}
-
-/* fades in immediately alongside the hand */
-@keyframes tooltipIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .text {

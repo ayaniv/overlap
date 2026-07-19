@@ -83,7 +83,11 @@ export const ControlCluster = memo(function ControlCluster({
 
   if (scrubActions) {
     return (
-      <div className={styles.cluster} data-scrub-mode="true" data-scrub-hint-active={isScrubHintActive || undefined}>
+      <div
+        className={`${styles.cluster} ${styles.scrubActionsFade}`}
+        data-scrub-mode="true"
+        data-scrub-hint-active={isScrubHintActive || undefined}
+      >
         {scrubActions.matchedMeeting ? (
           // landing on an existing meeting replaces Cancel/Schedule entirely, rather
           // than adding a third button alongside them — removing it is the only

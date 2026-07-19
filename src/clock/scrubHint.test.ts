@@ -22,14 +22,16 @@ describe('hasSeenScrubHint / markScrubHintSeen', () => {
   });
 
   it('read failures are caught and default to false', () => {
-    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+    // Storage.prototype, not the instance — jsdom proxies localStorage, so an
+    // instance-level spy never fires and this test would pass vacuously
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('boom');
     });
     expect(hasSeenScrubHint()).toBe(false);
   });
 
   it('write failures are caught without throwing', () => {
-    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('boom');
     });
     expect(() => markScrubHintSeen()).not.toThrow();

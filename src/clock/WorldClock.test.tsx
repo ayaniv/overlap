@@ -25,6 +25,13 @@ const HOME: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Je
 const SF: Location = { id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 };
 const NOW = new Date('2026-01-01T12:00:00.000Z');
 
+// a nonzero previewOffsetMs is what puts WorldClock into scrub mode — it's the
+// gate on the scrub action bar (`isScrubActionBarVisible` in WorldClock.tsx),
+// so tests that need the Cancel/Schedule buttons on screen must pass one. The
+// exact size is arbitrary; one hour just reads as an obvious "scrubbed away
+// from now" value.
+const SCRUBBED_PREVIEW_OFFSET_MS = MS_PER_HOUR;
+
 function renderClock(mode: Mode, rings: Location[] = [SF], meetings: Meeting[] = []) {
   const onRemoveLocation = vi.fn();
   render(
@@ -694,7 +701,7 @@ describe('WorldClock scrub hint', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
-        previewOffsetMs={60 * 60_000}
+        previewOffsetMs={SCRUBBED_PREVIEW_OFFSET_MS}
         isScrubHintVisible={true}
         onDismissScrubHint={vi.fn()}
       />,
@@ -725,7 +732,7 @@ describe('WorldClock scrub hint', () => {
         onReorder={vi.fn()}
         onUpdateLocation={vi.fn()}
         onSetHome={vi.fn()}
-        previewOffsetMs={60 * 60_000}
+        previewOffsetMs={SCRUBBED_PREVIEW_OFFSET_MS}
         onDismissScrubHint={vi.fn()}
       />,
     );

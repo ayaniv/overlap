@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { analytics } from '../analytics/analytics';
+import { logger } from '../logger/logger';
 import {
   buildEventPayload,
   createCalendarEvent,
@@ -111,7 +112,7 @@ describe('isGoogleCalendarConnected', () => {
   });
 
   it('logs and returns false if localStorage throws', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
     });
