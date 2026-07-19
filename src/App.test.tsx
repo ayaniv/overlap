@@ -479,6 +479,19 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-overlay').hasAttribute('data-dismissing')).toBe(true);
   });
 
+  it('ignores a second Got it click while the return animation is still running', async () => {
+    const user = userEvent.setup();
+    const { analytics } = renderApp();
+
+    // the button stays mounted (and, without pointer-events:none, hit-testable)
+    // for the whole return animation — clicking it again must not re-fire
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    const dismissEvents = analytics.trackEvent.mock.calls.filter((call) => call[0] === 'scrub_hint_dismissed');
+    expect(dismissEvents).toHaveLength(1);
+  });
+
   it('persists the seen flag on click, not when the return animation lands', async () => {
     const user = userEvent.setup();
     renderApp();

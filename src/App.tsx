@@ -99,10 +99,14 @@ function App() {
   // through the return animation must not resurrect a hint the user has
   // explicitly dismissed. Only the on-screen teardown waits for the animation.
   const handleDismissScrubHint = useCallback(() => {
+    // the button stays mounted and hit-testable for the length of the return
+    // animation, so a second click would otherwise re-fire the analytics event
+    // (the state writes below are already idempotent)
+    if (isDismissingScrubHint) return;
     markScrubHintSeen();
     setIsDismissingScrubHint(true);
     analytics.trackEvent('scrub_hint_dismissed');
-  }, [analytics]);
+  }, [isDismissingScrubHint, analytics]);
 
   const handleScrubHintReturnComplete = useCallback(() => {
     setIsDismissingScrubHint(false);

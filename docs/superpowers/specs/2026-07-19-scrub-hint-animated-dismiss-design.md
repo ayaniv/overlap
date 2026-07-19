@@ -121,7 +121,7 @@ matching the `scrubActionsFade` pattern in `ControlCluster.tsx`.
 | "Got it" clicked mid-sweep | Demo hook deactivates and cancels its frame; return starts from the live offset. |
 | Idle kicks in mid-return | The existing idle effect (App.tsx) already calls `resetScrub()`; it also clears `isDismissingHint`, cancelling the loop rather than animating against an unmounted overlay. |
 | Unmount mid-return | `cancelAnimationFrame` in effect cleanup. |
-| Double-click "Got it" | `onComplete` fires once; the second click is a no-op, dismissal already in flight. |
+| Double-click "Got it" | `onComplete` fires once. The state writes are naturally idempotent (`markScrubHintSeen` is a repeat write; `setIsDismissingScrubHint(true)` doesn't change `active`, so the animation never restarts) — but analytics is **not** self-idempotent, so `handleDismissScrubHint` early-returns while a dismissal is in flight. `.tooltipLeaving` also sets `pointer-events: none`, since `opacity: 0` alone leaves the button hit-testable. |
 
 ## Testing
 

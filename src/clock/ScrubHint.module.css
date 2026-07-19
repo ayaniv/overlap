@@ -49,6 +49,11 @@
    on source order via the later-declared animation-name. */
 .tooltipLeaving {
   composes: fadeOut from './animations.module.css';
+  /* opacity alone doesn't remove hit-testing — without this the faded-out
+     "Got it" button stays clickable for the rest of the return animation.
+     App.tsx's handler also guards against a repeat call; this stops the
+     click from being dispatched at an invisible control in the first place. */
+  pointer-events: none;
 }
 
 .text {
