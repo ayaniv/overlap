@@ -1,8 +1,14 @@
 name: Update changelog
 
-# Fires on the PR-merge event itself (not `push`), so the bot's own direct
-# commit to `main` below never re-triggers this workflow — that commit isn't
-# associated with a merged pull request.
+# Fires on the PR-merge event itself (not `push`), so the bot's own commits to
+# the release branch below never re-trigger this workflow — those commits
+# aren't associated with a merged pull request.
+#
+# `main` has branch protection requiring a PR + 1 approving review, so this
+# workflow cannot push directly to `main`. Instead it maintains a standing
+# "release PR" from RELEASE_BRANCH into `main`: each merge appends its
+# changelog entry to that branch and opens/updates the PR. A human (or a
+# future automated step with an admin-scoped token) merges it manually.
 on:
   pull_request:
     types: [closed]
@@ -10,19 +16,52 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: update-changelog
   cancel-in-progress: false
 
+env:
+  RELEASE_BRANCH: chore/update-changelog
+
 jobs:
   update-changelog:
-    if: github.event.pull_request.merged == true && github.event.pull_request.user.login != 'github-actions[bot]'
+    # Multi-layered loop guard:
+    #   - only merged PRs
+    #   - never react to the bot's own PRs (in case that ever changes)
+    #   - never react to the release branch itself being merged, no matter who
+    #     or what merges it — this is the guard that must hold even after a
+    #     human or a future admin-token step merges the release PR by hand.
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      github.event.pull_request.head.ref != 'chore/update-changelog'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Determine release branch state
+        id: release_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING_PR=$(gh pr list --repo "${{ github.repository }}" \
+            --head "${RELEASE_BRANCH}" --base main --state open \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "${EXISTING_PR}" ]; then
+            echo "Existing open release PR #${EXISTING_PR} found; updating its branch."
+            echo "pr_exists=true" >> "$GITHUB_OUTPUT"
+            git fetch origin "${RELEASE_BRANCH}"
+            git checkout -B "${RELEASE_BRANCH}" FETCH_HEAD
+          else
+            echo "No open release PR found; branching fresh from latest main."
+            echo "pr_exists=false" >> "$GITHUB_OUTPUT"
+            git checkout -B "${RELEASE_BRANCH}" main
+          fi
 
       - name: Append changelog entry
         env:
@@ -32,12 +71,14 @@ jobs:
           MERGED_AT: ${{ github.event.pull_request.merged_at }}
         run: python3 .github/scripts/update_changelog.py
 
-      - name: Commit and push
+      - name: Commit and push release branch
+        id: commit
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if git diff --quiet -- CHANGELOG.md; then
             echo "No changelog changes to commit"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -45,15 +86,28 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
           git commit -m "docs: log #${PR_NUMBER} in changelog"
+          git push --force origin "HEAD:${RELEASE_BRANCH}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
-          for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            echo "Push rejected (attempt ${attempt}), rebasing onto latest main..."
-            git fetch origin main
-            git rebase origin/main
-          done
+      - name: Open release PR if needed
+        if: steps.release_branch.outputs.pr_exists == 'false' && steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat <<'EOF' > /tmp/release-pr-body.md
+          Automated release PR that batches `CHANGELOG.md` entries for PRs merged into
+          `main`. Further merges before this PR is closed will add more entries to this
+          same branch/PR rather than opening duplicates.
 
-          echo "Failed to push changelog update after retries" >&2
-          exit 1
+          **This PR is not auto-merged.** main branch protection requires a human
+          approval, and the default `GITHUB_TOKEN` used by this workflow cannot bypass
+          that. Please review and merge manually, or wait for a follow-up automated
+          merge step once an admin-scoped token is wired in (see TASK.md `## Result`
+          for the exact setup needed).
+          EOF
+
+          gh pr create --repo "${{ github.repository }}" \
+            --base main \
+            --head "${RELEASE_BRANCH}" \
+            --title "docs: update changelog" \
+            --body-file /tmp/release-pr-body.md

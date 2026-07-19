@@ -5,6 +5,19 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-19
+
+- [#27](https://github.com/ayaniv/overlap/pull/27) Add first-time scrub hint
+- [#33](https://github.com/ayaniv/overlap/pull/33) Address PR #27 review comments, and animate the scrub hint's return to now
+- [#34](https://github.com/ayaniv/overlap/pull/34) Update headline copy and add a GitHub repo link
+
+## 2026-07-18
+
+- [#32](https://github.com/ayaniv/overlap/pull/32) Replace text/role-name test selectors with data-testid across the suite
+- [#31](https://github.com/ayaniv/overlap/pull/31) Fix og:image, og:description, and og:site_name warnings
+- [#29](https://github.com/ayaniv/overlap/pull/29) Add favicon assets and PNG fallback
+- [#28](https://github.com/ayaniv/overlap/pull/28) Add CHANGELOG.md + auto-update workflow
+
 ## 2026-07-15
 
 - [#25](https://github.com/ayaniv/overlap/pull/25) Fix privacy-page disclosure labeling and demo-video gaps for Google OAuth verification
