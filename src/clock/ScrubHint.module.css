@@ -43,6 +43,14 @@
   opacity: 0;
 }
 
+/* on "Got it" the tooltip leaves right away while the hand rides back to now —
+   keeping it up for the whole return would read as an unresponsive button.
+   Outranks .tooltip's composed fadeIn: both are single classes, so this wins
+   on source order via the later-declared animation-name. */
+.tooltipLeaving {
+  composes: fadeOut from './animations.module.css';
+}
+
 .text {
   max-width: 180px;
   margin: 0;

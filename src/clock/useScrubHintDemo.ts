@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { easedBetween } from './easing';
 import { offsetMsFromAngle } from './geometry';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -16,10 +17,6 @@ export const ANGLE_REST_DEG = 45; // 2h back from the peak; ScrubHint imports th
 const PHASE_1_MS = 3_600; // 0 -> +5h
 const PHASE_2_MS = 1_800; // +5h -> +3h
 export const SCRUB_HINT_PERIOD_MS = PHASE_1_MS + PHASE_2_MS;
-
-const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const easedBetween = (fromDeg: number, toDeg: number, t: number) =>
-  fromDeg + (toDeg - fromDeg) * easeInOutCubic(t);
 
 // expects elapsedMs already clamped to 0..SCRUB_HINT_PERIOD_MS (the caller does it)
 function angleAt(elapsedMs: number): number {

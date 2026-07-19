@@ -7,6 +7,9 @@ export type ScrubHintProps = {
   offsetMs: number;
   totalRings: number;
   onDismiss: () => void;
+  // true from the moment "Got it" is clicked until the clock finishes
+  // animating back to now — the tooltip leaves immediately, the hand rides back
+  isDismissing?: boolean;
 };
 
 export const HINT_TEXT = 'Find an overlap to schedule a meeting';
@@ -33,14 +36,14 @@ function handRadius(totalRings: number): number {
 // sweep), riding between rings rather than out past the bezel, and a
 // tooltip fading in at the hand's fixed rest position (see
 // ScrubHint.module.css — also overridden for portrait/mobile there).
-export function ScrubHint({ offsetMs, totalRings, onDismiss }: ScrubHintProps) {
+export function ScrubHint({ offsetMs, totalRings, onDismiss, isDismissing = false }: ScrubHintProps) {
   const angleDeg = (offsetMs / MS_PER_HOUR) * DEGREES_PER_HOUR;
   const radius = handRadius(totalRings);
   const handPoint = pointOnCircle(radius, angleDeg);
   const tooltipPoint = pointOnCircle(radius, TOOLTIP_ANCHOR_DEG);
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} data-testid="scrub-hint-overlay" data-dismissing={isDismissing || undefined}>
       <span
         className={styles.hand}
         data-testid="scrub-hint-hand"
@@ -55,7 +58,7 @@ export function ScrubHint({ offsetMs, totalRings, onDismiss }: ScrubHintProps) {
         👆
       </span>
       <div
-        className={styles.tooltip}
+        className={isDismissing ? `${styles.tooltip} ${styles.tooltipLeaving}` : styles.tooltip}
         style={
           {
             '--hint-tooltip-left': `${tooltipPoint.x / VIEWBOX_UNITS_PER_PERCENT}%`,

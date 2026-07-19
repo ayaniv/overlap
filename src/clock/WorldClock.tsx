@@ -112,6 +112,9 @@ export type WorldClockProps = {
   // result straight through here
   isScrubHintVisible?: boolean;
   onDismissScrubHint?: () => void;
+  // hint is on its way out: the tooltip leaves immediately while the hand
+  // animates back to now (see useScrubHintReturn)
+  isScrubHintDismissing?: boolean;
 };
 
 export function WorldClock({
@@ -144,6 +147,7 @@ export function WorldClock({
   isIdle = false,
   isScrubHintVisible = false,
   onDismissScrubHint,
+  isScrubHintDismissing = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -502,7 +506,12 @@ export function WorldClock({
         </div>
 
         {isScrubHintVisible && (
-          <ScrubHint offsetMs={previewOffsetMs} totalRings={totalRings} onDismiss={() => onDismissScrubHint?.()} />
+          <ScrubHint
+            offsetMs={previewOffsetMs}
+            totalRings={totalRings}
+            onDismiss={() => onDismissScrubHint?.()}
+            isDismissing={isScrubHintDismissing}
+          />
         )}
       </div>
 
