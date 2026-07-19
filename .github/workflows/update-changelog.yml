@@ -121,6 +121,10 @@ jobs:
         # is authored by whichever account owns the token, not by
         # github-actions[bot] - the head.ref loop guard above (not the
         # bot-author check) is what stops this from re-triggering the job.
+        # `--admin` is required: holding an admin-scoped token isn't enough on
+        # its own, gh pr merge only invokes the bypass when the flag is passed
+        # (confirmed via a real run: without it, merge fails with "the base
+        # branch policy prohibits the merge").
         env:
           GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN }}
         run: |
@@ -130,7 +134,7 @@ jobs:
 
           if [ -n "${RELEASE_PR}" ]; then
             echo "Merging release PR #${RELEASE_PR}"
-            gh pr merge "${RELEASE_PR}" --repo "${{ github.repository }}" --squash
+            gh pr merge "${RELEASE_PR}" --repo "${{ github.repository }}" --squash --admin
           else
             echo "No open release PR found; nothing to merge."
           fi
