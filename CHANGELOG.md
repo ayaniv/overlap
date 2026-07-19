@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-07-19
 
+- [#38](https://github.com/ayaniv/overlap/pull/38) ci: fix release PR creation blocked by Actions PR-creation restriction
 - [#27](https://github.com/ayaniv/overlap/pull/27) Add first-time scrub hint
 - [#33](https://github.com/ayaniv/overlap/pull/33) Address PR #27 review comments, and animate the scrub hint's return to now
 - [#34](https://github.com/ayaniv/overlap/pull/34) Update headline copy and add a GitHub repo link
