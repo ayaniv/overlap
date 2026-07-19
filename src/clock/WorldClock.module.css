@@ -243,7 +243,7 @@
   /* the top-left context copy and bottom status row used to be dropped
      entirely (display:none) on portrait so the clock could dominate the
      narrow screen (M5); reflowed instead so phone users can still read them
-     (M8) — matching plan.md's original M5 intent ("top-left context,
+     (M8) — matching docs/plan.md's original M5 intent ("top-left context,
      top-right cluster, bottom status reflow"). The headline (marketing
      tagline) is dropped here rather than shrunk to fit: unlike the eyebrow
      label or the status row, it's not functional info, and at any readable

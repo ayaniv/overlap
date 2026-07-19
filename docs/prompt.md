@@ -4,7 +4,7 @@ Paste this to the orchestrator.
 
 ---
 
-Execute the approved implementation plan at `~/Dev/time-spinner/plan.md` (repo root) **one milestone at a time, sequentially** (not in parallel). The project is currently `~/Dev/time-spinner` (a static React + Vite + TypeScript radial world clock, clean at commit `c3a19ca`); **M0 renames it to `~/Dev/overlap`** — after that, this plan and prompt live at `~/Dev/overlap/plan.md` and `~/Dev/overlap/prompt.md`.
+Execute the approved implementation plan at `~/Dev/time-spinner/plan.md` (repo root) **one milestone at a time, sequentially** (not in parallel). The project is currently `~/Dev/time-spinner` (a static React + Vite + TypeScript radial world clock, clean at commit `c3a19ca`); **M0 renames it to `~/Dev/overlap`** — after that, this plan and prompt live at `~/Dev/overlap/docs/plan.md` and `~/Dev/overlap/docs/prompt.md`.
 
 ## How to run
 - Dispatch **one worker agent per milestone**, in its own worktree/tab, scoped to exactly that milestone from `plan.md`.
