@@ -148,6 +148,7 @@ describe('ControlCluster isExpanded (controlled prop)', () => {
 describe('ControlCluster scrubActions', () => {
   function renderClusterWithScrubActions(
     overrides: Partial<{ isScheduling: boolean; matchedMeeting: { onRemove: () => void; isRemoving: boolean } }> = {},
+    isScrubHintActive = false,
   ) {
     const onSchedule = vi.fn();
     const onCancel = vi.fn();
@@ -159,6 +160,7 @@ describe('ControlCluster scrubActions', () => {
         isExpanded={false}
         onExpandedChange={vi.fn()}
         scrubActions={{ onSchedule, onCancel, isScheduling: false, ...overrides }}
+        isScrubHintActive={isScrubHintActive}
       />,
     );
     return { onSchedule, onCancel };
@@ -208,6 +210,18 @@ describe('ControlCluster scrubActions', () => {
     await user.click(screen.getByTestId('control-scrub-schedule-button'));
 
     expect(onSchedule).not.toHaveBeenCalled();
+  });
+
+  it('marks the cluster data-scrub-hint-active only when the scrub-hint demo (not a real scrub) is active', () => {
+    renderClusterWithScrubActions({}, true);
+
+    expect(screen.getByTestId('control-scrub-cancel-button').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(true);
+  });
+
+  it('does not mark data-scrub-hint-active for a real user-driven scrub', () => {
+    renderClusterWithScrubActions({}, false);
+
+    expect(screen.getByTestId('control-scrub-cancel-button').parentElement?.hasAttribute('data-scrub-hint-active')).toBe(false);
   });
 
   it('has no Remove Meeting button when matchedMeeting is not set', () => {

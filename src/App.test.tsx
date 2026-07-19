@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
@@ -7,7 +7,9 @@ import { LoggerProvider } from './logger/LoggerProvider';
 import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
+import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
+import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -32,6 +34,11 @@ function stubMatchMedia(portrait = false) {
 beforeEach(() => {
   stubMatchMedia();
   window.localStorage.clear();
+  // pre-seed "already dismissed" so the ~400 existing assertions in this file
+  // (written before this feature existed) keep exercising the app's steady
+  // state, not a fresh first-run; the dedicated describe block below removes
+  // this key explicitly wherever it wants the first-run scenario instead
+  window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
   window.history.replaceState(null, '', '/');
 });
 
@@ -55,14 +62,14 @@ async function openClusterMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 function renderApp(analyticsService = createMockAnalyticsService(), loggerService = createMockLoggerService()) {
-  render(
+  const { unmount } = render(
     <AnalyticsProvider service={analyticsService}>
       <LoggerProvider service={loggerService}>
         <App />
       </LoggerProvider>
     </AnalyticsProvider>,
   );
-  return { analytics: analyticsService, logger: loggerService };
+  return { analytics: analyticsService, logger: loggerService, unmount };
 }
 
 // scheduling has no separate mode/form/icon of its own anymore — scrubbing
@@ -408,5 +415,131 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 
     expect(screen.queryByTestId('mobile-config-title')).toBeNull();
     expect(screen.getByTestId('manage-locations-section-toggle')).toBeTruthy();
+  });
+});
+
+describe('App — first-time scrub hint', () => {
+  beforeEach(() => {
+    window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
+  });
+
+  it('shows immediately on load when not yet dismissed — same as the header/title/buttons, no activity required', () => {
+    renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('tracks scrub_hint_shown when it appears', () => {
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
+  it('never shows if already marked as seen', () => {
+    window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('does not track scrub_hint_shown when already marked as seen', () => {
+    window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
+  it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+    // the overlay outlives the click by the length of the return animation
+    await waitFor(() => expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull(), { timeout: 2000 });
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
+
+    unmount();
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('keeps the hint overlay on screen while the clock animates back to now, rather than dismissing on the same tick', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    // still mounted — the hand is riding back to now, not gone in one frame
+    expect(screen.getByTestId('scrub-hint-overlay')).toBeTruthy();
+  });
+
+  it('fades the tooltip out immediately on Got it, while the hand is still returning', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    expect(screen.getByTestId('scrub-hint-overlay').hasAttribute('data-dismissing')).toBe(true);
+  });
+
+  it('ignores a second Got it click while the return animation is still running', async () => {
+    const user = userEvent.setup();
+    const { analytics } = renderApp();
+
+    // the button stays mounted (and, without pointer-events:none, hit-testable)
+    // for the whole return animation — clicking it again must not re-fire
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    const dismissEvents = analytics.trackEvent.mock.calls.filter((call) => call[0] === 'scrub_hint_dismissed');
+    expect(dismissEvents).toHaveLength(1);
+  });
+
+  it('persists the seen flag on click, not when the return animation lands', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    // asserted before the animation has had time to finish: a reload
+    // mid-animation must not resurrect a hint the user explicitly dismissed
+    expect(screen.getByTestId('scrub-hint-overlay')).toBeTruthy();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
+  });
+
+  it('hides when the screen goes idle (removed from the DOM, not just paused) — same ambient-idle mechanism as the header/title/buttons', () => {
+    // fake timers must be installed *before* renderApp mounts useIsIdle's effect:
+    // sinon/vitest fake-timer installation only intercepts *future* setTimeout
+    // calls, so a real setTimeout already scheduled during mount would never be
+    // advanced by vi.advanceTimersByTime below. try/finally (rather than a bare
+    // trailing vi.useRealTimers() call) guarantees fake-timer state doesn't leak
+    // into later tests if an assertion in between throws.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    try {
+      renderApp();
+      expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+
+      act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+
+      expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reappears once activity resumes after an idle hide, if still unseen, tracking scrub_hint_shown again', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    try {
+      const { analytics } = renderApp();
+      expect(analytics.trackEvent).toHaveBeenCalledTimes(1);
+
+      act(() => vi.advanceTimersByTime(DEFAULT_IDLE_TIMEOUT_MS));
+      expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+
+      act(() => window.dispatchEvent(new Event('pointermove')));
+
+      expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+      expect(analytics.trackEvent).toHaveBeenCalledTimes(2);
+      expect(analytics.trackEvent).toHaveBeenNthCalledWith(2, 'scrub_hint_shown');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

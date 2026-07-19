@@ -23,13 +23,19 @@ import {
 } from './geometry';
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
-import { useIsIdle } from '../hooks/useIsIdle';
 import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
+// explicit .tsx extension required: on case-insensitive filesystems (macOS
+// default), an extension-less './ScrubHint' resolves .ts before .tsx and
+// collides with the lowercase ./scrubHint.ts (the persistence helper) —
+// silently importing the wrong module. This form is precedented elsewhere
+// (see src/main.tsx's `import App from './App.tsx'`) and works because
+// tsconfig.app.json sets allowImportingTsExtensions.
+import { ScrubHint } from './ScrubHint.tsx';
 import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
@@ -97,6 +103,18 @@ export type WorldClockProps = {
   // had no scroll container, so the keyboard could push its Add/Manage-locations
   // content off-screen with no way back to it
   isPortrait?: boolean;
+  // ambient "wall display" idle state — now owned by App.tsx (hoisted so both
+  // the chrome-fade behavior here and the scrub-hint gating in App.tsx share
+  // one idle-timer instance instead of two independent listener sets)
+  isIdle?: boolean;
+  // first-time scrub-hint overlay (see ScrubHint.tsx); App.tsx computes the
+  // full "should this actually be visible right now" gate and passes the
+  // result straight through here
+  isScrubHintVisible?: boolean;
+  onDismissScrubHint?: () => void;
+  // hint is on its way out: the tooltip leaves immediately while the hand
+  // animates back to now (see useScrubHintReturn)
+  isScrubHintDismissing?: boolean;
 };
 
 export function WorldClock({
@@ -126,6 +144,10 @@ export function WorldClock({
   onRemoveMeeting,
   isRemovingMeeting = false,
   isPortrait = false,
+  isIdle = false,
+  isScrubHintVisible = false,
+  onDismissScrubHint,
+  isScrubHintDismissing = false,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -138,8 +160,7 @@ export function WorldClock({
   // clock left running on a wall reads as a clean ambient display rather than an
   // app waiting for input. Only while `mode === 'view'` — fading the chrome out
   // from under an open Config/Schedule panel would strand it with no visible way
-  // to close.
-  const isIdle = useIsIdle();
+  // to close. `isIdle` itself now comes from App.tsx (see WorldClockProps).
   const isChromeHidden = isIdle && mode === 'view';
 
   // dragging the clock face (useRingScrub) previews a different instant; every
@@ -257,6 +278,10 @@ export function WorldClock({
   // has no separate mode/form to switch into anymore, so `mode` just stays
   // 'view' throughout. Swaps ControlCluster's icon menu for Cancel/Schedule
   // (and, if the preview lands on an existing meeting, Remove Meeting too).
+  // also visible during the scrub hint — the demo drives a real
+  // previewOffsetMs, so the real Schedule action pops visible to show what
+  // the gesture leads to (see .scrubHintBlocker below, which keeps it
+  // visible-but-unclickable during the demo specifically).
   const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
@@ -307,8 +332,10 @@ export function WorldClock({
           isExpanded={isMenuExpanded}
           onExpandedChange={onMenuExpandedChange}
           scrubActions={scrubActions}
+          isScrubHintActive={isScrubHintVisible}
         />
       </div>
+      {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
       {mode === 'edit' &&
         modePanelContent &&
         (isPortrait ? (
@@ -477,6 +504,15 @@ export function WorldClock({
           <div className={styles.centerTime}>{homeTime.label}</div>
           <div className={styles.centerDate}>{homeDateLabel}</div>
         </div>
+
+        {isScrubHintVisible && (
+          <ScrubHint
+            offsetMs={previewOffsetMs}
+            totalRings={totalRings}
+            onDismiss={() => onDismissScrubHint?.()}
+            isDismissing={isScrubHintDismissing}
+          />
+        )}
       </div>
 
       <div className={styles.statusRow} aria-hidden="true">

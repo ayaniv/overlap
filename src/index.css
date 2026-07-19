@@ -2,6 +2,31 @@
   box-sizing: border-box;
 }
 
+/* shared stacking-order tiers for anything that needs to sit above normal
+   in-flow content — named after the value itself, Tailwind-utility-class
+   style (https://tailwindcss.com/docs/z-index), so the name always tells
+   you the number without a lookup — --z-overlay told you nothing about
+   whether it beat --z-cluster; --z-40 does. Comments below carry the "why
+   this tier" context that the semantic names used to hold. Purely local
+   stacking (e.g. a sticky header inside its own scroll container) doesn't
+   need these — only layers that compete with something elsewhere in the
+   stage do. */
+:root {
+  /* small local overlays that just need to clear their own immediate
+     siblings (AddLocationForm's suggestions dropdown) */
+  --z-10: 10;
+  /* WorldClock's floating Edit/Schedule panel */
+  --z-20: 20;
+  /* ControlCluster — deliberately above --z-20 so its toggle can still
+     close an open panel it happens to overlap */
+  --z-30: 30;
+  /* full-stage takeovers (MobileConfigView, the scrub-hint's click blocker) */
+  --z-40: 40;
+  /* content that must render above a --z-40 layer (the scrub-hint's own
+     "Got it" tooltip, reachable above its blocker) */
+  --z-50: 50;
+}
+
 /* without this, a second quick tap on the same button (e.g. tapping
    Manage-locations' row toggle again to collapse it) can land inside iOS
    Safari's native double-tap-to-zoom window instead of registering as a

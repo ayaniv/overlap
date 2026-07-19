@@ -8,10 +8,10 @@
      can grow tall enough to reach this same screen area; with both left at
      the default z-index:auto, paint order falls back to DOM order and the
      SVG (which comes after this cluster in WorldClock's JSX) wins, silently
-     swallowing taps on the menu button. An explicit z-index (above
-     WorldClock's .modePanel, so the toggle can still close an open panel)
-     keeps the cluster on top regardless of how far the clock face extends. */
-  z-index: 3;
+     swallowing taps on the menu button. --z-30 (above --z-20, so the
+     toggle can still close an open panel) keeps the cluster on top
+     regardless of how far the clock face extends. */
+  z-index: var(--z-30);
   pointer-events: auto;
 }
 
@@ -145,6 +145,28 @@
   gap: 8px;
   height: auto;
   max-width: 220px;
+}
+
+/* a real user-driven scrub still gets a quick, undelayed fade rather than a
+   hard pop-in — just without the demo's "wait for it" delay below, since
+   there's no "is this really because of scrubbing?" ambiguity to clear up for
+   a gesture the user just performed themselves. This lives on its own class
+   rather than on `.cluster[data-scrub-mode]` because `composes` is only valid
+   on a plain class selector. */
+.scrubActionsFade {
+  composes: fadeIn from './animations.module.css';
+  animation-duration: 0.2s;
+}
+
+/* only the scrub-hint demo gets the delayed reveal — the attribute selector
+   outranks the composed .scrubActionsFade class on specificity, so it wins
+   regardless of stylesheet order. `backwards` fill-mode holds the `from`
+   (opacity 0) state during the delay so it stays invisible rather than
+   flashing visible then hiding. */
+.cluster[data-scrub-hint-active] {
+  animation-duration: 0.3s;
+  animation-delay: 1s;
+  animation-fill-mode: backwards;
 }
 
 .scrubCancelButton,

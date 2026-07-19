@@ -1,4 +1,5 @@
 import { analytics } from '../analytics/analytics';
+import { readBooleanFlag, writeBooleanFlag } from './localStorageFlag';
 
 const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -20,20 +21,11 @@ const CONNECTED_STORAGE_KEY = 'overlap:google-connected:v1';
 // "has this browser signed in before" flag, so a meeting synced into a share link's
 // config doesn't leak its dot to a viewer who never authenticated on their own device
 export function isGoogleCalendarConnected(): boolean {
-  try {
-    return window.localStorage.getItem(CONNECTED_STORAGE_KEY) === 'true';
-  } catch (err) {
-    console.error('overlap: failed to read Google Calendar connection state', err);
-    return false;
-  }
+  return readBooleanFlag(CONNECTED_STORAGE_KEY, 'Google Calendar connection');
 }
 
 function markGoogleCalendarConnected(): void {
-  try {
-    window.localStorage.setItem(CONNECTED_STORAGE_KEY, 'true');
-  } catch (err) {
-    console.error('overlap: failed to persist Google Calendar connection state', err);
-  }
+  writeBooleanFlag(CONNECTED_STORAGE_KEY, 'Google Calendar connection');
   analytics.trackEvent('google_calendar_connected');
 }
 
