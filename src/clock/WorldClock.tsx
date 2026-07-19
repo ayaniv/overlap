@@ -295,7 +295,7 @@ export function WorldClock({
           Overlap&nbsp;Clock
         </div>
         <div className={styles.headline} data-testid="clock-headline">
-          See shared hours instantly
+          World Clock at a Glance
         </div>
       </div>
 
@@ -494,6 +494,16 @@ export function WorldClock({
           orphaned route */}
       <a className={styles.privacyLink} href="/privacy.html">
         Privacy
+      </a>
+
+      <a
+        className={styles.githubLink}
+        data-testid="github-link"
+        href="https://github.com/ayaniv/overlap"
+        target="_blank"
+        rel="noreferrer"
+      >
+        GitHub
       </a>
 
       <p className={styles.srOnly} role="status">

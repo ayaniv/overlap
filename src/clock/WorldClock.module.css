@@ -179,10 +179,10 @@
   flex-shrink: 0;
 }
 
-.privacyLink {
+.privacyLink,
+.githubLink {
   position: absolute;
   bottom: 16px;
-  right: 20px;
   font-size: 11px;
   font-weight: 500;
   color: #565b64;
@@ -190,8 +190,20 @@
   letter-spacing: 0.3px;
 }
 
+.privacyLink {
+  right: 20px;
+}
+
+/* mirrored to the opposite corner from Privacy so neither bottom link crowds
+   the centered status row */
+.githubLink {
+  left: 20px;
+}
+
 .privacyLink:hover,
-.privacyLink:focus-visible {
+.privacyLink:focus-visible,
+.githubLink:hover,
+.githubLink:focus-visible {
   color: #d6d9de;
   text-decoration: underline;
 }
@@ -252,9 +264,17 @@
     font-size: 11px;
   }
 
-  .privacyLink {
+  .privacyLink,
+  .githubLink {
     bottom: 6px;
-    right: 12px;
     font-size: 10px;
+  }
+
+  .privacyLink {
+    right: 12px;
+  }
+
+  .githubLink {
+    left: 12px;
   }
 }

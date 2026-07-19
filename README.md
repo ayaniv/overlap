@@ -6,7 +6,7 @@ A free, open-source, backend-free world clock for scheduling across timezones.
 Add any cities as configurable concentric rings around your local time; each ring
 shows a colored arc for that location's working hours with a dot at its current
 moment, so overlapping arcs mean everyone is currently available — answering
-_"See shared hours instantly"_ at a glance. Share the exact view via a link (no
+_"World Clock at a Glance"_. Share the exact view via a link (no
 signup, no account), or schedule a meeting straight to Google Calendar.
 
 Built from a Claude Design reference (`World Clock v4`) — React + Vite + TypeScript,
