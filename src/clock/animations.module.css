@@ -1,0 +1,40 @@
+/* Shared animations. Anything that should appear rather than pop in composes
+   `fadeIn` from here instead of redeclaring its own opacity keyframes — this
+   file previously lived duplicated as `tooltipIn` in ScrubHint.module.css and
+   `scrubActionsIn` in ControlCluster.module.css.
+
+   Consumers tune the timing with the animation-* longhands
+   (animation-duration / -delay / -fill-mode), never the `animation`
+   shorthand, which would reset animation-name back to none. */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fadeIn {
+  animation-name: fadeIn;
+  animation-duration: 0.3s;
+  animation-timing-function: ease;
+  animation-fill-mode: forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.fadeOut {
+  animation-name: fadeOut;
+  animation-duration: 0.2s;
+  animation-timing-function: ease;
+  animation-fill-mode: forwards;
+}

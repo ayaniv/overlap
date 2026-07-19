@@ -14,6 +14,7 @@ import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
 import { useRingScrub } from './clock/useRingScrub';
 import { useScrubHintDemo } from './clock/useScrubHintDemo';
+import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
@@ -62,7 +63,11 @@ function App() {
   // isScrubbing true in that same event/render, so this stays false instead
   // of transiently yanking scrubBind out from under it.
   const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
-  useScrubHintDemo({ active: isScrubHintActive, setOffsetMs: scrubSetOffsetMs });
+  // true from the "Got it" click until the clock finishes easing back to now.
+  // The demo sweep is gated off while this runs: if the user dismisses
+  // mid-sweep, both rAF loops would otherwise fight over the same offset.
+  const [isDismissingScrubHint, setIsDismissingScrubHint] = useState(false);
+  useScrubHintDemo({ active: isScrubHintActive && !isDismissingScrubHint, setOffsetMs: scrubSetOffsetMs });
 
   // fires once per actual appearance — the effect only re-runs when
   // isScrubHintActive changes (including the very first render, if it's
@@ -83,16 +88,38 @@ function App() {
     const wasIdle = wasIdleRef.current;
     wasIdleRef.current = isIdle;
     if (!wasIdle && isIdle && isScrubHintUnseen) {
+      // also cancels an in-flight return animation, so it can't keep driving
+      // the offset against an overlay that idle has already torn down
+      setIsDismissingScrubHint(false);
       resetScrub();
     }
   }, [isIdle, isScrubHintUnseen, resetScrub]);
 
+  // the flag is persisted here rather than on completion: a reload part-way
+  // through the return animation must not resurrect a hint the user has
+  // explicitly dismissed. Only the on-screen teardown waits for the animation.
   const handleDismissScrubHint = useCallback(() => {
+    // the button stays mounted and hit-testable for the length of the return
+    // animation, so a second click would otherwise re-fire the analytics event
+    // (the state writes below are already idempotent)
+    if (isDismissingScrubHint) return;
     markScrubHintSeen();
+    setIsDismissingScrubHint(true);
+    analytics.trackEvent('scrub_hint_dismissed');
+  }, [isDismissingScrubHint, analytics]);
+
+  const handleScrubHintReturnComplete = useCallback(() => {
+    setIsDismissingScrubHint(false);
     setIsScrubHintUnseen(false);
     resetScrub();
-    analytics.trackEvent('scrub_hint_dismissed');
-  }, [resetScrub, analytics]);
+  }, [resetScrub]);
+
+  useScrubHintReturn({
+    active: isDismissingScrubHint,
+    fromOffsetMs: scrubOffsetMs,
+    setOffsetMs: scrubSetOffsetMs,
+    onComplete: handleScrubHintReturnComplete,
+  });
 
   // isGoogleCalendarConnected() reads localStorage; read it once on mount rather
   // than on every render (App re-renders every second via useNow's tick) — it only
@@ -241,6 +268,7 @@ function App() {
       isIdle={isIdle}
       isScrubHintVisible={isScrubHintActive}
       onDismissScrubHint={handleDismissScrubHint}
+      isScrubHintDismissing={isDismissingScrubHint}
     />
   );
 }

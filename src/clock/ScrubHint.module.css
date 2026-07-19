@@ -17,6 +17,8 @@
 }
 
 .tooltip {
+  /* fades in immediately alongside the hand */
+  composes: fadeIn from './animations.module.css';
   position: absolute;
   left: var(--hint-tooltip-left);
   top: var(--hint-tooltip-top);
@@ -39,17 +41,19 @@
   pointer-events: auto;
   white-space: nowrap;
   opacity: 0;
-  animation: tooltipIn 0.3s ease forwards;
 }
 
-/* fades in immediately alongside the hand */
-@keyframes tooltipIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* on "Got it" the tooltip leaves right away while the hand rides back to now —
+   keeping it up for the whole return would read as an unresponsive button.
+   Outranks .tooltip's composed fadeIn: both are single classes, so this wins
+   on source order via the later-declared animation-name. */
+.tooltipLeaving {
+  composes: fadeOut from './animations.module.css';
+  /* opacity alone doesn't remove hit-testing — without this the faded-out
+     "Got it" button stays clickable for the rest of the return animation.
+     App.tsx's handler also guards against a repeat call; this stops the
+     click from being dispatched at an invisible control in the first place. */
+  pointer-events: none;
 }
 
 .text {

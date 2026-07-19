@@ -451,12 +451,57 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
 
     await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
-    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    // the overlay outlives the click by the length of the return animation
+    await waitFor(() => expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull(), { timeout: 2000 });
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
 
     unmount();
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('keeps the hint overlay on screen while the clock animates back to now, rather than dismissing on the same tick', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    // still mounted — the hand is riding back to now, not gone in one frame
+    expect(screen.getByTestId('scrub-hint-overlay')).toBeTruthy();
+  });
+
+  it('fades the tooltip out immediately on Got it, while the hand is still returning', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    expect(screen.getByTestId('scrub-hint-overlay').hasAttribute('data-dismissing')).toBe(true);
+  });
+
+  it('ignores a second Got it click while the return animation is still running', async () => {
+    const user = userEvent.setup();
+    const { analytics } = renderApp();
+
+    // the button stays mounted (and, without pointer-events:none, hit-testable)
+    // for the whole return animation — clicking it again must not re-fire
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    const dismissEvents = analytics.trackEvent.mock.calls.filter((call) => call[0] === 'scrub_hint_dismissed');
+    expect(dismissEvents).toHaveLength(1);
+  });
+
+  it('persists the seen flag on click, not when the return animation lands', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('scrub-hint-dismiss-button'));
+
+    // asserted before the animation has had time to finish: a reload
+    // mid-animation must not resurrect a hint the user explicitly dismissed
+    expect(screen.getByTestId('scrub-hint-overlay')).toBeTruthy();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
   });
 
   it('hides when the screen goes idle (removed from the DOM, not just paused) — same ambient-idle mechanism as the header/title/buttons', () => {
