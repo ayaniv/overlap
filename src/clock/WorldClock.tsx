@@ -57,9 +57,9 @@ const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
 // a "stretched" ring (counted in the Find Time fit, but outside its real
-// working hours) reuses the status row's own amber "partial" color — same
-// semantic (a compromise, not a perfect fit), no new color introduced
-const STRETCHED_ARC_COLOR = STATUS_PARTIAL_COLOR;
+// working hours) is marked by dashing its arc — the ring keeps its own
+// color throughout, so color always means "which city," never "how well it
+// fits"
 const STRETCHED_ARC_DASH = '4 4';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
@@ -426,7 +426,7 @@ export function WorldClock({
                 key={`glow-${ring.location.id}`}
                 d={ring.arcPath}
                 fill="none"
-                stroke={ring.fitStatus === 'stretched' ? STRETCHED_ARC_COLOR : ring.location.color}
+                stroke={ring.location.color}
                 strokeWidth={7}
                 strokeLinecap="round"
                 strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
@@ -438,7 +438,7 @@ export function WorldClock({
               key={`crisp-${ring.location.id}`}
               d={ring.arcPath}
               fill="none"
-              stroke={ring.fitStatus === 'stretched' ? STRETCHED_ARC_COLOR : ring.location.color}
+              stroke={ring.location.color}
               strokeWidth={6}
               strokeLinecap="round"
               strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
