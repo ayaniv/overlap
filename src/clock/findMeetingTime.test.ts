@@ -46,3 +46,36 @@ describe('widenWindow', () => {
     });
   });
 });
+
+import { sweepMaxOverlap } from './findMeetingTime';
+
+describe('sweepMaxOverlap', () => {
+  it('finds the earliest point where the most windows overlap', () => {
+    const result = sweepMaxOverlap([
+      { id: 'a', startOffsetHours: 0, endOffsetHours: 5 },
+      { id: 'b', startOffsetHours: 3, endOffsetHours: 8 },
+      { id: 'c', startOffsetHours: 20, endOffsetHours: 25 },
+    ]);
+    expect(result).toEqual({ startOffsetHours: 3, endOffsetHours: 5, count: 2 });
+  });
+
+  it('returns count 1 at the earliest window when nothing overlaps', () => {
+    const result = sweepMaxOverlap([
+      { id: 'a', startOffsetHours: 1, endOffsetHours: 9 },
+      { id: 'b', startOffsetHours: 10, endOffsetHours: 19 },
+    ]);
+    expect(result).toEqual({ startOffsetHours: 1, endOffsetHours: 9, count: 1 });
+  });
+
+  it('treats a window ending exactly when another starts as non-overlapping', () => {
+    const result = sweepMaxOverlap([
+      { id: 'a', startOffsetHours: 0, endOffsetHours: 5 },
+      { id: 'b', startOffsetHours: 5, endOffsetHours: 10 },
+    ]);
+    expect(result.count).toBe(1);
+  });
+
+  it('returns count 0 for an empty list of windows', () => {
+    expect(sweepMaxOverlap([])).toEqual({ startOffsetHours: 0, endOffsetHours: 0, count: 0 });
+  });
+});
