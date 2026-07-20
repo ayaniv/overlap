@@ -27,8 +27,10 @@ import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
+import type { CityFitStatus } from './findMeetingTime';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
+import { RingIncludeCheckbox } from './RingIncludeCheckbox';
 // explicit .tsx extension required: on case-insensitive filesystems (macOS
 // default), an extension-less './ScrubHint' resolves .ts before .tsx and
 // collides with the lowercase ./scrubHint.ts (the persistence helper) —
@@ -54,6 +56,11 @@ const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
+// a "stretched" ring (counted in the Find Time fit, but outside its real
+// working hours) reuses the status row's own amber "partial" color — same
+// semantic (a compromise, not a perfect fit), no new color introduced
+const STRETCHED_ARC_COLOR = STATUS_PARTIAL_COLOR;
+const STRETCHED_ARC_DASH = '4 4';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'local working hours';
@@ -115,6 +122,19 @@ export type WorldClockProps = {
   // hint is on its way out: the tooltip leaves immediately while the hand
   // animates back to now (see useScrubHintReturn)
   isScrubHintDismissing?: boolean;
+  // "Find Time" (see ControlCluster.tsx) — undefined hides the button
+  // entirely; this component is the one that knows `rings.length`, so it's
+  // the one that decides whether to forward the handler at all
+  onFindTime?: () => void;
+  // true from the moment a Find Time search lands (or a checkbox toggle
+  // re-searches) until Cancel/Schedule/Remove-Meeting clears it — gates the
+  // per-ring checkboxes and the 3-state arc styling below
+  isFindResultActive?: boolean;
+  findResultStatusById?: Record<string, CityFitStatus>;
+  // rings the developer has unchecked out of the current Find Time search —
+  // a ring not in this set is "checked" (included)
+  excludedRingIds?: Set<string>;
+  onToggleRingIncluded?: (id: string) => void;
 };
 
 export function WorldClock({
@@ -148,6 +168,11 @@ export function WorldClock({
   isScrubHintVisible = false,
   onDismissScrubHint,
   isScrubHintDismissing = false,
+  onFindTime,
+  isFindResultActive = false,
+  findResultStatusById,
+  excludedRingIds,
+  onToggleRingIncluded,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -207,19 +232,21 @@ export function WorldClock({
         const time = getCityTime(effectiveNow, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
+        const fitStatus = isFindResultActive ? findResultStatusById?.[location.id] : undefined;
         return {
           location,
           radius,
           labelRadius,
           time,
           inHours,
+          fitStatus,
           arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
-    [orderedLocations, totalRings, effectiveNow, idPrefix],
+    [orderedLocations, totalRings, effectiveNow, idPrefix, isFindResultActive, findResultStatusById],
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
@@ -282,7 +309,10 @@ export function WorldClock({
   // previewOffsetMs, so the real Schedule action pops visible to show what
   // the gesture leads to (see .scrubHintBlocker below, which keeps it
   // visible-but-unclickable during the demo specifically).
-  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
+  // a legitimately "found" result can land at offset 0 (now is already
+  // optimal), so the bar must stay visible on isFindResultActive alone, not
+  // just a nonzero preview offset
+  const isScrubActionBarVisible = mode === 'view' && (previewOffsetMs !== 0 || isFindResultActive);
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
   // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
@@ -333,6 +363,7 @@ export function WorldClock({
           onExpandedChange={onMenuExpandedChange}
           scrubActions={scrubActions}
           isScrubHintActive={isScrubHintVisible}
+          onFindTime={rings.length > 0 ? onFindTime : undefined}
         />
       </div>
       {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
@@ -391,11 +422,28 @@ export function WorldClock({
 
           <g filter={`url(#${glowFilterId})`} opacity={0.5}>
             {ringViews.map((ring) => (
-              <path key={`glow-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={7} strokeLinecap="round" />
+              <path
+                key={`glow-${ring.location.id}`}
+                d={ring.arcPath}
+                fill="none"
+                stroke={ring.fitStatus === 'stretched' ? STRETCHED_ARC_COLOR : ring.location.color}
+                strokeWidth={7}
+                strokeLinecap="round"
+                strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
+              />
             ))}
           </g>
           {ringViews.map((ring) => (
-            <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
+            <path
+              key={`crisp-${ring.location.id}`}
+              d={ring.arcPath}
+              fill="none"
+              stroke={ring.fitStatus === 'stretched' ? STRETCHED_ARC_COLOR : ring.location.color}
+              strokeWidth={6}
+              strokeLinecap="round"
+              strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
+              data-fit-status={ring.fitStatus}
+            />
           ))}
 
           {ringViews.map((ring) => {
@@ -513,6 +561,29 @@ export function WorldClock({
             isDismissing={isScrubHintDismissing}
           />
         )}
+
+        {isFindResultActive &&
+          ringViews
+            .filter((ring) => !ring.location.isHome)
+            .map((ring) => {
+              const checkedCount = rings.length - (excludedRingIds?.size ?? 0);
+              const isChecked = !excludedRingIds?.has(ring.location.id);
+              // only disable the last remaining checked box when there's more
+              // than one ring to choose from — with a single ring total, this
+              // condition would otherwise permanently lock its only checkbox,
+              // since checkedCount === 1 trivially whenever nothing has been
+              // excluded yet
+              return (
+                <RingIncludeCheckbox
+                  key={`include-${ring.location.id}`}
+                  location={ring.location}
+                  dotPosition={ring.dotPosition}
+                  checked={isChecked}
+                  disabled={isChecked && checkedCount === 1 && rings.length > 1}
+                  onToggle={() => onToggleRingIncluded?.(ring.location.id)}
+                />
+              );
+            })}
       </div>
 
       <div className={styles.statusRow} aria-hidden="true">
