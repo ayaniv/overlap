@@ -130,4 +130,47 @@ describe('findBestMeetingOffset', () => {
     expect(result.totalCount).toBe(1);
     expect(result.perfectCount).toBe(1);
   });
+
+  // Bug 2 regression: a city whose strict working hours ended a few minutes
+  // ago (but who is still inside its STRETCH_HOURS buffer right now) has no
+  // representation in nextWorkingWindow's output at all -- that function only
+  // ever returns the city's NEXT strict window, which for `ring` here is
+  // tomorrow. Without the offset-0 override, the sweep never even considers
+  // "now" as a candidate for `ring`, so it picks a future offset that fits
+  // only `home`, even though staying at "now" (offset 0) fits both cities via
+  // their stretch buffers -- and is also the earliest possible time.
+  it('prefers offset 0 over a swept-forward offset when "now" already fits more cities via stretch buffers', () => {
+    const bugRepro = new Date('2026-01-01T08:07:00.000Z');
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 17 };
+    // ring's strict window [7, 8) ended 7 minutes ago; "now" (frac ~8.12) is
+    // still inside ring's stretched range [6, 9).
+    const ring: Location = { id: 'ring', label: 'Ring', timezoneId: 'UTC', color: '#FB7185', workStart: 7, workEnd: 8 };
+
+    const result = findBestMeetingOffset(bugRepro, home, [ring]);
+
+    expect(result.offsetMs).toBe(0);
+    expect(result.fitCount).toBe(2);
+    expect(result.perfectCount).toBe(0);
+    expect(result.cityResults).toEqual([
+      { id: 'home', status: 'stretched' },
+      { id: 'ring', status: 'stretched' },
+    ]);
+  });
+
+  // Bug 1 regression: home is inside its strict working hours with only 8
+  // minutes left until workEnd (17:00), and "now" (16:52) isn't itself on a
+  // quarter-hour boundary, so naively snapping forward lands exactly on
+  // 17:00 -- the window's exclusive end. Under the codebase's half-open
+  // [start, end) convention that instant is NOT part of the window, so
+  // landing there must count as overshoot and fall back to the window's
+  // (unsnapped) start instead of silently downgrading home from 'in-hours'
+  // to 'stretched'.
+  it('does not downgrade a city when snapping forward would land exactly on its exclusive workEnd boundary', () => {
+    const almostDone = new Date('2026-01-01T16:52:00.000Z');
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 17 };
+
+    const result = findBestMeetingOffset(almostDone, home, []);
+
+    expect(result.cityResults).toEqual([{ id: 'home', status: 'in-hours' }]);
+  });
 });

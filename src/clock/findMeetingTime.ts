@@ -84,12 +84,14 @@ const MS_PER_HOUR = 3_600_000;
 // a clean :00/:15/:30/:45 in every city's local clock simultaneously, not
 // just one. Falls back to the unsnapped start if snapping would overshoot
 // the window it was found in (only possible for a window narrower than 15
-// minutes).
+// minutes) — this includes landing exactly on the window's end, since every
+// window is a half-open [start, end) interval (see isWithinWorkingHours and
+// sweepMaxOverlap) and the end instant itself is not actually inside it.
 function snapForwardToQuarterHour(now: Date, window: { startOffsetHours: number; endOffsetHours: number }): number {
   const candidateMs = now.getTime() + window.startOffsetHours * MS_PER_HOUR;
   const snappedMs = Math.ceil(candidateMs / QUARTER_HOUR_MS) * QUARTER_HOUR_MS;
   const snappedOffsetHours = (snappedMs - now.getTime()) / MS_PER_HOUR;
-  return snappedOffsetHours <= window.endOffsetHours ? snappedOffsetHours : window.startOffsetHours;
+  return snappedOffsetHours < window.endOffsetHours ? snappedOffsetHours : window.startOffsetHours;
 }
 
 function classifyCity(now: Date, offsetMs: number, location: Location): CityFitStatus {
@@ -123,6 +125,24 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
   const cityResults = cities.map((city) => ({ id: city.id, status: classifyCity(now, offsetMs, city) }));
   const perfectCount = cityResults.filter((c) => c.status === 'in-hours').length;
   const fitCount = cityResults.filter((c) => c.status !== 'out').length;
+
+  // `nextWorkingWindow` can only represent a city's NEXT strict working-hours
+  // occurrence: if a city's strict hours ended a few minutes ago but it's
+  // still inside its STRETCH_HOURS buffer right now, nextWorkingWindow skips
+  // straight past that buffer to tomorrow's window, so the sweep above never
+  // considers "now" as a candidate for that city at all. That can make the
+  // swept winner fit fewer cities than simply staying at offset 0 would, even
+  // though offset 0 is also always the earliest possible meeting time. So we
+  // independently classify every city at offset 0 and prefer it whenever it
+  // fits strictly more (or equally many but more perfectly) cities than the
+  // swept winner.
+  const nowCityResults = cities.map((city) => ({ id: city.id, status: classifyCity(now, 0, city) }));
+  const nowPerfectCount = nowCityResults.filter((c) => c.status === 'in-hours').length;
+  const nowFitCount = nowCityResults.filter((c) => c.status !== 'out').length;
+
+  if (nowFitCount > fitCount || (nowFitCount === fitCount && nowPerfectCount > perfectCount)) {
+    return { offsetMs: 0, perfectCount: nowPerfectCount, fitCount: nowFitCount, totalCount: cities.length, cityResults: nowCityResults };
+  }
 
   return { offsetMs, perfectCount, fitCount, totalCount: cities.length, cityResults };
 }
