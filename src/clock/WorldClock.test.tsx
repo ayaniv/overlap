@@ -948,6 +948,87 @@ describe('WorldClock Find Time integration', () => {
     );
 
     const stretchedArc = container.querySelector('path[data-fit-status="stretched"]');
-    expect(stretchedArc?.getAttribute('stroke-dasharray')).toBe('4 4');
+    expect(stretchedArc?.getAttribute('stroke-dasharray')).toBe('22 13');
+  });
+
+  it('marks the Find Time button as pressed while a result is active, unpressed otherwise', () => {
+    const { rerender } = render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          onFindTime={vi.fn()}
+          isFindResultActive={false}
+        />
+      </AnalyticsProvider>,
+    );
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('false');
+
+    rerender(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          onFindTime={vi.fn()}
+          isFindResultActive={true}
+        />
+      </AnalyticsProvider>,
+    );
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clicking Find Time while a result is active calls onBackToNow instead of onFindTime, clearing the result', async () => {
+    const user = userEvent.setup();
+    const onFindTime = vi.fn();
+    const onBackToNow = vi.fn();
+    render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          onFindTime={onFindTime}
+          onBackToNow={onBackToNow}
+          isFindResultActive={true}
+        />
+      </AnalyticsProvider>,
+    );
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    expect(onBackToNow).toHaveBeenCalledTimes(1);
+    expect(onFindTime).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,7 @@ import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
 import type { CityFitStatus } from './findMeetingTime';
+import { SparkleIcon } from './icons/SparkleIcon';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
 import { RingIncludeCheckbox } from './RingIncludeCheckbox';
@@ -60,7 +61,10 @@ const STATUS_NONE_COLOR = '#565B64';
 // working hours) is marked by dashing its arc — the ring keeps its own
 // color throughout, so color always means "which city," never "how well it
 // fits"
-const STRETCHED_ARC_DASH = '4 4';
+// dash length must clear the stroke's own width (6-7px) by a good margin, or
+// round line caps swallow the straight middle of each segment and the dash
+// renders as a string of dots instead of a dashed line
+const STRETCHED_ARC_DASH = '22 13';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'local working hours';
@@ -328,7 +332,13 @@ export function WorldClock({
     };
   }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
 
-  const availableCount = ringViews.filter((ring) => ring.inHours).length;
+  // while a Find Time result is active, the count reflects what the search
+  // actually achieved (in-hours + stretched) rather than only strict
+  // in-hours — otherwise this line could contradict the checkboxes/arcs
+  // right next to it (e.g. reading "1/5" while 3 cities visibly fit)
+  const availableCount = isFindResultActive
+    ? ringViews.filter((ring) => ring.fitStatus && ring.fitStatus !== 'out').length
+    : ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
   // single short line (was two stacked lines): the colored dot still carries the
   // available/none signal on its own, so the count + legend can share one line
@@ -363,7 +373,6 @@ export function WorldClock({
           onExpandedChange={onMenuExpandedChange}
           scrubActions={scrubActions}
           isScrubHintActive={isScrubHintVisible}
-          onFindTime={rings.length > 0 ? onFindTime : undefined}
         />
       </div>
       {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
@@ -586,14 +595,27 @@ export function WorldClock({
             })}
       </div>
 
-      <div className={styles.statusRow} aria-hidden="true">
+      <div className={styles.statusRow}>
         <span
+          aria-hidden="true"
           className={styles.statusDot}
           style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
         />
-        <span className={styles.statusText} data-testid="clock-status-text">
+        <span aria-hidden="true" className={styles.statusText} data-testid="clock-status-text">
           {statusText}
         </span>
+        {onFindTime && rings.length > 0 && (
+          <button
+            type="button"
+            data-testid="control-find-time-button"
+            className={isFindResultActive ? styles.findTimeButtonActive : styles.findTimeButton}
+            aria-pressed={isFindResultActive}
+            onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime())}
+          >
+            <SparkleIcon />
+            Find Time
+          </button>
+        )}
       </div>
 
       {/* part of the idle-fade chrome group, like the header and ControlCluster:

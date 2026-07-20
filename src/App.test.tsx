@@ -648,6 +648,21 @@ describe('App — Find Time', () => {
     expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
   });
 
+  it('re-clicking Find Time while a result is active clears it, same as Cancel', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    expect(screen.getByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeTruthy();
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeNull();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('re-clicking Find Time after excluding a city resets to a fresh search with every ring included', () => {
     renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
