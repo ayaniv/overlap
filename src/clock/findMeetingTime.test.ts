@@ -157,20 +157,47 @@ describe('findBestMeetingOffset', () => {
     ]);
   });
 
-  // Bug 1 regression: home is inside its strict working hours with only 8
-  // minutes left until workEnd (17:00), and "now" (16:52) isn't itself on a
-  // quarter-hour boundary, so naively snapping forward lands exactly on
-  // 17:00 -- the window's exclusive end. Under the codebase's half-open
-  // [start, end) convention that instant is NOT part of the window, so
-  // landing there must count as overshoot and fall back to the window's
-  // (unsnapped) start instead of silently downgrading home from 'in-hours'
-  // to 'stretched'.
+  // Bug 1 regression: the overlap window between `home` and `ring` ends at
+  // an offset that is bit-for-bit identical to what quarter-hour snapping
+  // computes for that same instant (verified via brute-force search over
+  // (now, workStart, workEnd) combinations -- most nearby candidates only
+  // land *close* to the boundary due to floating-point noise in the
+  // getCityTime/nextWorkingWindow path, not exactly on it, which is why an
+  // earlier version of this test was vacuous: both the buggy `<=` guard and
+  // the fixed `<` guard took the same "accept" branch for it).
+  //
+  // now = 00:47:00.000Z, home = [0, 1), ring = [0.8, 1.8): home's strict
+  // window is [0h, 0.21666666666666667h) (1 - 47/60, computed by
+  // subtraction in nextWorkingWindow); ring's strict window is
+  // [0.01666666666666572h, 1.0166666666666657h) (48min - 47min, via the
+  // hoursUntilStart modulo path). Their overlap -- the sweep's winner -- is
+  // exactly home's endOffsetHours. Snapping that winner's start
+  // (0.01666666666666572h, i.e. 00:48:00.000Z) forward to the next
+  // quarter-hour boundary (01:00:00.000Z) yields a snappedOffsetHours of
+  // 0.21666666666666667 -- the *same* float bits as the window's
+  // endOffsetHours (confirmed with `===`, not just numeric closeness).
+  //
+  // Under the buggy `<=` guard that lands-on-the-end value is accepted, so
+  // the meeting is placed at 01:00:00.000Z: home is no longer inside its
+  // [0, 1) window there (exclusive end) and gets wrongly downgraded from
+  // 'in-hours' to 'stretched'. Under the fixed `<` guard the boundary is
+  // correctly treated as overshoot, so it falls back to the window's
+  // (unsnapped) start of 00:48:00.000Z, where home is genuinely still
+  // 'in-hours'. Neither branch triggers the offset-0 "prefer now" override
+  // or the stretch-fallback pass (both were checked to behave identically
+  // whichever guard is used here), so this test exercises only the guard
+  // itself.
   it('does not downgrade a city when snapping forward would land exactly on its exclusive workEnd boundary', () => {
-    const almostDone = new Date('2026-01-01T16:52:00.000Z');
-    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 17 };
+    const now = new Date('2026-01-01T00:47:00.000Z');
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 0, workEnd: 1 };
+    const ring: Location = { id: 'ring', label: 'Ring', timezoneId: 'UTC', color: '#FB7185', workStart: 0.8, workEnd: 1.8 };
 
-    const result = findBestMeetingOffset(almostDone, home, []);
+    const result = findBestMeetingOffset(now, home, [ring]);
 
-    expect(result.cityResults).toEqual([{ id: 'home', status: 'in-hours' }]);
+    expect(result.offsetMs).toBe(60_000); // falls back to the window's start (00:48:00.000Z), not the boundary (01:00:00.000Z)
+    expect(result.cityResults).toEqual([
+      { id: 'home', status: 'in-hours' },
+      { id: 'ring', status: 'in-hours' },
+    ]);
   });
 });
