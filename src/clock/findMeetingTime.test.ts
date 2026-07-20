@@ -220,4 +220,29 @@ describe('findBestMeetingOffset', () => {
 
     expect(result.cityResults.find((c) => c.id === 'home')?.status).not.toBe('out');
   });
+
+  // Second-cycle regression: home's own next occurrence can be far enough
+  // away (up to ~36h) that a ring's *immediate* next occurrence lands on the
+  // wrong day relative to home's, even though the ring's following occurrence
+  // genuinely overlaps home's stretched window. Reported live: home (Tel
+  // Aviv-like, UTC+3) and a ring (SF-like, UTC-7) on identical 9-18 workdays
+  // -- home's own next occurrence is tomorrow's (it's currently well past
+  // today's hours), while the ring is mid-way through *today's* occurrence;
+  // those two single occurrences never overlap, but the ring's occurrence
+  // the day after does, in the hour where home's stretched workday is just
+  // ending (18:00) and the ring's stretched workday is just starting (8:00).
+  it('finds an overlap on a ring\'s following-day occurrence when its immediate next occurrence lands on the wrong day relative to home', () => {
+    const now = new Date('2026-01-01T20:00:00.000Z');
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'Etc/GMT-3', color: '#38BDF8', workStart: 9, workEnd: 18 };
+    const ring: Location = { id: 'ring', label: 'Ring', timezoneId: 'Etc/GMT+7', color: '#FB7185', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(now, home, [ring]);
+
+    expect(result.offsetMs).toBe(19 * 60 * 60_000); // lands at 15:00 UTC next day: home 18:00 (just inside its stretched end), ring 08:00 (just at its stretched start)
+    expect(result.fitCount).toBe(2);
+    expect(result.cityResults).toEqual([
+      { id: 'home', status: 'stretched' },
+      { id: 'ring', status: 'stretched' },
+    ]);
+  });
 });

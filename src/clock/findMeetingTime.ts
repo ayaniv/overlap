@@ -21,6 +21,32 @@ export function nextWorkingWindow(now: Date, location: Location): CityWindow {
   return { id: location.id, startOffsetHours: hoursUntilStart, endOffsetHours: hoursUntilStart + (workEnd - workStart) };
 }
 
+const CYCLE_HOURS = 24;
+
+// like nextWorkingWindow, but one full day-cycle later — used when bounding
+// the search to home's window (see findBestMeetingOffset): home's own next
+// occurrence can be up to ~36h away, so a ring's *immediate* next occurrence
+// might land on the wrong day relative to home's, while the ring's following
+// one is actually the one that overlaps. Doesn't just add CYCLE_HOURS to
+// nextWorkingWindow's result, because that result clamps a currently-in-hours
+// occurrence's start to 0 (can't schedule in the past) — shifting the
+// clamped value would land the next cycle up to `frac - workStart` hours too
+// late. Recomputing the true (possibly negative) start before adding
+// CYCLE_HOURS keeps the cycle boundary exact.
+function followingWorkingWindow(now: Date, location: Location): CityWindow {
+  const { frac } = getCityTime(now, location.timezoneId);
+  const { workStart, workEnd } = location;
+  if (isWithinWorkingHours(frac, workStart, workEnd)) {
+    return { id: location.id, startOffsetHours: workStart - frac + CYCLE_HOURS, endOffsetHours: workEnd - frac + CYCLE_HOURS };
+  }
+  const hoursUntilStart = (((workStart - frac) % 24) + 24) % 24;
+  return {
+    id: location.id,
+    startOffsetHours: hoursUntilStart + CYCLE_HOURS,
+    endOffsetHours: hoursUntilStart + CYCLE_HOURS + (workEnd - workStart),
+  };
+}
+
 // widens a window by `hours` on each side, never letting the start go before
 // "now" (offset 0) — a meeting can't be scheduled in the past.
 export function widenWindow(window: CityWindow, hours: number): CityWindow {
@@ -132,16 +158,22 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
   const homeWindow = nextWorkingWindow(now, home);
   const homeBound = widenWindow(homeWindow, STRETCH_HOURS);
 
-  const ringStrictWindows = includedRings
-    .map((ring) => clipWindow(nextWorkingWindow(now, ring), homeBound))
-    .filter(hasPositiveWidth);
+  // a ring's own next occurrence and the one following it (its next day's
+  // cycle) are both checked against homeBound — home's window can be nearly
+  // 36h away, so the ring's *immediate* next occurrence may fall on the
+  // wrong day relative to home's, while its following one is the one that
+  // actually overlaps.
+  const ringCandidateWindows = (widenHours: number) =>
+    includedRings.flatMap((ring) => {
+      const occurrences = [nextWorkingWindow(now, ring), followingWorkingWindow(now, ring)];
+      return occurrences
+        .map((window) => clipWindow(widenHours > 0 ? widenWindow(window, widenHours) : window, homeBound))
+        .filter(hasPositiveWidth);
+    });
 
-  let winner = sweepMaxOverlap([homeWindow, ...ringStrictWindows]);
+  let winner = sweepMaxOverlap([homeWindow, ...ringCandidateWindows(0)]);
   if (winner.count < cities.length) {
-    const ringStretchedWindows = includedRings
-      .map((ring) => clipWindow(widenWindow(nextWorkingWindow(now, ring), STRETCH_HOURS), homeBound))
-      .filter(hasPositiveWidth);
-    const stretchedWinner = sweepMaxOverlap([homeBound, ...ringStretchedWindows]);
+    const stretchedWinner = sweepMaxOverlap([homeBound, ...ringCandidateWindows(STRETCH_HOURS)]);
     if (stretchedWinner.count > winner.count) winner = stretchedWinner;
   }
 
