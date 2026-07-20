@@ -200,16 +200,39 @@ function App() {
     [sweepTarget, now, config.home, scrubOffsetMs, scrubSetOffsetMs],
   );
 
+  // when a checked ring structurally can't be reconciled with home at all
+  // (see findBestMeetingOffset's home-priority bound), its status comes back
+  // 'out' even though its checkbox is still checked -- auto-unchecking it
+  // here keeps the checkboxes honest about what's actually achieved, and
+  // re-runs the search over the reduced set so the result reflects the
+  // maximum reachable among the cities that remain. `findBestMeetingOffset`
+  // never lets a ring that can't intersect home's bound contribute to the
+  // sweep in the first place, so removing it from `includedRings` never
+  // changes the chosen offset — only which cities are counted/checked.
+  const autoExcludeUnfitRings = useCallback(
+    (result: FindMeetingTimeResult, previousExcluded: Set<string>): FindMeetingTimeResult => {
+      const unfitRingIds = result.cityResults.filter((c) => c.id !== config.home.id && c.status === 'out').map((c) => c.id);
+      if (unfitRingIds.length === 0) return result;
+      const nextExcluded = new Set(previousExcluded);
+      unfitRingIds.forEach((id) => nextExcluded.add(id));
+      setExcludedRingIds(nextExcluded);
+      const reducedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
+      return runFindMeetingTime(reducedRings);
+    },
+    [config.home.id, config.rings, runFindMeetingTime],
+  );
+
   const handleFindTime = useCallback(() => {
     setExcludedRingIds(new Set());
-    const result = runFindMeetingTime(config.rings);
+    const initialResult = runFindMeetingTime(config.rings);
+    const result = autoExcludeUnfitRings(initialResult, new Set());
     analytics.trackEvent('find_meeting_time_clicked', {
       ring_count: config.rings.length,
       fit_count: result.fitCount,
       perfect_count: result.perfectCount,
       is_perfect: result.perfectCount === result.totalCount,
     });
-  }, [config.rings, runFindMeetingTime, analytics]);
+  }, [config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics]);
 
   const handleToggleRingIncluded = useCallback(
     (id: string) => {
@@ -220,12 +243,13 @@ function App() {
       setExcludedRingIds(nextExcluded);
 
       const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
-      runFindMeetingTime(includedRings);
+      const initialResult = runFindMeetingTime(includedRings);
+      const result = autoExcludeUnfitRings(initialResult, nextExcluded);
       analytics.trackEvent(wasExcluded ? 'find_meeting_time_city_included' : 'find_meeting_time_city_excluded', {
-        remaining_count: includedRings.length,
+        remaining_count: result.totalCount - 1,
       });
     },
-    [excludedRingIds, config.rings, runFindMeetingTime, analytics],
+    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
   );
 
   // clears the find-result state alongside a real resetScrub() — used

@@ -545,6 +545,23 @@ describe('App — first-time scrub hint', () => {
 });
 
 describe('App — Find Time', () => {
+  // seeds every city (home + rings) with maximally wide hours so nothing can
+  // ever end up 'out' -- these tests exercise checkbox/UI mechanics, not
+  // real-world business-hours reconciliation. Without this, the auto-exclude
+  // behavior (see the dedicated test below) would make checkbox state here
+  // depend on the real wall-clock time the suite happens to run at, since
+  // the default cities (Tel Aviv + SF/NY/London/Sydney) don't all reconcile
+  // with home at every hour of the day.
+  beforeEach(() => {
+    const alwaysInHours = { workStart: 0, workEnd: 24 };
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { ...DEFAULT_CONFIG.home, ...alwaysInHours },
+      rings: DEFAULT_CONFIG.rings.map((ring) => ({ ...ring, ...alwaysInHours })),
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+  });
+
   it('shows the Find Time button once at least one ring exists', () => {
     renderApp();
     expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
@@ -669,5 +686,28 @@ describe('App — Find Time', () => {
 
     fireEvent.click(checkbox);
     expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', expect.objectContaining({ remaining_count: expect.any(Number) }));
+  });
+
+  it('auto-unchecks a ring that can never be reconciled with home, landing on the best achievable subset', () => {
+    // ring 'fits' is on home's exact timezone/hours, so it's always
+    // reconcilable; ring 'never-fits' is exactly 12h away on an identical
+    // 9-18 workday -- the one offset where two 9h workdays (with +/-1h
+    // stretch each) can never overlap even checking both the immediate and
+    // following occurrence, verified independently across a 10-day scan
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect((screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
   });
 });
