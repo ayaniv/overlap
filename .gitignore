@@ -32,3 +32,6 @@ dist-ssr
 /STATUS
 /TASK.md
 .env.local
+
+# superpowers:brainstorming visual companion (ephemeral, not repo content)
+.superpowers/
