@@ -281,3 +281,72 @@
     height: 18px;
   }
 }
+
+.findTimeButtonPrimary,
+.findTimeButtonSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  min-height: 34px;
+  border-radius: 999px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.findTimeButtonPrimary svg,
+.findTimeButtonSecondary svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* always-visible in view mode (not tucked behind the hamburger toggle like
+   Config/Share) — positioned clear of .actions' full expanded width (two
+   34px icon buttons + gap = 78px) plus the 34px toggle plus gaps, so it
+   never overlaps Config/Share sliding out from behind the toggle */
+.findTimeButtonPrimary {
+  position: absolute;
+  top: 0;
+  right: 132px;
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  color: #f5f6f8;
+}
+
+.findTimeButtonPrimary:hover {
+  background: rgba(56, 189, 248, 0.24);
+}
+
+.findTimeButtonSecondary {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+}
+
+.findTimeButtonSecondary:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.findTimeButtonSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (orientation: portrait) {
+  .findTimeButtonPrimary {
+    right: 156px;
+  }
+
+  .findTimeButtonPrimary,
+  .findTimeButtonSecondary {
+    min-height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+}

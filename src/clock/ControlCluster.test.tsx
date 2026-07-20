@@ -255,3 +255,100 @@ describe('ControlCluster scrubActions', () => {
     expect(removeButton.disabled).toBe(true);
   });
 });
+
+describe('ControlCluster Find Time button (view mode)', () => {
+  it('renders when onFindTime is provided', () => {
+    render(
+      <ControlCluster
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+        onFindTime={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('control-find-time-button').textContent).toContain('Find Time');
+  });
+
+  it('is absent when onFindTime is not provided', () => {
+    render(
+      <ControlCluster mode="view" onSetMode={vi.fn()} onShare={vi.fn()} isExpanded={false} onExpandedChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByTestId('control-find-time-button')).toBeNull();
+  });
+
+  it('calls onFindTime when clicked, without needing the hamburger expanded', async () => {
+    const user = userEvent.setup();
+    const onFindTime = vi.fn();
+    render(
+      <ControlCluster
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+        onFindTime={onFindTime}
+      />,
+    );
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    expect(onFindTime).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ControlCluster Find Time button (scrub-action bar)', () => {
+  function renderScrubBarWithFindTime(onFindTime = vi.fn()) {
+    render(
+      <ControlCluster
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+        scrubActions={{ onSchedule: vi.fn(), onCancel: vi.fn(), isScheduling: false }}
+        onFindTime={onFindTime}
+      />,
+    );
+    return onFindTime;
+  }
+
+  it('renders between Cancel and Schedule when onFindTime is provided', () => {
+    renderScrubBarWithFindTime();
+
+    const cancel = screen.getByTestId('control-scrub-cancel-button');
+    const findTime = screen.getByTestId('control-find-time-button');
+    const schedule = screen.getByTestId('control-scrub-schedule-button');
+    const order = [cancel, findTime, schedule].map((el) => Array.from(el.parentElement!.children).indexOf(el));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('calls onFindTime when clicked in the scrub bar', async () => {
+    const user = userEvent.setup();
+    const onFindTime = renderScrubBarWithFindTime();
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    expect(onFindTime).toHaveBeenCalledTimes(1);
+  });
+
+  it('is absent from the matchedMeeting (Remove Meeting) layout even when onFindTime is provided', () => {
+    render(
+      <ControlCluster
+        mode="view"
+        onSetMode={vi.fn()}
+        onShare={vi.fn()}
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+        scrubActions={{ onSchedule: vi.fn(), onCancel: vi.fn(), isScheduling: false, matchedMeeting: { onRemove: vi.fn(), isRemoving: false } }}
+        onFindTime={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('control-find-time-button')).toBeNull();
+    expect(screen.getByTestId('control-remove-meeting-button')).toBeTruthy();
+  });
+});

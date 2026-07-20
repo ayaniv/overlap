@@ -3,6 +3,7 @@ import { CloseIcon } from './icons/CloseIcon';
 import { CogwheelIcon } from './icons/CogwheelIcon';
 import { MenuIcon } from './icons/MenuIcon';
 import { ShareIcon } from './icons/ShareIcon';
+import { SparkleIcon } from './icons/SparkleIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import type { Mode } from './types';
 import styles from './ControlCluster.module.css';
@@ -42,6 +43,13 @@ export type ControlClusterProps = {
   // immediately, and only the automated demo gets the "this appeared
   // because you're scrubbing" delayed reveal.
   isScrubHintActive?: boolean;
+  // "Find Time" — undefined hides it entirely in both layouts below (the
+  // caller, WorldClock.tsx, only passes a handler when there's at least one
+  // ring city to search against). Shown in the view-mode row (always
+  // visible, primary) and inside the scrub-action bar (secondary, between
+  // Cancel and Schedule) whenever it's defined — except in the matchedMeeting
+  // layout, which stays a lone Remove Meeting button as it does today.
+  onFindTime?: () => void;
 };
 
 // top-right entry points for edit mode + share; the mode panel and share
@@ -68,6 +76,7 @@ export const ControlCluster = memo(function ControlCluster({
   onExpandedChange,
   scrubActions,
   isScrubHintActive = false,
+  onFindTime,
 }: ControlClusterProps) {
   const toggleMode = (target: Mode) => onSetMode(mode === target ? 'view' : target);
   const actionTabIndex = isExpanded ? 0 : -1;
@@ -114,6 +123,18 @@ export const ControlCluster = memo(function ControlCluster({
             >
               Cancel
             </button>
+            {onFindTime && (
+              <button
+                type="button"
+                data-testid="control-find-time-button"
+                className={styles.findTimeButtonSecondary}
+                onClick={onFindTime}
+                disabled={scrubActions.isScheduling}
+              >
+                <SparkleIcon />
+                Find Time
+              </button>
+            )}
             <button
               type="button"
               data-testid="control-scrub-schedule-button"
@@ -131,6 +152,12 @@ export const ControlCluster = memo(function ControlCluster({
 
   return (
     <div className={styles.cluster} data-expanded={isExpanded || undefined}>
+      {onFindTime && (
+        <button type="button" data-testid="control-find-time-button" className={styles.findTimeButtonPrimary} onClick={onFindTime}>
+          <SparkleIcon />
+          Find Time
+        </button>
+      )}
       <div className={styles.actions}>
         <button
           type="button"
