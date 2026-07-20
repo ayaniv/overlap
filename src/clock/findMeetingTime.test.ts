@@ -47,7 +47,7 @@ describe('widenWindow', () => {
   });
 });
 
-import { sweepMaxOverlap } from './findMeetingTime';
+import { sweepMaxOverlap, findBestMeetingOffset } from './findMeetingTime';
 
 describe('sweepMaxOverlap', () => {
   it('finds the earliest point where the most windows overlap', () => {
@@ -77,5 +77,57 @@ describe('sweepMaxOverlap', () => {
 
   it('returns count 0 for an empty list of windows', () => {
     expect(sweepMaxOverlap([])).toEqual({ startOffsetHours: 0, endOffsetHours: 0, count: 0 });
+  });
+});
+
+const HOME: Location = { id: 'home', label: 'Home', timezoneId: 'Etc/GMT+7', color: '#38BDF8', workStart: 9, workEnd: 17 }; // UTC-7 -> local 08:00
+const RING: Location = { id: 'ring', label: 'Ring', timezoneId: 'Etc/GMT-8', color: '#FB7185', workStart: 9, workEnd: 18 }; // UTC+8 -> local 23:00
+
+describe('findBestMeetingOffset', () => {
+  // also covers the "single remaining ring" case: home + one ring is the
+  // full city list here, and the algorithm needs no special-casing for it —
+  // the stretch fallback is exactly what makes a fit possible at all
+  it('falls back to a stretched fit when no perfect overlap exists between home and a ring', () => {
+    const result = findBestMeetingOffset(NOW, HOME, [RING]);
+
+    expect(result.offsetMs).toBe(9 * 60 * 60_000);
+    expect(result.perfectCount).toBe(0);
+    expect(result.fitCount).toBe(2);
+    expect(result.totalCount).toBe(2);
+    expect(result.cityResults).toEqual([
+      { id: 'home', status: 'stretched' },
+      { id: 'ring', status: 'stretched' },
+    ]);
+  });
+
+  it('returns offset 0 when every city is already in its working hours', () => {
+    // Etc/GMT+5 = UTC-5 -> local 10:00 (inside 9-17); Etc/GMT+4 = UTC-4 -> local 11:00 (inside 9-18)
+    const homeInHours: Location = { id: 'home', label: 'Home', timezoneId: 'Etc/GMT+5', color: '#38BDF8', workStart: 9, workEnd: 17 };
+    const ringInHours: Location = { id: 'ring', label: 'Ring', timezoneId: 'Etc/GMT+4', color: '#FB7185', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(NOW, homeInHours, [ringInHours]);
+
+    expect(result.offsetMs).toBe(0);
+    expect(result.perfectCount).toBe(2);
+    expect(result.fitCount).toBe(2);
+    expect(result.cityResults).toEqual([
+      { id: 'home', status: 'in-hours' },
+      { id: 'ring', status: 'in-hours' },
+    ]);
+  });
+
+  it('snaps the landing time forward to the next quarter-hour boundary', () => {
+    const alwaysInHours: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 0, workEnd: 24 };
+    const notQuiteAligned = new Date('2026-01-01T15:07:00.000Z');
+
+    const result = findBestMeetingOffset(notQuiteAligned, alwaysInHours, []);
+
+    expect(result.offsetMs).toBe(8 * 60_000); // 15:07 -> next boundary 15:15
+  });
+
+  it('with no rings at all, is trivially perfect at home\'s own next in-hours moment', () => {
+    const result = findBestMeetingOffset(NOW, HOME, []);
+    expect(result.totalCount).toBe(1);
+    expect(result.perfectCount).toBe(1);
   });
 });
