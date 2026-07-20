@@ -103,19 +103,45 @@ function classifyCity(now: Date, offsetMs: number, location: Location): CityFitS
   return 'out';
 }
 
-// two-pass search: try every included city's strict working-hours window
-// first; only if that can't cover every city does a second pass, using each
-// city's window widened by STRETCH_HOURS on each side, get a chance to win
-// instead (and only if it actually covers more cities than the strict pass
-// did — see findMeetingTime-design.md's "Decisions locked" section).
+function clipWindow(window: CityWindow, bound: CityWindow): CityWindow {
+  return {
+    id: window.id,
+    startOffsetHours: Math.max(window.startOffsetHours, bound.startOffsetHours),
+    endOffsetHours: Math.min(window.endOffsetHours, bound.endOffsetHours),
+  };
+}
+
+const hasPositiveWidth = (window: CityWindow) => window.startOffsetHours < window.endOffsetHours;
+
+// two-pass search, bounded to home's own stretched window: home must always
+// end up at least 'stretched' (never 'out') at the chosen time, so every ring
+// window is clipped to `homeBound` before sweeping — a ring whose own window
+// doesn't intersect homeBound at all is simply excluded, exactly like it
+// would classify as 'out' at any offset within homeBound anyway. Within that
+// bound, try every included ring's strict working-hours window first; only
+// if that can't cover every ring does a second pass, using each ring's window
+// widened by STRETCH_HOURS on each side (still clipped to homeBound), get a
+// chance to win instead (and only if it actually covers more rings than the
+// strict pass did — see findMeetingTime-design.md's "Decisions locked"
+// section). Treating home as a hard bound rather than just one more city in
+// an unconstrained sweep prevents the search from picking a time that fits
+// more rings while leaving the meeting's own home city outside its working
+// hours entirely.
 export function findBestMeetingOffset(now: Date, home: Location, includedRings: Location[]): FindMeetingTimeResult {
   const cities = [home, ...includedRings];
-  const strictWindows = cities.map((city) => nextWorkingWindow(now, city));
+  const homeWindow = nextWorkingWindow(now, home);
+  const homeBound = widenWindow(homeWindow, STRETCH_HOURS);
 
-  let winner = sweepMaxOverlap(strictWindows);
+  const ringStrictWindows = includedRings
+    .map((ring) => clipWindow(nextWorkingWindow(now, ring), homeBound))
+    .filter(hasPositiveWidth);
+
+  let winner = sweepMaxOverlap([homeWindow, ...ringStrictWindows]);
   if (winner.count < cities.length) {
-    const stretchedWindows = strictWindows.map((w) => widenWindow(w, STRETCH_HOURS));
-    const stretchedWinner = sweepMaxOverlap(stretchedWindows);
+    const ringStretchedWindows = includedRings
+      .map((ring) => clipWindow(widenWindow(nextWorkingWindow(now, ring), STRETCH_HOURS), homeBound))
+      .filter(hasPositiveWidth);
+    const stretchedWinner = sweepMaxOverlap([homeBound, ...ringStretchedWindows]);
     if (stretchedWinner.count > winner.count) winner = stretchedWinner;
   }
 
@@ -135,12 +161,14 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
   // though offset 0 is also always the earliest possible meeting time. So we
   // independently classify every city at offset 0 and prefer it whenever it
   // fits strictly more (or equally many but more perfectly) cities than the
-  // swept winner.
+  // swept winner — but only when home itself fits at offset 0 too, since
+  // preferring "now" must not reintroduce a home-excluded result.
   const nowCityResults = cities.map((city) => ({ id: city.id, status: classifyCity(now, 0, city) }));
   const nowPerfectCount = nowCityResults.filter((c) => c.status === 'in-hours').length;
   const nowFitCount = nowCityResults.filter((c) => c.status !== 'out').length;
+  const nowFitsHome = nowCityResults[0].status !== 'out';
 
-  if (nowFitCount > fitCount || (nowFitCount === fitCount && nowPerfectCount > perfectCount)) {
+  if (nowFitsHome && (nowFitCount > fitCount || (nowFitCount === fitCount && nowPerfectCount > perfectCount))) {
     return { offsetMs: 0, perfectCount: nowPerfectCount, fitCount: nowFitCount, totalCount: cities.length, cityResults: nowCityResults };
   }
 

@@ -200,4 +200,24 @@ describe('findBestMeetingOffset', () => {
       { id: 'ring', status: 'in-hours' },
     ]);
   });
+
+  // Home-priority regression: reported live -- a user with home + 4 rings
+  // all on 9-18 workdays, searching in the evening (home already well past
+  // its stretched workday), got back a time where home itself was 'out' (the
+  // three most mutually-overlapping rings won the unconstrained sweep) even
+  // though a later time existed where home fits and 2 of those rings still
+  // fit. The search must never trade away home's own fit for a higher ring
+  // count.
+  it('never returns a time where home is out of hours, even if that time would fit more rings', () => {
+    const now = new Date('2026-01-01T19:47:00.000Z'); // evening UTC, well past a 9-18 UTC workday
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 };
+    // both rings overlap heavily with each other overnight UTC (their own
+    // 9-18 workday, shifted 12h away), but not with home's next-day 9-18 slot
+    const ringA: Location = { id: 'ring-a', label: 'Ring A', timezoneId: 'Etc/GMT-12', color: '#FB7185', workStart: 9, workEnd: 18 };
+    const ringB: Location = { id: 'ring-b', label: 'Ring B', timezoneId: 'Etc/GMT-11', color: '#FBBF4B', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(now, home, [ringA, ringB]);
+
+    expect(result.cityResults.find((c) => c.id === 'home')?.status).not.toBe('out');
+  });
 });
