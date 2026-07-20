@@ -316,13 +316,13 @@ describe('ControlCluster Find Time button (scrub-action bar)', () => {
     return onFindTime;
   }
 
-  it('renders between Cancel and Schedule when onFindTime is provided', () => {
+  it('renders before Cancel and Schedule when onFindTime is provided', () => {
     renderScrubBarWithFindTime();
 
-    const cancel = screen.getByTestId('control-scrub-cancel-button');
     const findTime = screen.getByTestId('control-find-time-button');
+    const cancel = screen.getByTestId('control-scrub-cancel-button');
     const schedule = screen.getByTestId('control-scrub-schedule-button');
-    const order = [cancel, findTime, schedule].map((el) => Array.from(el.parentElement!.children).indexOf(el));
+    const order = [findTime, cancel, schedule].map((el) => Array.from(el.parentElement!.children).indexOf(el));
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 

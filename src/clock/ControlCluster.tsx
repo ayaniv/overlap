@@ -46,9 +46,10 @@ export type ControlClusterProps = {
   // "Find Time" — undefined hides it entirely in both layouts below (the
   // caller, WorldClock.tsx, only passes a handler when there's at least one
   // ring city to search against). Shown in the view-mode row (always
-  // visible, primary) and inside the scrub-action bar (secondary, between
-  // Cancel and Schedule) whenever it's defined — except in the matchedMeeting
-  // layout, which stays a lone Remove Meeting button as it does today.
+  // visible, primary, beside the hamburger) and first in the scrub-action bar
+  // (secondary, before Cancel and Schedule) whenever it's defined — except in
+  // the matchedMeeting layout, which stays a lone Remove Meeting button as it
+  // does today.
   onFindTime?: () => void;
 };
 
@@ -114,15 +115,6 @@ export const ControlCluster = memo(function ControlCluster({
           </button>
         ) : (
           <>
-            <button
-              type="button"
-              data-testid="control-scrub-cancel-button"
-              className={styles.scrubCancelButton}
-              onClick={scrubActions.onCancel}
-              disabled={scrubActions.isScheduling}
-            >
-              Cancel
-            </button>
             {onFindTime && (
               <button
                 type="button"
@@ -135,6 +127,15 @@ export const ControlCluster = memo(function ControlCluster({
                 Find Time
               </button>
             )}
+            <button
+              type="button"
+              data-testid="control-scrub-cancel-button"
+              className={styles.scrubCancelButton}
+              onClick={scrubActions.onCancel}
+              disabled={scrubActions.isScheduling}
+            >
+              Cancel
+            </button>
             <button
               type="button"
               data-testid="control-scrub-schedule-button"
