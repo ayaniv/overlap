@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-20
+
+- [#41](https://github.com/ayaniv/overlap/pull/41) Plan: "Find time to meet" button (design spec + implementation plan)
+
 ## 2026-07-19
 
 - [#40](https://github.com/ayaniv/overlap/pull/40) ci: pass --admin flag so release-PR merge actually bypasses branch protection
