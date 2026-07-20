@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
@@ -541,5 +541,133 @@ describe('App — first-time scrub hint', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('App — Find Time', () => {
+  it('shows the Find Time button once at least one ring exists', () => {
+    renderApp();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+  });
+
+  it('lands on a found time and shows the scrub action bar with Find Time in it', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    act(() => vi.advanceTimersByTime(700));
+    vi.useRealTimers();
+
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
+  });
+
+  it('shows a checkbox for each ring city once a result is active, none for home', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings) {
+      expect(screen.getByTestId(`ring-include-checkbox-${ring.id}`)).toBeTruthy();
+    }
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.home.id}`)).toBeNull();
+  });
+
+  it('unchecking a ring excludes it and re-lands on a new result', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+
+    fireEvent.click(checkbox);
+
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('re-checking a previously excluded ring includes it again', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement;
+
+    fireEvent.click(checkbox);
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`));
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('disables the last remaining checked ring', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings.slice(0, -1)) {
+      fireEvent.click(screen.getByTestId(`ring-include-checkbox-${ring.id}`));
+    }
+
+    const lastRing = config.rings.at(-1);
+    expect((screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('Cancel clears the find result: checkboxes disappear and the plain icon menu returns', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    expect(screen.getByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('control-scrub-cancel-button'));
+
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeNull();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+  });
+
+  it('re-clicking Find Time after excluding a city resets to a fresh search with every ring included', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`));
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(screen.getByTestId('control-scrub-cancel-button'));
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('fires find_meeting_time_clicked with the expected payload shape', () => {
+    const { analytics } = renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect(analytics.trackEvent).toHaveBeenCalledWith(
+      'find_meeting_time_clicked',
+      expect.objectContaining({ ring_count: expect.any(Number), fit_count: expect.any(Number), perfect_count: expect.any(Number), is_perfect: expect.any(Boolean) }),
+    );
+  });
+
+  it('fires find_meeting_time_city_excluded / _included on checkbox toggles', () => {
+    const { analytics } = renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`);
+
+    fireEvent.click(checkbox);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_excluded', expect.objectContaining({ remaining_count: expect.any(Number) }));
+
+    fireEvent.click(checkbox);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', expect.objectContaining({ remaining_count: expect.any(Number) }));
   });
 });
