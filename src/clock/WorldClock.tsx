@@ -27,6 +27,7 @@ import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
+import { STRETCH_HOURS } from './findMeetingTime';
 import type { CityFitStatus } from './findMeetingTime';
 import { SparkleIcon } from './icons/SparkleIcon';
 import { ManageLocationsList } from './ManageLocationsList';
@@ -237,6 +238,13 @@ export function WorldClock({
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
         const fitStatus = isFindResultActive ? findResultStatusById?.[location.id] : undefined;
+        // a 'stretched' city's found time falls outside its strict hours by
+        // definition, so drawing the arc with strict bounds would leave a
+        // visible gap between the dashed arc and the found-time marker —
+        // widen the arc itself into the same +/-STRETCH_HOURS buffer that
+        // made it count as a fit, so the dash actually reaches the found time
+        const arcWorkStart = fitStatus === 'stretched' ? Math.max(0, location.workStart - STRETCH_HOURS) : location.workStart;
+        const arcWorkEnd = fitStatus === 'stretched' ? location.workEnd + STRETCH_HOURS : location.workEnd;
         return {
           location,
           radius,
@@ -244,7 +252,7 @@ export function WorldClock({
           time,
           inHours,
           fitStatus,
-          arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
+          arcPath: workingHoursArcPath(radius, time.frac, arcWorkStart, arcWorkEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
           textPathId: `${idPrefix}-tp-${index}`,
