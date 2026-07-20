@@ -30,6 +30,14 @@ export function RingIncludeCheckbox({ location, dotPosition, checked, disabled, 
           '--checkbox-top': `${dotPosition.y / VIEWBOX_UNITS_PER_PERCENT}%`,
         } as React.CSSProperties
       }
+      // this sits inside .clockContainer, which has useRingScrub's onPointerDown
+      // bound for drag-to-scrub — that handler calls setPointerCapture on the
+      // container unconditionally, so without stopping propagation here every
+      // click on this checkbox gets hijacked into a scrub-drag gesture instead
+      // of toggling: the container captures the pointer before the browser's
+      // native mouseup/click ever completes on the input, so the checkbox
+      // visually never (un)checks.
+      onPointerDown={(event) => event.stopPropagation()}
     >
       <input
         type="checkbox"
