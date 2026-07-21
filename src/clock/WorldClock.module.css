@@ -180,6 +180,15 @@
   white-space: nowrap;
 }
 
+/* groups the dot+text as one wrap-atomic unit, so .statusRow's own wrapping
+   (portrait, see below) can only break between this group and the Find Time
+   button — never split the dot from its text onto separate lines */
+.statusInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .statusText {
   color: #d6d9de;
 }

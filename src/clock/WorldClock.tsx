@@ -604,13 +604,15 @@ export function WorldClock({
       </div>
 
       <div className={styles.statusRow}>
-        <span
-          aria-hidden="true"
-          className={styles.statusDot}
-          style={{ background: statusColor, boxShadow: statusAvailableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
-        />
-        <span aria-hidden="true" className={styles.statusText} data-testid="clock-status-text">
-          {statusText}
+        <span className={styles.statusInfo}>
+          <span
+            aria-hidden="true"
+            className={styles.statusDot}
+            style={{ background: statusColor, boxShadow: statusAvailableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
+          />
+          <span aria-hidden="true" className={styles.statusText} data-testid="clock-status-text">
+            {statusText}
+          </span>
         </span>
         {onFindTime && rings.length > 0 && (
           <button
