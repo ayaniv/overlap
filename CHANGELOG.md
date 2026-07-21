@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-07-21
 
+- [#45](https://github.com/ayaniv/overlap/pull/45) Fix working-hours arc overshoot for spans >12 hours
 - [#43](https://github.com/ayaniv/overlap/pull/43) Find Time: sweep-line meeting-time finder with per-city stretch fallback
 
 ## 2026-07-20
