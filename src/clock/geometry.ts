@@ -83,7 +83,15 @@ export function workingHoursArcPath(radius: number, currentFrac: number, workSta
   const endAngle = (currentFrac - workEnd) * DEGREES_PER_HOUR;
   const start = pointOnCircle(radius, startAngle);
   const end = pointOnCircle(radius, endAngle);
-  return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 0 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
+  // the two endpoints alone are ambiguous between two same-radius circles (this
+  // ring's true center and its mirror across the start/end chord); a hardcoded
+  // large-arc-flag of 0 only happens to resolve to the true center for spans
+  // <=180°, so spans >180° must flip it to stay on the correct circle instead of
+  // bulging onto the mirrored one (sweep-flag stays 0 — same rotation direction
+  // throughout, only which of the two candidate circles is used changes)
+  const spanDeg = (workEnd - workStart) * DEGREES_PER_HOUR;
+  const largeArcFlag = spanDeg > 180 ? 1 : 0;
+  return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 ${largeArcFlag} 0 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
 }
 
 // invisible arc a curved <textPath> label rides along
