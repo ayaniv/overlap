@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
@@ -541,5 +541,224 @@ describe('App — first-time scrub hint', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('App — Find Time', () => {
+  // seeds every city (home + rings) with maximally wide hours so nothing can
+  // ever end up 'out' -- these tests exercise checkbox/UI mechanics, not
+  // real-world business-hours reconciliation. Without this, the auto-exclude
+  // behavior (see the dedicated test below) would make checkbox state here
+  // depend on the real wall-clock time the suite happens to run at, since
+  // the default cities (Tel Aviv + SF/NY/London/Sydney) don't all reconcile
+  // with home at every hour of the day.
+  beforeEach(() => {
+    const alwaysInHours = { workStart: 0, workEnd: 24 };
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { ...DEFAULT_CONFIG.home, ...alwaysInHours },
+      rings: DEFAULT_CONFIG.rings.map((ring) => ({ ...ring, ...alwaysInHours })),
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+  });
+
+  it('shows the Find Time button once at least one ring exists', () => {
+    renderApp();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+  });
+
+  it('lands on a found time and shows the scrub action bar with Find Time in it', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    act(() => vi.advanceTimersByTime(700));
+    vi.useRealTimers();
+
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
+  });
+
+  it('cancels the in-flight sweep animation and snaps immediately when a checkbox is toggled mid-flight', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
+    try {
+      // still mid-flight -- well short of FIND_MEETING_TIME_SWEEP_MS (600ms)
+      act(() => vi.advanceTimersByTime(100));
+
+      const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+      const [firstRing] = config.rings;
+      act(() => fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`)));
+
+      // the stale in-flight frame from the first sweep must be cancelled --
+      // left running, it would keep easing the preview toward the now-abandoned
+      // first target instead of the freshly re-searched one
+      expect(cancelSpy).toHaveBeenCalled();
+      // the re-entrant search snaps synchronously (see runFindMeetingTime),
+      // so the checkbox already reflects the new result without waiting out
+      // another animation
+      expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows a checkbox for each ring city once a result is active, none for home', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings) {
+      expect(screen.getByTestId(`ring-include-checkbox-${ring.id}`)).toBeTruthy();
+    }
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.home.id}`)).toBeNull();
+  });
+
+  it('unchecking a ring excludes it and re-lands on a new result', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+
+    fireEvent.click(checkbox);
+
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('re-checking a previously excluded ring includes it again', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement;
+
+    fireEvent.click(checkbox);
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`));
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('disables the last remaining checked ring', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings.slice(0, -1)) {
+      fireEvent.click(screen.getByTestId(`ring-include-checkbox-${ring.id}`));
+    }
+
+    const lastRing = config.rings.at(-1);
+    expect((screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('Cancel clears the find result: checkboxes disappear and the plain icon menu returns', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    expect(screen.getByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('control-scrub-cancel-button'));
+
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeNull();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+  });
+
+  it('re-clicking Find Time while a result is active clears it, same as Cancel', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    expect(screen.getByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeTruthy();
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect(screen.queryByTestId(`ring-include-checkbox-${config.rings[0].id}`)).toBeNull();
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('re-clicking Find Time after excluding a city resets to a fresh search with every ring included', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`));
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(screen.getByTestId('control-scrub-cancel-button'));
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('fires find_meeting_time_clicked with the expected payload shape', () => {
+    const { analytics } = renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    // every city is forced always-in-hours by this describe's beforeEach, so
+    // the payload is fully deterministic: every city (home + rings) fits
+    // perfectly, and ring_count always reflects the full default ring set
+    const ringCount = DEFAULT_CONFIG.rings.length;
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_clicked', {
+      ring_count: ringCount,
+      fit_count: ringCount + 1,
+      perfect_count: ringCount + 1,
+      is_perfect: true,
+    });
+  });
+
+  it('fires find_meeting_time_city_excluded / _included on checkbox toggles', () => {
+    const { analytics } = renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    const [firstRing] = config.rings;
+    const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`);
+    const ringCount = DEFAULT_CONFIG.rings.length;
+
+    fireEvent.click(checkbox);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_excluded', { remaining_count: ringCount - 1 });
+
+    fireEvent.click(checkbox);
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', { remaining_count: ringCount });
+  });
+
+  it('auto-unchecks a ring that can never be reconciled with home, landing on the best achievable subset', () => {
+    // ring 'fits' is on home's exact timezone/hours, so it's always
+    // reconcilable; ring 'never-fits' is exactly 12h away on an identical
+    // 9-18 workday -- the one offset where two 9h workdays (with +/-1h
+    // stretch each) can never overlap even checking both the immediate and
+    // following occurrence, verified independently across a 10-day scan
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    expect((screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
   });
 });

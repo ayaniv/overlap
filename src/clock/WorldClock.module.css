@@ -180,6 +180,15 @@
   white-space: nowrap;
 }
 
+/* groups the dot+text as one wrap-atomic unit, so .statusRow's own wrapping
+   (portrait, see below) can only break between this group and the Find Time
+   button — never split the dot from its text onto separate lines */
+.statusInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .statusText {
   color: #d6d9de;
 }
@@ -189,6 +198,54 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* always secondary/understated — this sits beside the status line, not as a
+   prominent header CTA. .findTimeButtonActive marks the toggled-on state
+   (a result is currently active): clicking it again clears the result,
+   mirroring Cancel. */
+.findTimeButton,
+.findTimeButtonActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  min-height: 28px;
+  border-radius: 999px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.findTimeButton svg,
+.findTimeButtonActive svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.findTimeButton {
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+}
+
+.findTimeButton:hover {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.findTimeButtonActive {
+  border: 1px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  color: #f5f6f8;
+}
+
+.findTimeButtonActive:hover {
+  background: rgba(56, 189, 248, 0.22);
 }
 
 .bottomLinks {
@@ -278,6 +335,17 @@
   .statusRow {
     bottom: 26px;
     font-size: 11px;
+    flex-wrap: wrap;
+    justify-content: center;
+    white-space: normal;
+    max-width: 90vw;
+  }
+
+  .findTimeButton,
+  .findTimeButtonActive {
+    min-height: 32px;
+    padding: 0 16px;
+    font-size: 13px;
   }
 
   .bottomLinks {

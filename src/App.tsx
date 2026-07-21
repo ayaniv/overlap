@@ -8,15 +8,18 @@ import {
   isGoogleCalendarConnected,
   scheduleMeetingOnGoogleCalendar,
 } from './clock/googleCalendar';
+import { findBestMeetingOffset } from './clock/findMeetingTime';
+import type { FindMeetingTimeResult } from './clock/findMeetingTime';
 import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
 import { hasSeenScrubHint, markScrubHintSeen } from './clock/scrubHint';
 import { shareLink } from './clock/share';
 import type { ShareOutcome } from './clock/share';
+import { useFindMeetingTimeSweep } from './clock/useFindMeetingTimeSweep';
 import { useRingScrub } from './clock/useRingScrub';
 import { useScrubHintDemo } from './clock/useScrubHintDemo';
 import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
-import type { Mode } from './clock/types';
+import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
@@ -140,6 +143,130 @@ function App() {
   const liveScrubOffsetRef = useRef(scrubOffsetMs);
   liveScrubOffsetRef.current = scrubOffsetMs;
 
+  // Find Time: excludedRingIds tracks which ring cities the developer has
+  // unchecked out of the current search (reset to empty on every fresh
+  // "Find Time" click — see handleFindTime); findResult holds the last
+  // search's classification, used both to render the 3-state ring arcs and
+  // to know whether the scrub action bar/checkboxes should be showing at all
+  // (isFindResultActive) even at offset 0 (an already-perfect "now").
+  const [excludedRingIds, setExcludedRingIds] = useState<Set<string>>(() => new Set());
+  const [findResult, setFindResult] = useState<FindMeetingTimeResult | null>(null);
+  const isFindResultActive = findResult !== null;
+  const findResultStatusById = useMemo(
+    () => (findResult ? Object.fromEntries(findResult.cityResults.map((result) => [result.id, result.status])) : undefined),
+    [findResult],
+  );
+
+  // drives the eased sweep to a found offset; `sweepTarget` is the trigger
+  // (non-null while animating), `sweepFromRef` snapshots where the preview
+  // was standing at the moment a search fired, mirroring the scrub-hint
+  // return animation's own from/to handling
+  const [sweepTarget, setSweepTarget] = useState<number | null>(null);
+  const sweepFromRef = useRef(0);
+  useFindMeetingTimeSweep({
+    active: sweepTarget !== null,
+    fromOffsetMs: sweepFromRef.current,
+    toOffsetMs: sweepTarget ?? 0,
+    setOffsetMs: scrubSetOffsetMs,
+    onComplete: () => setSweepTarget(null),
+  });
+
+  // shared by handleFindTime and handleToggleRingIncluded — runs the search
+  // over exactly the given rings, lands (or re-lands) the clock there, and
+  // records the result for the 3-state arcs/checkboxes. useFindMeetingTimeSweep
+  // snapshots its target once per activation and won't redirect mid-flight (its
+  // effect only re-runs when `active` itself flips), so simply setting a new
+  // sweepTarget while one is already non-null wouldn't actually retarget the
+  // running animation — it'd keep easing toward the stale first target. Ring
+  // checkboxes are interactive the instant a result lands (not gated on the
+  // sweep finishing), so a re-entrant call here is a real scenario, not just a
+  // test artifact: cancel the in-flight sweep (setSweepTarget(null) flips
+  // `active` false, which lets useFindMeetingTimeSweep's cleanup cancel the
+  // pending frame) and snap straight to the new target instead of animating,
+  // then arm a fresh sweep from there on the next call.
+  const runFindMeetingTime = useCallback(
+    (rings: Location[]) => {
+      const result = findBestMeetingOffset(now, config.home, rings);
+      if (sweepTarget !== null) {
+        setSweepTarget(null);
+        scrubSetOffsetMs(result.offsetMs);
+      } else {
+        sweepFromRef.current = scrubOffsetMs;
+        setSweepTarget(result.offsetMs);
+      }
+      setFindResult(result);
+      return result;
+    },
+    [sweepTarget, now, config.home, scrubOffsetMs, scrubSetOffsetMs],
+  );
+
+  // when a checked ring structurally can't be reconciled with home at all
+  // (see findBestMeetingOffset's home-priority bound), its status comes back
+  // 'out' even though its checkbox is still checked -- auto-unchecking it
+  // here keeps the checkboxes honest about what's actually achieved, and
+  // re-runs the search over the reduced set so the result reflects the
+  // maximum reachable among the cities that remain. `findBestMeetingOffset`
+  // never lets a ring that can't intersect home's bound contribute to the
+  // sweep in the first place, so removing it from `includedRings` never
+  // changes the chosen offset — only which cities are counted/checked.
+  const autoExcludeUnfitRings = useCallback(
+    (result: FindMeetingTimeResult, previousExcluded: Set<string>): FindMeetingTimeResult => {
+      const unfitRingIds = result.cityResults.filter((c) => c.id !== config.home.id && c.status === 'out').map((c) => c.id);
+      if (unfitRingIds.length === 0) return result;
+      const nextExcluded = new Set(previousExcluded);
+      unfitRingIds.forEach((id) => nextExcluded.add(id));
+      setExcludedRingIds(nextExcluded);
+      const reducedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
+      return runFindMeetingTime(reducedRings);
+    },
+    [config.home.id, config.rings, runFindMeetingTime],
+  );
+
+  const handleFindTime = useCallback(() => {
+    setExcludedRingIds(new Set());
+    const initialResult = runFindMeetingTime(config.rings);
+    const result = autoExcludeUnfitRings(initialResult, new Set());
+    analytics.trackEvent('find_meeting_time_clicked', {
+      ring_count: config.rings.length,
+      fit_count: result.fitCount,
+      perfect_count: result.perfectCount,
+      is_perfect: result.perfectCount === result.totalCount,
+    });
+  }, [config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics]);
+
+  const handleToggleRingIncluded = useCallback(
+    (id: string) => {
+      const wasExcluded = excludedRingIds.has(id);
+      const nextExcluded = new Set(excludedRingIds);
+      if (wasExcluded) nextExcluded.delete(id);
+      else nextExcluded.add(id);
+      setExcludedRingIds(nextExcluded);
+
+      const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
+      const initialResult = runFindMeetingTime(includedRings);
+      const result = autoExcludeUnfitRings(initialResult, nextExcluded);
+      analytics.trackEvent(wasExcluded ? 'find_meeting_time_city_included' : 'find_meeting_time_city_excluded', {
+        remaining_count: result.totalCount - 1,
+      });
+    },
+    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
+  );
+
+  // clears the find-result state alongside a real resetScrub() — used
+  // everywhere Cancel/Schedule/Remove-Meeting already return the clock to
+  // "now", so a landed find result never lingers (stale checkboxes/arcs)
+  // once the developer has backed out of it
+  const clearFindResult = useCallback(() => {
+    setFindResult(null);
+    setExcludedRingIds(new Set());
+    setSweepTarget(null);
+  }, []);
+
+  const handleBackToNow = useCallback(() => {
+    resetScrub();
+    clearFindResult();
+  }, [resetScrub, clearFindResult]);
+
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
       // "shared" (native share sheet shown) and "cancelled" (user dismissed it)
@@ -190,14 +317,17 @@ function App() {
       analytics.trackEvent('meeting_scheduled', { duration_minutes: DEFAULT_MEETING_DURATION_MINUTES });
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
-      if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
+      if (liveScrubOffsetRef.current === startOffsetMs) {
+        resetScrub();
+        clearFindResult();
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not schedule the meeting.');
       logger.error(err, 'failed to quick-schedule a meeting from the scrub buttons');
     } finally {
       setIsQuickScheduling(false);
     }
-  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub, analytics, logger]);
+  }, [isQuickScheduling, scrubOffsetMs, previewInstant, config.home, config.rings, config.meetings, addMeeting, showToast, resetScrub, clearFindResult, analytics, logger]);
 
   // ControlCluster's scrub "Remove Meeting" (only present when matchedMeeting
   // is set): mirrors handleQuickSchedule's sign-in-then-mutate flow and error
@@ -217,14 +347,17 @@ function App() {
       analytics.trackEvent('meeting_deleted');
       // only return to "now" if the user hasn't scrubbed elsewhere while this request
       // was in flight — otherwise this would silently discard their newer preview
-      if (liveScrubOffsetRef.current === startOffsetMs) resetScrub();
+      if (liveScrubOffsetRef.current === startOffsetMs) {
+        resetScrub();
+        clearFindResult();
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not remove the meeting.');
       logger.error(err, 'failed to remove the matched meeting from the scrub buttons');
     } finally {
       setIsRemovingMeeting(false);
     }
-  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub, analytics, logger]);
+  }, [matchedMeeting, isRemovingMeeting, scrubOffsetMs, removeMeeting, showToast, resetScrub, clearFindResult, analytics, logger]);
 
   const modePanelContent =
     mode === 'edit' ? (
@@ -259,7 +392,7 @@ function App() {
       isScrubbing={isScrubbing}
       isGoogleCalendarConnected={isConnectedToGoogleCalendar}
       onQuickSchedule={handleQuickSchedule}
-      onBackToNow={resetScrub}
+      onBackToNow={handleBackToNow}
       isQuickScheduling={isQuickScheduling}
       hasMatchedMeeting={Boolean(matchedMeeting)}
       onRemoveMeeting={handleRemoveMatchedMeeting}
@@ -269,6 +402,11 @@ function App() {
       isScrubHintVisible={isScrubHintActive}
       onDismissScrubHint={handleDismissScrubHint}
       isScrubHintDismissing={isDismissingScrubHint}
+      onFindTime={handleFindTime}
+      isFindResultActive={isFindResultActive}
+      findResultStatusById={findResultStatusById}
+      excludedRingIds={excludedRingIds}
+      onToggleRingIncluded={handleToggleRingIncluded}
     />
   );
 }

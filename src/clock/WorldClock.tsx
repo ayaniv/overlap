@@ -27,8 +27,12 @@ import { useSweepAngle } from './useSweepAngle';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
+import { STRETCH_HOURS } from './findMeetingTime';
+import type { CityFitStatus } from './findMeetingTime';
+import { SparkleIcon } from './icons/SparkleIcon';
 import { ManageLocationsList } from './ManageLocationsList';
 import { MobileConfigView } from './MobileConfigView';
+import { RingIncludeCheckbox } from './RingIncludeCheckbox';
 // explicit .tsx extension required: on case-insensitive filesystems (macOS
 // default), an extension-less './ScrubHint' resolves .ts before .tsx and
 // collides with the lowercase ./scrubHint.ts (the persistence helper) —
@@ -54,6 +58,14 @@ const STATUS_GOOD_THRESHOLD = 3;
 const STATUS_GOOD_COLOR = '#34D399';
 const STATUS_PARTIAL_COLOR = '#FBBF4B';
 const STATUS_NONE_COLOR = '#565B64';
+// a "stretched" ring (counted in the Find Time fit, but outside its real
+// working hours) is marked by dashing its arc — the ring keeps its own
+// color throughout, so color always means "which city," never "how well it
+// fits"
+// dash length must clear the stroke's own width (6-7px) by a good margin, or
+// round line caps swallow the straight middle of each segment and the dash
+// renders as a string of dots instead of a dashed line
+const STRETCHED_ARC_DASH = '22 13';
 // clarifies what the colored ring segments mean — otherwise nothing on
 // screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'local working hours';
@@ -115,6 +127,19 @@ export type WorldClockProps = {
   // hint is on its way out: the tooltip leaves immediately while the hand
   // animates back to now (see useScrubHintReturn)
   isScrubHintDismissing?: boolean;
+  // "Find Time" (see ControlCluster.tsx) — undefined hides the button
+  // entirely; this component is the one that knows `rings.length`, so it's
+  // the one that decides whether to forward the handler at all
+  onFindTime?: () => void;
+  // true from the moment a Find Time search lands (or a checkbox toggle
+  // re-searches) until Cancel/Schedule/Remove-Meeting clears it — gates the
+  // per-ring checkboxes and the 3-state arc styling below
+  isFindResultActive?: boolean;
+  findResultStatusById?: Record<string, CityFitStatus>;
+  // rings the developer has unchecked out of the current Find Time search —
+  // a ring not in this set is "checked" (included)
+  excludedRingIds?: Set<string>;
+  onToggleRingIncluded?: (id: string) => void;
 };
 
 export function WorldClock({
@@ -148,6 +173,11 @@ export function WorldClock({
   isScrubHintVisible = false,
   onDismissScrubHint,
   isScrubHintDismissing = false,
+  onFindTime,
+  isFindResultActive = false,
+  findResultStatusById,
+  excludedRingIds,
+  onToggleRingIncluded,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -207,19 +237,28 @@ export function WorldClock({
         const time = getCityTime(effectiveNow, location.timezoneId);
         const inHours = isWithinWorkingHours(time.frac, location.workStart, location.workEnd);
         const dotPosition = pointOnCircle(labelRadius, 0);
+        const fitStatus = isFindResultActive ? findResultStatusById?.[location.id] : undefined;
+        // a 'stretched' city's found time falls outside its strict hours by
+        // definition, so drawing the arc with strict bounds would leave a
+        // visible gap between the dashed arc and the found-time marker —
+        // widen the arc itself into the same +/-STRETCH_HOURS buffer that
+        // made it count as a fit, so the dash actually reaches the found time
+        const arcWorkStart = fitStatus === 'stretched' ? Math.max(0, location.workStart - STRETCH_HOURS) : location.workStart;
+        const arcWorkEnd = fitStatus === 'stretched' ? location.workEnd + STRETCH_HOURS : location.workEnd;
         return {
           location,
           radius,
           labelRadius,
           time,
           inHours,
-          arcPath: workingHoursArcPath(radius, time.frac, location.workStart, location.workEnd),
+          fitStatus,
+          arcPath: workingHoursArcPath(radius, time.frac, arcWorkStart, arcWorkEnd),
           topArcPath: labelArcPath(labelRadius),
           dotPosition,
           textPathId: `${idPrefix}-tp-${index}`,
         };
       }),
-    [orderedLocations, totalRings, effectiveNow, idPrefix],
+    [orderedLocations, totalRings, effectiveNow, idPrefix, isFindResultActive, findResultStatusById],
   );
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
@@ -282,7 +321,10 @@ export function WorldClock({
   // previewOffsetMs, so the real Schedule action pops visible to show what
   // the gesture leads to (see .scrubHintBlocker below, which keeps it
   // visible-but-unclickable during the demo specifically).
-  const isScrubActionBarVisible = mode === 'view' && previewOffsetMs !== 0;
+  // a legitimately "found" result can land at offset 0 (now is already
+  // optimal), so the bar must stay visible on isFindResultActive alone, not
+  // just a nonzero preview offset
+  const isScrubActionBarVisible = mode === 'view' && (previewOffsetMs !== 0 || isFindResultActive);
 
   // ControlCluster is memo()'d specifically so it doesn't re-render on WorldClock's
   // once-a-second `now` tick — a fresh scrubActions object/callbacks every render would
@@ -298,14 +340,20 @@ export function WorldClock({
     };
   }, [isScrubActionBarVisible, onQuickSchedule, onBackToNow, isQuickScheduling, hasMatchedMeeting, onRemoveMeeting, isRemovingMeeting]);
 
-  const availableCount = ringViews.filter((ring) => ring.inHours).length;
+  // while a Find Time result is active, the count reflects what the search
+  // actually achieved (in-hours + stretched) rather than only strict
+  // in-hours — otherwise this line could contradict the checkboxes/arcs
+  // right next to it (e.g. reading "1/5" while 3 cities visibly fit)
+  const statusAvailableCount = isFindResultActive
+    ? ringViews.filter((ring) => ring.fitStatus && ring.fitStatus !== 'out').length
+    : ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
   // single short line (was two stacked lines): the colored dot still carries the
   // available/none signal on its own, so the count + legend can share one line
   // instead of needing a whole sentence to spell out "none available"
-  const statusText = `${availableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
-  const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
-  const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
+  const statusText = `${statusAvailableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
+  const statusColor = statusAvailableCount === 0 ? STATUS_NONE_COLOR : statusAvailableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
+  const statusGlow = statusAvailableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
@@ -391,11 +439,28 @@ export function WorldClock({
 
           <g filter={`url(#${glowFilterId})`} opacity={0.5}>
             {ringViews.map((ring) => (
-              <path key={`glow-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={7} strokeLinecap="round" />
+              <path
+                key={`glow-${ring.location.id}`}
+                d={ring.arcPath}
+                fill="none"
+                stroke={ring.location.color}
+                strokeWidth={7}
+                strokeLinecap="round"
+                strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
+              />
             ))}
           </g>
           {ringViews.map((ring) => (
-            <path key={`crisp-${ring.location.id}`} d={ring.arcPath} fill="none" stroke={ring.location.color} strokeWidth={6} strokeLinecap="round" />
+            <path
+              key={`crisp-${ring.location.id}`}
+              d={ring.arcPath}
+              fill="none"
+              stroke={ring.location.color}
+              strokeWidth={6}
+              strokeLinecap="round"
+              strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
+              data-fit-status={ring.fitStatus}
+            />
           ))}
 
           {ringViews.map((ring) => {
@@ -513,16 +578,54 @@ export function WorldClock({
             isDismissing={isScrubHintDismissing}
           />
         )}
+
+        {isFindResultActive &&
+          ringViews
+            .filter((ring) => !ring.location.isHome)
+            .map((ring) => {
+              const checkedCount = rings.length - (excludedRingIds?.size ?? 0);
+              const isChecked = !excludedRingIds?.has(ring.location.id);
+              // only disable the last remaining checked box when there's more
+              // than one ring to choose from — with a single ring total, this
+              // condition would otherwise permanently lock its only checkbox,
+              // since checkedCount === 1 trivially whenever nothing has been
+              // excluded yet
+              return (
+                <RingIncludeCheckbox
+                  key={`include-${ring.location.id}`}
+                  location={ring.location}
+                  dotPosition={ring.dotPosition}
+                  checked={isChecked}
+                  disabled={isChecked && checkedCount === 1 && rings.length > 1}
+                  onToggle={() => onToggleRingIncluded?.(ring.location.id)}
+                />
+              );
+            })}
       </div>
 
-      <div className={styles.statusRow} aria-hidden="true">
-        <span
-          className={styles.statusDot}
-          style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
-        />
-        <span className={styles.statusText} data-testid="clock-status-text">
-          {statusText}
+      <div className={styles.statusRow}>
+        <span className={styles.statusInfo}>
+          <span
+            aria-hidden="true"
+            className={styles.statusDot}
+            style={{ background: statusColor, boxShadow: statusAvailableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
+          />
+          <span aria-hidden="true" className={styles.statusText} data-testid="clock-status-text">
+            {statusText}
+          </span>
         </span>
+        {onFindTime && rings.length > 0 && (
+          <button
+            type="button"
+            data-testid="control-find-time-button"
+            className={isFindResultActive ? styles.findTimeButtonActive : styles.findTimeButton}
+            aria-pressed={isFindResultActive}
+            onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime?.())}
+          >
+            <SparkleIcon />
+            Find Time
+          </button>
+        )}
       </div>
 
       {/* part of the idle-fade chrome group, like the header and ControlCluster:

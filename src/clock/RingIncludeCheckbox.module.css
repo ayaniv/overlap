@@ -1,0 +1,24 @@
+.checkboxWrap {
+  position: absolute;
+  left: var(--checkbox-left);
+  top: var(--checkbox-top);
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  z-index: var(--z-30);
+}
+
+.checkboxInput {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.checkboxInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
