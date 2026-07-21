@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,6 +74,40 @@ function renderList(overrides: Partial<ManageLocationsListProps> = {}) {
     </AnalyticsProvider>,
   );
   return { onReorder, onRemove, onClose, onUpdateLocation, onSetHome, analytics };
+}
+
+// wraps ManageLocationsList with real location state so a patch from one edit
+// is visible to the next — renderList's mocked onUpdateLocation never feeds
+// back into its static fixture, which understates what clampWorkStart/
+// clampWorkEnd actually see across two edits in the same row
+function renderStatefulList() {
+  const onUpdateLocation = vi.fn();
+  const analytics = createMockAnalyticsService();
+
+  function Harness() {
+    const [locations, setLocations] = useState(LOCATIONS);
+    const handleUpdate = (id: string, patch: Partial<Location>) => {
+      onUpdateLocation(id, patch);
+      setLocations((current) => current.map((location) => (location.id === id ? { ...location, ...patch } : location)));
+    };
+    return (
+      <ManageLocationsList
+        locations={locations}
+        onReorder={vi.fn()}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+        onUpdateLocation={handleUpdate}
+        onSetHome={vi.fn()}
+      />
+    );
+  }
+
+  render(
+    <AnalyticsProvider service={analytics}>
+      <Harness />
+    </AnalyticsProvider>,
+  );
+  return { onUpdateLocation };
 }
 
 function dragHandleFor(label: string) {
@@ -316,8 +351,12 @@ describe('ManageLocationsList row expand/edit', () => {
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 10 });
   });
 
+  // uses renderStatefulList (not renderList) so the End edit's clamp actually
+  // computes against workStart=0 as just committed by the Start edit, rather
+  // than the original fixture's workStart=9 — see the differentiator test
+  // below for a case where that distinction changes the outcome
   it('allows the full 0-24 day span, since Start stays strictly below End', () => {
-    const { onUpdateLocation } = renderList();
+    const { onUpdateLocation } = renderStatefulList();
 
     fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
     fireEvent.change(screen.getByLabelText('Start'), { target: { value: '0' } });
@@ -325,6 +364,23 @@ describe('ManageLocationsList row expand/edit', () => {
 
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workStart: 0 });
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 24 });
+  });
+
+  // regression: a mocked onUpdateLocation that doesn't feed back into the
+  // fixture would compute this clamp against the original workEnd=18, giving
+  // workStart=15; with the just-typed workEnd=10 fed back live, 15 must
+  // instead clamp down to 9 (one below the committed End) — these two
+  // outcomes diverge, so this actually proves the second edit composes
+  // against the first's live value rather than the stale prop
+  it('clamps the second edit against the first edit\'s just-committed value, not the original prop', () => {
+    const { onUpdateLocation } = renderStatefulList();
+
+    fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
+    fireEvent.change(screen.getByLabelText('End'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '15' } });
+
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 10 });
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workStart: 9 });
   });
 
   it('calls onSetHome with the full location when Set as home is tapped', async () => {
