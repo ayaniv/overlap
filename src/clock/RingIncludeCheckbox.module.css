@@ -12,11 +12,11 @@
 
 /* native accent-color leaves the checkmark glyph's color up to the browser
    (not reliably stylable) -- appearance:none plus a hand-drawn checkmark
-   guarantees it renders white regardless of browser/OS. Background is the
-   app's own base surface color (not transparent) because this sits directly
-   on top of the ring's always-rendered SVG anchor dot (same dotPosition,
-   WorldClock.tsx's ringViews.map) -- a transparent unchecked box would let
-   that dot show through and read as a stray circle inside the checkbox. */
+   guarantees it renders white regardless of browser/OS. Background is opaque
+   (not transparent) because this sits directly on top of the ring's
+   always-rendered SVG anchor dot (same dotPosition, WorldClock.tsx's
+   ringViews.map) -- a transparent unchecked box would let that dot show
+   through and read as a stray circle inside the checkbox. */
 .checkboxInput {
   width: 16px;
   height: 16px;
@@ -24,9 +24,9 @@
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  border: 1.5px solid rgba(237, 234, 224, 0.5);
+  border: 1.5px solid rgba(10, 11, 15, 0.35);
   border-radius: 3px;
-  background-color: #0a0b0f;
+  background-color: #edeae0;
 }
 
 .checkboxInput:checked {
