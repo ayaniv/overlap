@@ -1,6 +1,6 @@
 // src/clock/findMeetingTime.test.ts
 import { describe, expect, it } from 'vitest';
-import { nextWorkingWindow, widenWindow } from './findMeetingTime';
+import { getNextWorkingWindow, widenWindow, sweepMaxOverlap, findBestMeetingOffset } from './findMeetingTime';
 import type { Location } from './types';
 
 const NOW = new Date('2026-01-01T15:00:00.000Z');
@@ -9,23 +9,23 @@ function makeLocation(overrides: Partial<Location>): Location {
   return { id: 'city', label: 'City', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 17, ...overrides };
 }
 
-describe('nextWorkingWindow', () => {
+describe('getNextWorkingWindow', () => {
   it('starts at offset 0 when already inside working hours, ending when hours end today', () => {
     // Etc/GMT+3 = UTC-3, so 15:00Z reads as local 12:00 -> inside [9, 17)
     const location = makeLocation({ timezoneId: 'Etc/GMT+3', workStart: 9, workEnd: 17 });
-    expect(nextWorkingWindow(NOW, location)).toEqual({ id: 'city', startOffsetHours: 0, endOffsetHours: 5 });
+    expect(getNextWorkingWindow(NOW, location)).toEqual({ id: 'city', startOffsetHours: 0, endOffsetHours: 5 });
   });
 
   it('starts in the future when currently outside working hours', () => {
     // Etc/GMT+7 = UTC-7, so 15:00Z reads as local 08:00 -> outside [9, 17)
     const location = makeLocation({ id: 'sf', timezoneId: 'Etc/GMT+7', workStart: 9, workEnd: 17 });
-    expect(nextWorkingWindow(NOW, location)).toEqual({ id: 'sf', startOffsetHours: 1, endOffsetHours: 9 });
+    expect(getNextWorkingWindow(NOW, location)).toEqual({ id: 'sf', startOffsetHours: 1, endOffsetHours: 9 });
   });
 
   it('wraps forward across midnight when the start hour is earlier than the current hour', () => {
     // Etc/GMT-8 = UTC+8, so 15:00Z reads as local 23:00 -> next 9am start is 10h away
     const location = makeLocation({ id: 'tokyo', timezoneId: 'Etc/GMT-8', workStart: 9, workEnd: 18 });
-    expect(nextWorkingWindow(NOW, location)).toEqual({ id: 'tokyo', startOffsetHours: 10, endOffsetHours: 19 });
+    expect(getNextWorkingWindow(NOW, location)).toEqual({ id: 'tokyo', startOffsetHours: 10, endOffsetHours: 19 });
   });
 });
 
@@ -46,8 +46,6 @@ describe('widenWindow', () => {
     });
   });
 });
-
-import { sweepMaxOverlap, findBestMeetingOffset } from './findMeetingTime';
 
 describe('sweepMaxOverlap', () => {
   it('finds the earliest point where the most windows overlap', () => {
@@ -133,7 +131,7 @@ describe('findBestMeetingOffset', () => {
 
   // Bug 2 regression: a city whose strict working hours ended a few minutes
   // ago (but who is still inside its STRETCH_HOURS buffer right now) has no
-  // representation in nextWorkingWindow's output at all -- that function only
+  // representation in getNextWorkingWindow's output at all -- that function only
   // ever returns the city's NEXT strict window, which for `ring` here is
   // tomorrow. Without the offset-0 override, the sweep never even considers
   // "now" as a candidate for `ring`, so it picks a future offset that fits
@@ -162,13 +160,13 @@ describe('findBestMeetingOffset', () => {
   // computes for that same instant (verified via brute-force search over
   // (now, workStart, workEnd) combinations -- most nearby candidates only
   // land *close* to the boundary due to floating-point noise in the
-  // getCityTime/nextWorkingWindow path, not exactly on it, which is why an
+  // getCityTime/getNextWorkingWindow path, not exactly on it, which is why an
   // earlier version of this test was vacuous: both the buggy `<=` guard and
   // the fixed `<` guard took the same "accept" branch for it).
   //
   // now = 00:47:00.000Z, home = [0, 1), ring = [0.8, 1.8): home's strict
   // window is [0h, 0.21666666666666667h) (1 - 47/60, computed by
-  // subtraction in nextWorkingWindow); ring's strict window is
+  // subtraction in getNextWorkingWindow); ring's strict window is
   // [0.01666666666666572h, 1.0166666666666657h) (48min - 47min, via the
   // hoursUntilStart modulo path). Their overlap -- the sweep's winner -- is
   // exactly home's endOffsetHours. Snapping that winner's start

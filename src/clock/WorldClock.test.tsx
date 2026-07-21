@@ -750,12 +750,8 @@ describe('WorldClock scrub hint', () => {
 });
 
 describe('WorldClock Find Time integration', () => {
-  it('passes onFindTime through to ControlCluster only when there is at least one ring', () => {
+  it('renders the Find Time button when onFindTime is provided and there is at least one ring', () => {
     const onFindTime = vi.fn();
-    renderClock('view', [SF], []);
-    // baseline: renderClock's default helper doesn't pass onFindTime, so this
-    // block re-renders directly with the prop wired through
-    cleanup();
     render(
       <AnalyticsProvider service={createMockAnalyticsService()}>
         <WorldClock
@@ -778,6 +774,12 @@ describe('WorldClock Find Time integration', () => {
     );
 
     expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+  });
+
+  it('hides the Find Time button when onFindTime is not provided', () => {
+    renderClock('view', [SF], []);
+
+    expect(screen.queryByTestId('control-find-time-button')).toBeNull();
   });
 
   it('hides the Find Time button when there are no rings, even if onFindTime is provided', () => {
@@ -919,6 +921,35 @@ describe('WorldClock Find Time integration', () => {
     expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByTestId('ring-include-checkbox-seattle') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByTestId('ring-include-checkbox-seattle') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('keeps the sole checkbox enabled when there is only one ring total, even though it is the last checked one', () => {
+    render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          previewOffsetMs={MS_PER_HOUR}
+          isFindResultActive={true}
+          excludedRingIds={new Set()}
+          onToggleRingIncluded={vi.fn()}
+        />
+      </AnalyticsProvider>,
+    );
+
+    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).disabled).toBe(false);
   });
 
   it('renders a stretched ring with a dashed arc, from findResultStatusById', () => {

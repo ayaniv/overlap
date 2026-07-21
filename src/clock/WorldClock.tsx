@@ -344,16 +344,16 @@ export function WorldClock({
   // actually achieved (in-hours + stretched) rather than only strict
   // in-hours — otherwise this line could contradict the checkboxes/arcs
   // right next to it (e.g. reading "1/5" while 3 cities visibly fit)
-  const availableCount = isFindResultActive
+  const statusAvailableCount = isFindResultActive
     ? ringViews.filter((ring) => ring.fitStatus && ring.fitStatus !== 'out').length
     : ringViews.filter((ring) => ring.inHours).length;
   const totalCount = ringViews.length;
   // single short line (was two stacked lines): the colored dot still carries the
   // available/none signal on its own, so the count + legend can share one line
   // instead of needing a whole sentence to spell out "none available"
-  const statusText = `${availableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
-  const statusColor = availableCount === 0 ? STATUS_NONE_COLOR : availableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
-  const statusGlow = availableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
+  const statusText = `${statusAvailableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
+  const statusColor = statusAvailableCount === 0 ? STATUS_NONE_COLOR : statusAvailableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
+  const statusGlow = statusAvailableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
 
@@ -607,7 +607,7 @@ export function WorldClock({
         <span
           aria-hidden="true"
           className={styles.statusDot}
-          style={{ background: statusColor, boxShadow: availableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
+          style={{ background: statusColor, boxShadow: statusAvailableCount === 0 ? 'none' : `0 0 9px ${statusGlow}` }}
         />
         <span aria-hidden="true" className={styles.statusText} data-testid="clock-status-text">
           {statusText}
@@ -618,7 +618,7 @@ export function WorldClock({
             data-testid="control-find-time-button"
             className={isFindResultActive ? styles.findTimeButtonActive : styles.findTimeButton}
             aria-pressed={isFindResultActive}
-            onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime())}
+            onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime?.())}
           >
             <SparkleIcon />
             Find Time

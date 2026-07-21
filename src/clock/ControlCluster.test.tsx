@@ -255,4 +255,3 @@ describe('ControlCluster scrubActions', () => {
     expect(removeButton.disabled).toBe(true);
   });
 });
-

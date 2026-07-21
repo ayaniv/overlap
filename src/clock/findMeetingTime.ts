@@ -1,4 +1,5 @@
 import { getCityTime, isWithinWorkingHours } from './cityTime';
+import { MS_PER_HOUR } from './geometry';
 import type { Location } from './types';
 
 export type CityWindow = {
@@ -11,7 +12,7 @@ export type CityWindow = {
 // working hours. A city already inside its hours right now gets a window
 // starting at 0 (now) rather than "tomorrow" — its current stretch of
 // in-hours time is exactly what a meeting right now would land inside of.
-export function nextWorkingWindow(now: Date, location: Location): CityWindow {
+export function getNextWorkingWindow(now: Date, location: Location): CityWindow {
   const { frac } = getCityTime(now, location.timezoneId);
   const { workStart, workEnd } = location;
   if (isWithinWorkingHours(frac, workStart, workEnd)) {
@@ -23,17 +24,17 @@ export function nextWorkingWindow(now: Date, location: Location): CityWindow {
 
 const CYCLE_HOURS = 24;
 
-// like nextWorkingWindow, but one full day-cycle later — used when bounding
+// like getNextWorkingWindow, but one full day-cycle later — used when bounding
 // the search to home's window (see findBestMeetingOffset): home's own next
 // occurrence can be up to ~36h away, so a ring's *immediate* next occurrence
 // might land on the wrong day relative to home's, while the ring's following
 // one is actually the one that overlaps. Doesn't just add CYCLE_HOURS to
-// nextWorkingWindow's result, because that result clamps a currently-in-hours
+// getNextWorkingWindow's result, because that result clamps a currently-in-hours
 // occurrence's start to 0 (can't schedule in the past) — shifting the
 // clamped value would land the next cycle up to `frac - workStart` hours too
 // late. Recomputing the true (possibly negative) start before adding
 // CYCLE_HOURS keeps the cycle boundary exact.
-function followingWorkingWindow(now: Date, location: Location): CityWindow {
+function getFollowingWorkingWindow(now: Date, location: Location): CityWindow {
   const { frac } = getCityTime(now, location.timezoneId);
   const { workStart, workEnd } = location;
   if (isWithinWorkingHours(frac, workStart, workEnd)) {
@@ -100,9 +101,11 @@ export type FindMeetingTimeResult = {
   cityResults: CityFitResult[];
 };
 
+// tolerance, in hours, a city's working-hours window is widened by when a
+// meeting time can't be found inside every city's strict hours (see the
+// 'stretched' CityFitStatus and findBestMeetingOffset's two-pass search).
 export const STRETCH_HOURS = 1;
 const QUARTER_HOUR_MS = 15 * 60_000;
-const MS_PER_HOUR = 3_600_000;
 
 // rounds `window.startOffsetHours` (measured from `now`) forward to the next
 // quarter-hour wall-clock boundary. Every real-world UTC offset is itself a
@@ -155,7 +158,7 @@ const hasPositiveWidth = (window: CityWindow) => window.startOffsetHours < windo
 // hours entirely.
 export function findBestMeetingOffset(now: Date, home: Location, includedRings: Location[]): FindMeetingTimeResult {
   const cities = [home, ...includedRings];
-  const homeWindow = nextWorkingWindow(now, home);
+  const homeWindow = getNextWorkingWindow(now, home);
   const homeBound = widenWindow(homeWindow, STRETCH_HOURS);
 
   // a ring's own next occurrence and the one following it (its next day's
@@ -165,7 +168,7 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
   // actually overlaps.
   const ringCandidateWindows = (widenHours: number) =>
     includedRings.flatMap((ring) => {
-      const occurrences = [nextWorkingWindow(now, ring), followingWorkingWindow(now, ring)];
+      const occurrences = [getNextWorkingWindow(now, ring), getFollowingWorkingWindow(now, ring)];
       return occurrences
         .map((window) => clipWindow(widenHours > 0 ? widenWindow(window, widenHours) : window, homeBound))
         .filter(hasPositiveWidth);
@@ -184,9 +187,9 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
   const perfectCount = cityResults.filter((c) => c.status === 'in-hours').length;
   const fitCount = cityResults.filter((c) => c.status !== 'out').length;
 
-  // `nextWorkingWindow` can only represent a city's NEXT strict working-hours
+  // `getNextWorkingWindow` can only represent a city's NEXT strict working-hours
   // occurrence: if a city's strict hours ended a few minutes ago but it's
-  // still inside its STRETCH_HOURS buffer right now, nextWorkingWindow skips
+  // still inside its STRETCH_HOURS buffer right now, getNextWorkingWindow skips
   // straight past that buffer to tomorrow's window, so the sweep above never
   // considers "now" as a candidate for that city at all. That can make the
   // swept winner fit fewer cities than simply staying at offset 0 would, even

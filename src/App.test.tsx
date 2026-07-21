@@ -581,6 +581,35 @@ describe('App — Find Time', () => {
     expect(screen.getByTestId('control-scrub-schedule-button')).toBeTruthy();
   });
 
+  it('cancels the in-flight sweep animation and snaps immediately when a checkbox is toggled mid-flight', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByTestId('control-find-time-button'));
+
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
+    try {
+      // still mid-flight -- well short of FIND_MEETING_TIME_SWEEP_MS (600ms)
+      act(() => vi.advanceTimersByTime(100));
+
+      const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+      const [firstRing] = config.rings;
+      act(() => fireEvent.click(screen.getByTestId(`ring-include-checkbox-${firstRing.id}`)));
+
+      // the stale in-flight frame from the first sweep must be cancelled --
+      // left running, it would keep easing the preview toward the now-abandoned
+      // first target instead of the freshly re-searched one
+      expect(cancelSpy).toHaveBeenCalled();
+      // the re-entrant search snaps synchronously (see runFindMeetingTime),
+      // so the checkbox already reflects the new result without waiting out
+      // another animation
+      expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows a checkbox for each ring city once a result is active, none for home', () => {
     renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
@@ -682,10 +711,16 @@ describe('App — Find Time', () => {
     const { analytics } = renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
 
-    expect(analytics.trackEvent).toHaveBeenCalledWith(
-      'find_meeting_time_clicked',
-      expect.objectContaining({ ring_count: expect.any(Number), fit_count: expect.any(Number), perfect_count: expect.any(Number), is_perfect: expect.any(Boolean) }),
-    );
+    // every city is forced always-in-hours by this describe's beforeEach, so
+    // the payload is fully deterministic: every city (home + rings) fits
+    // perfectly, and ring_count always reflects the full default ring set
+    const ringCount = DEFAULT_CONFIG.rings.length;
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_clicked', {
+      ring_count: ringCount,
+      fit_count: ringCount + 1,
+      perfect_count: ringCount + 1,
+      is_perfect: true,
+    });
   });
 
   it('fires find_meeting_time_city_excluded / _included on checkbox toggles', () => {
@@ -695,12 +730,13 @@ describe('App — Find Time', () => {
     const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
     const [firstRing] = config.rings;
     const checkbox = screen.getByTestId(`ring-include-checkbox-${firstRing.id}`);
+    const ringCount = DEFAULT_CONFIG.rings.length;
 
     fireEvent.click(checkbox);
-    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_excluded', expect.objectContaining({ remaining_count: expect.any(Number) }));
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_excluded', { remaining_count: ringCount - 1 });
 
     fireEvent.click(checkbox);
-    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', expect.objectContaining({ remaining_count: expect.any(Number) }));
+    expect(analytics.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', { remaining_count: ringCount });
   });
 
   it('auto-unchecks a ring that can never be reconciled with home, landing on the best achievable subset', () => {

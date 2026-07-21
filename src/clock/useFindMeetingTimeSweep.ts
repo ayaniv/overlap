@@ -22,6 +22,8 @@ export function useFindMeetingTimeSweep({ active, fromOffsetMs, toOffsetMs, setO
   latestToOffsetMs.current = toOffsetMs;
   const latestOnComplete = useRef(onComplete);
   latestOnComplete.current = onComplete;
+  const latestSetOffsetMs = useRef(setOffsetMs);
+  latestSetOffsetMs.current = setOffsetMs;
 
   useEffect(() => {
     if (!active) return;
@@ -29,7 +31,7 @@ export function useFindMeetingTimeSweep({ active, fromOffsetMs, toOffsetMs, setO
     const targetOffsetMs = latestToOffsetMs.current;
 
     if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
-      setOffsetMs(targetOffsetMs);
+      latestSetOffsetMs.current(targetOffsetMs);
       latestOnComplete.current();
       return;
     }
@@ -38,7 +40,7 @@ export function useFindMeetingTimeSweep({ active, fromOffsetMs, toOffsetMs, setO
     const startTime = Date.now();
     const tick = () => {
       const elapsedMs = Math.min(Date.now() - startTime, FIND_MEETING_TIME_SWEEP_MS);
-      setOffsetMs(easedBetween(startOffsetMs, targetOffsetMs, elapsedMs / FIND_MEETING_TIME_SWEEP_MS));
+      latestSetOffsetMs.current(easedBetween(startOffsetMs, targetOffsetMs, elapsedMs / FIND_MEETING_TIME_SWEEP_MS));
       if (elapsedMs < FIND_MEETING_TIME_SWEEP_MS) {
         frameId = requestAnimationFrame(tick);
         return;
@@ -48,5 +50,5 @@ export function useFindMeetingTimeSweep({ active, fromOffsetMs, toOffsetMs, setO
     let frameId = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(frameId);
-  }, [active, setOffsetMs]);
+  }, [active]);
 }
