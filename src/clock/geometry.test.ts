@@ -4,6 +4,7 @@ import {
   angleFromCenterOffset,
   bezelBaseRadius,
   bezelTicks,
+  CENTER,
   DEGREES_PER_HOUR,
   directionChevrons,
   handAngle,
@@ -14,6 +15,7 @@ import {
   outermostRingRadius,
   parseMeetingInstant,
   pointOnCircle,
+  type Point,
   ringRadius,
   sweepHandDotRadius,
   sweepHandInnerRadius,
@@ -21,6 +23,7 @@ import {
   topMarkerInnerRadius,
   topMarkerOuterRadius,
   topMarkerPoints,
+  workingHoursArcPath,
 } from './geometry';
 
 describe('pointOnCircle', () => {
@@ -262,5 +265,137 @@ describe('offsetMsFromAngle', () => {
 
   it('is 0 for no rotation', () => {
     expect(offsetMsFromAngle(0)).toBe(0);
+  });
+});
+
+describe('workingHoursArcPath', () => {
+  // parses `M${x1},${y1} A${r},${r} 0 ${largeArcFlag} ${sweepFlag} ${x2},${y2}`
+  function parsePath(path: string) {
+    const match = path.match(/^M([-\d.]+),([-\d.]+) A([-\d.]+),([-\d.]+) 0 (\d) (\d) ([-\d.]+),([-\d.]+)$/);
+    if (!match) throw new Error(`unparseable arc path: ${path}`);
+    const [, x1, y1, rx, ry, largeArcFlag, sweepFlag, x2, y2] = match;
+    return {
+      start: { x: Number(x1), y: Number(y1) },
+      end: { x: Number(x2), y: Number(y2) },
+      rx: Number(rx),
+      ry: Number(ry),
+      largeArcFlag: Number(largeArcFlag),
+      sweepFlag: Number(sweepFlag),
+    };
+  }
+
+  // samples points along the arc using the SVG endpoint-to-center-parameterization
+  // formula (spec F.6.5/F.6.6), so the test verifies the actual rendered geometry
+  // rather than just the path string's flag values
+  function sampleArcPoints(path: string, n = 36): Point[] {
+    const { start, end, rx, ry, largeArcFlag, sweepFlag } = parsePath(path);
+    const x1p = (start.x - end.x) / 2;
+    const y1p = (start.y - end.y) / 2;
+    const sign = largeArcFlag !== sweepFlag ? 1 : -1;
+    const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+    const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+    const co = sign * Math.sqrt(Math.max(0, num / den));
+    const cxp = co * ((rx * y1p) / ry);
+    const cyp = co * ((-ry * x1p) / rx);
+    const cx = cxp + (start.x + end.x) / 2;
+    const cy = cyp + (start.y + end.y) / 2;
+
+    const vectorAngle = (ux: number, uy: number, vx: number, vy: number) => {
+      const dot = ux * vx + uy * vy;
+      const len = Math.sqrt(ux * ux + uy * uy) * Math.sqrt(vx * vx + vy * vy);
+      let ang = Math.acos(Math.min(1, Math.max(-1, dot / len)));
+      if (ux * vy - uy * vx < 0) ang = -ang;
+      return ang;
+    };
+    const theta1 = vectorAngle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+    let dtheta = vectorAngle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+    if (!sweepFlag && dtheta > 0) dtheta -= 2 * Math.PI;
+    if (sweepFlag && dtheta < 0) dtheta += 2 * Math.PI;
+
+    const points: Point[] = [];
+    for (let i = 0; i <= n; i++) {
+      const t = theta1 + (dtheta * i) / n;
+      points.push({ x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) });
+    }
+    return points;
+  }
+
+  function maxDeviationFromRing(path: string, radius: number): number {
+    const points = sampleArcPoints(path);
+    return Math.max(...points.map((p) => Math.abs(Math.hypot(p.x - CENTER, p.y - CENTER) - radius)));
+  }
+
+  it('stays on its own ring for a >12h span — the reported bug (7-20 is a 13h span)', () => {
+    const path = workingHoursArcPath(392, 21.8333, 7, 20);
+    expect(maxDeviationFromRing(path, 392)).toBeLessThan(0.5);
+  });
+
+  it('still renders correctly for the common <12h case (default 9-18, a 9h span)', () => {
+    const path = workingHoursArcPath(392, 12, 9, 18);
+    expect(maxDeviationFromRing(path, 392)).toBeLessThan(0.5);
+  });
+
+  it('stays on the ring for a span very close to 24h (23h)', () => {
+    const path = workingHoursArcPath(392, 12, 0, 23);
+    expect(maxDeviationFromRing(path, 392)).toBeLessThan(0.5);
+  });
+
+  it('stays on the ring for a span just above 0h', () => {
+    const path = workingHoursArcPath(392, 12, 9, 9.25);
+    expect(maxDeviationFromRing(path, 392)).toBeLessThan(0.5);
+  });
+
+  it('flips the large-arc-flag exactly at the 180°/12h boundary', () => {
+    expect(parsePath(workingHoursArcPath(100, 12, 9, 20)).largeArcFlag).toBe(0); // 11h, <12h
+    expect(parsePath(workingHoursArcPath(100, 12, 9, 21)).largeArcFlag).toBe(0); // 12h exactly, boundary
+    expect(parsePath(workingHoursArcPath(100, 12, 9, 22)).largeArcFlag).toBe(1); // 13h, >12h
+  });
+
+  it('sweeps the correct angular distance, not just the correct flag (13h -> 195°, not the complementary 165°)', () => {
+    const path = workingHoursArcPath(392, 21.8333, 7, 20);
+    const points = sampleArcPoints(path, 720);
+    const totalLength = points.reduce((sum, p, i, arr) => (i === 0 ? 0 : sum + Math.hypot(p.x - arr[i - 1].x, p.y - arr[i - 1].y)), 0);
+    const expectedLength = (392 * (195 * Math.PI)) / 180;
+    expect(totalLength).toBeCloseTo(expectedLength, 0);
+  });
+
+  describe('a full 24h span (0-24)', () => {
+    // a single "M...A..." arc command can't be parsed by parsePath/sampleArcPoints
+    // above (they expect exactly one arc); this parses the two-half-circle-arc
+    // shape workingHoursArcPath falls back to instead, and samples each half with
+    // the same endpoint-to-center formula
+    function sampleTwoArcPath(path: string, n = 36): Point[] {
+      const match = path.match(
+        /^M([-\d.]+),([-\d.]+) A([-\d.]+),([-\d.]+) 0 (\d) (\d) ([-\d.]+),([-\d.]+) A([-\d.]+),([-\d.]+) 0 (\d) (\d) ([-\d.]+),([-\d.]+)$/,
+      );
+      if (!match) throw new Error(`unparseable two-arc path: ${path}`);
+      const [x1, y1, r1x, r1y, laf1, sf1, x2, y2, r2x, r2y, laf2, sf2, x3, y3] = match.slice(1);
+      const seg1 = sampleArcPoints(`M${x1},${y1} A${r1x},${r1y} 0 ${laf1} ${sf1} ${x2},${y2}`, n);
+      const seg2 = sampleArcPoints(`M${x2},${y2} A${r2x},${r2y} 0 ${laf2} ${sf2} ${x3},${y3}`, n);
+      return [...seg1, ...seg2];
+    }
+
+    it('renders a true full circle instead of collapsing to a single point', () => {
+      const path = workingHoursArcPath(392, 12, 0, 24);
+      // must be two distinct arc commands, not one degenerate zero-length arc
+      expect(path.match(/A/g)).toHaveLength(2);
+      const points = sampleTwoArcPath(path);
+      for (const p of points) {
+        expect(Math.hypot(p.x - CENTER, p.y - CENTER)).toBeCloseTo(392, 1);
+      }
+      // the midpoint between the two arcs must be antipodal (diametrically
+      // opposite the start), not coincident with it — otherwise this would
+      // still collapse visually despite having two arc commands
+      const start = points[0];
+      const midpoint = points[points.length / 2];
+      expect(Math.hypot(start.x - midpoint.x, start.y - midpoint.y)).toBeCloseTo(2 * 392, 0);
+    });
+
+    it('also renders a full circle when a stretched find-time window pushes the span past 24h', () => {
+      // WorldClock widens a 'stretched' match's arc by STRETCH_HOURS on each
+      // side; a location already open 1-24 (23h) stretched becomes 0-25 (25h)
+      const path = workingHoursArcPath(392, 12, 0, 25);
+      expect(path.match(/A/g)).toHaveLength(2);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { PALETTE } from './defaultCities';
-import { isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_START } from './locationForm';
+import { clampWorkEnd, clampWorkStart, isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_START } from './locationForm';
 import styles from './LocationColorAndHoursFields.module.css';
 
 const FALLBACK_SWATCH_COLOR = '#000000';
@@ -84,7 +84,7 @@ export function LocationColorAndHoursFields({
             min={MIN_WORK_START}
             max={MAX_WORK_START}
             value={workStart}
-            onChange={(event) => onChangeWorkStart(Number(event.target.value))}
+            onChange={(event) => onChangeWorkStart(clampWorkStart(Number(event.target.value), workEnd))}
           />
         </label>
         <label className={styles.hoursLabel}>
@@ -95,7 +95,7 @@ export function LocationColorAndHoursFields({
             min={MIN_WORK_END}
             max={MAX_WORK_END}
             value={workEnd}
-            onChange={(event) => onChangeWorkEnd(Number(event.target.value))}
+            onChange={(event) => onChangeWorkEnd(clampWorkEnd(Number(event.target.value), workStart))}
           />
         </label>
       </div>

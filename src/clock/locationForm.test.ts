@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildLocationId, buildNewLocation, isValidHexColor, pickAvailableColor, validateNewLocation } from './locationForm';
+import { buildLocationId, buildNewLocation, clampWorkEnd, clampWorkStart, isValidHexColor, pickAvailableColor, validateNewLocation } from './locationForm';
 import type { NewLocationInput } from './locationForm';
 import type { CityEntry } from './cityCatalog';
 import { PALETTE } from './defaultCities';
@@ -92,6 +92,68 @@ describe('validateNewLocation', () => {
   it('rejects a start hour that is not before the end hour', () => {
     expect(validateNewLocation({ ...VALID_INPUT, workStart: 18, workEnd: 9 })).toMatch(/before/i);
     expect(validateNewLocation({ ...VALID_INPUT, workStart: 9, workEnd: 9 })).toMatch(/before/i);
+  });
+});
+
+describe('clampWorkStart', () => {
+  it('passes through a value already within range and before End', () => {
+    expect(clampWorkStart(10, 18)).toBe(10);
+  });
+
+  it('never allows a value above 23, the max Start hour', () => {
+    expect(clampWorkStart(30, 24)).toBe(23);
+  });
+
+  it('never allows a value below 0', () => {
+    expect(clampWorkStart(-5, 18)).toBe(0);
+  });
+
+  it('never allows Start to reach or exceed the paired End hour', () => {
+    expect(clampWorkStart(18, 18)).toBe(17);
+    expect(clampWorkStart(20, 18)).toBe(17);
+  });
+
+  it('rounds a non-integer input', () => {
+    expect(clampWorkStart(9.6, 18)).toBe(10);
+  });
+
+  it('falls back to the minimum for a non-finite input', () => {
+    expect(clampWorkStart(NaN, 18)).toBe(0);
+  });
+
+  it('allows Start=0 when End is at its maximum of 24 (full-day span)', () => {
+    expect(clampWorkStart(0, 24)).toBe(0);
+  });
+});
+
+describe('clampWorkEnd', () => {
+  it('passes through a value already within range and after Start', () => {
+    expect(clampWorkEnd(18, 9)).toBe(18);
+  });
+
+  it('never allows a value above 24, the max End hour', () => {
+    expect(clampWorkEnd(30, 9)).toBe(24);
+  });
+
+  it('never allows a value below 1', () => {
+    expect(clampWorkEnd(-5, 0)).toBe(1);
+  });
+
+  it('never allows End to reach or drop below the paired Start hour', () => {
+    expect(clampWorkEnd(9, 9)).toBe(10);
+    expect(clampWorkEnd(5, 9)).toBe(10);
+  });
+
+  it('rounds a non-integer input', () => {
+    expect(clampWorkEnd(18.4, 9)).toBe(18);
+  });
+
+  it('falls back to the maximum for a non-finite input', () => {
+    expect(clampWorkEnd(NaN, 9)).toBe(24);
+  });
+
+  it('allows End=24 when Start is 0 (full-day span)', () => {
+    expect(clampWorkEnd(24, 0)).toBe(24);
   });
 });
 
