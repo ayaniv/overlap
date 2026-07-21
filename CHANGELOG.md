@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-21
+
+- [#43](https://github.com/ayaniv/overlap/pull/43) Find Time: sweep-line meeting-time finder with per-city stretch fallback
+
 ## 2026-07-20
 
 - [#41](https://github.com/ayaniv/overlap/pull/41) Plan: "Find time to meet" button (design spec + implementation plan)
