@@ -157,6 +157,27 @@ function App() {
     [findResult],
   );
 
+  // for every currently-excluded ring, whether re-checking it (added to the
+  // set already included) would still come back 'out' after a full re-search
+  // — i.e. exactly what handleToggleRingIncluded would compute if the user
+  // clicked it. A ring that can never fit alongside the current selection
+  // gets its checkbox disabled with an explanation instead of silently
+  // snapping back to unchecked the moment autoExcludeUnfitRings re-excludes
+  // it (see RingIncludeCheckbox's disabledReason)
+  const unreachableRingReasonById = useMemo(() => {
+    if (!findResult) return undefined;
+    const reasons: Record<string, string> = {};
+    for (const ring of config.rings) {
+      if (!excludedRingIds.has(ring.id)) continue;
+      const candidateRings = config.rings.filter((candidate) => !excludedRingIds.has(candidate.id) || candidate.id === ring.id);
+      const candidateResult = findBestMeetingOffset(now, config.home, candidateRings);
+      if (candidateResult.cityResults.find((city) => city.id === ring.id)?.status === 'out') {
+        reasons[ring.id] = `${ring.label} can't fit a meeting time with the cities currently selected`;
+      }
+    }
+    return reasons;
+  }, [findResult, excludedRingIds, config.rings, config.home, now]);
+
   // drives the eased sweep to a found offset; `sweepTarget` is the trigger
   // (non-null while animating), `sweepFromRef` snapshots where the preview
   // was standing at the moment a search fired, mirroring the scrub-hint
@@ -255,26 +276,20 @@ function App() {
       const nextExcluded = new Set(excludedRingIds);
       if (wasExcluded) nextExcluded.delete(id);
       else nextExcluded.add(id);
-
-      const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
-      // unchecking the last remaining ring leaves nothing to search a meeting
-      // over. Disabling that checkbox to prevent this reads as broken (a
-      // fully-interactive-looking control the user can't actually operate),
-      // so instead let it through and treat it exactly like Cancel/Back-to-now
-      if (includedRings.length === 0) {
-        analytics.trackEvent('find_meeting_time_city_excluded', { remaining_count: 0 });
-        handleBackToNow();
-        return;
-      }
-
       setExcludedRingIds(nextExcluded);
+
+      // unchecking every ring is allowed and simply leaves the search running
+      // over home alone (trivially reconciled with itself) — Find Time stays
+      // active and every checkbox shows unchecked, rather than forcing the
+      // clock back to "now" the way disabling the last checkbox used to
+      const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
       const initialResult = runFindMeetingTime(includedRings);
       const result = autoExcludeUnfitRings(initialResult, nextExcluded);
       analytics.trackEvent(wasExcluded ? 'find_meeting_time_city_included' : 'find_meeting_time_city_excluded', {
         remaining_count: result.totalCount - 1,
       });
     },
-    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics, handleBackToNow],
+    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
   );
 
   const handleShare = useCallback(() => {
@@ -415,6 +430,7 @@ function App() {
       onFindTime={handleFindTime}
       isFindResultActive={isFindResultActive}
       findResultStatusById={findResultStatusById}
+      unreachableRingReasonById={unreachableRingReasonById}
       excludedRingIds={excludedRingIds}
       onToggleRingIncluded={handleToggleRingIncluded}
     />

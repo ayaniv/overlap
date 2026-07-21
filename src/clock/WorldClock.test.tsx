@@ -929,6 +929,68 @@ describe('WorldClock Find Time integration', () => {
     expect((screen.getByTestId('ring-include-checkbox-seattle') as HTMLInputElement).disabled).toBe(false);
   });
 
+  it('disables a ring checkbox and shows a title tooltip when unreachableRingReasonById marks it unreachable', () => {
+    render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          previewOffsetMs={MS_PER_HOUR}
+          isFindResultActive={true}
+          excludedRingIds={new Set(['san-francisco'])}
+          unreachableRingReasonById={{ 'san-francisco': "San Francisco can't fit a meeting time with the cities currently selected" }}
+          onToggleRingIncluded={vi.fn()}
+        />
+      </AnalyticsProvider>,
+    );
+
+    const checkbox = screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement;
+    expect(checkbox.disabled).toBe(true);
+    expect(checkbox.closest('label')?.getAttribute('title')).toBe("San Francisco can't fit a meeting time with the cities currently selected");
+  });
+
+  it('does not disable a ring checkbox absent from unreachableRingReasonById', () => {
+    render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          previewOffsetMs={MS_PER_HOUR}
+          isFindResultActive={true}
+          excludedRingIds={new Set(['san-francisco'])}
+          unreachableRingReasonById={{}}
+          onToggleRingIncluded={vi.fn()}
+        />
+      </AnalyticsProvider>,
+    );
+
+    const checkbox = screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement;
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.closest('label')?.getAttribute('title')).toBeNull();
+  });
+
   it('renders a stretched ring with a dashed arc, from findResultStatusById', () => {
     const { container } = render(
       <AnalyticsProvider service={createMockAnalyticsService()}>

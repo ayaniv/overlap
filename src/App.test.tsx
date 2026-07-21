@@ -666,25 +666,25 @@ describe('App — Find Time', () => {
   });
 
   // regression: the last remaining checked ring's checkbox used to be
-  // disabled to prevent reaching zero included rings, which reads as broken
-  // from the user's side (fully interactive-looking control that a click
-  // does nothing to). Unchecking it now goes through instead, exactly like
-  // hitting Cancel — there's nothing left to search a meeting time over.
-  it('unchecking the last remaining checked ring returns to now, same as Cancel', () => {
+  // disabled to prevent reaching zero included rings, which read as broken
+  // from the user's side. Unchecking it should not force the clock back to
+  // "now" either — Find Time stays active with every ring shown unchecked,
+  // since a search over home alone (trivially reconciled with itself) isn't
+  // an error state.
+  it('unchecking every ring, including the last one, leaves them all unchecked with Find Time still active', () => {
     renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
 
     const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
-    for (const ring of config.rings.slice(0, -1)) {
+    for (const ring of config.rings) {
       fireEvent.click(screen.getByTestId(`ring-include-checkbox-${ring.id}`));
     }
 
-    const lastRing = config.rings.at(-1);
-    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${lastRing.id}`));
-
-    expect(screen.queryByTestId(`ring-include-checkbox-${lastRing.id}`)).toBeNull();
-    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('false');
-    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
+    for (const ring of config.rings) {
+      expect((screen.getByTestId(`ring-include-checkbox-${ring.id}`) as HTMLInputElement).checked).toBe(false);
+    }
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
   });
 
   it('Cancel clears the find result: checkboxes disappear and the plain icon menu returns', () => {
@@ -783,6 +783,56 @@ describe('App — Find Time', () => {
     fireEvent.click(screen.getByTestId('control-find-time-button'));
 
     expect((screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
+  });
+
+  // regression: a ring that auto-excludes because it can never be reconciled
+  // used to leave its checkbox fully interactive-looking, so re-checking it
+  // just silently snapped back to unchecked a moment later -- indistinguishable
+  // from a broken control. It should instead be disabled with a tooltip
+  // explaining why, computed via App's unreachableRingReasonById.
+  it('disables a checkbox with an explanatory tooltip for a ring that can never fit, but not for one that can', () => {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const fitsCheckbox = screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement;
+    const neverFitsCheckbox = screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement;
+
+    expect(fitsCheckbox.disabled).toBe(false);
+    expect(fitsCheckbox.closest('label')?.getAttribute('title')).toBeNull();
+
+    expect(neverFitsCheckbox.disabled).toBe(true);
+    expect(neverFitsCheckbox.closest('label')?.getAttribute('title')).toMatch(/never fits/i);
+  });
+
+  // clicking a disabled checkbox is a native no-op (the browser never fires
+  // onChange), but this locks in that expectation against a future change to
+  // the disabled-check logic quietly making the click handler responsible instead
+  it('does not toggle a disabled, never-fits checkbox when clicked', () => {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+    fireEvent.click(screen.getByTestId('ring-include-checkbox-never-fits'));
+
     expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
   });
 });
