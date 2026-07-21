@@ -80,8 +80,20 @@ export function topMarkerApexY(totalRings: number): number {
 // arc from workStart to workEnd, rotated so the city's current time sits at the top axis
 export function workingHoursArcPath(radius: number, currentFrac: number, workStart: number, workEnd: number): string {
   const startAngle = (currentFrac - workStart) * DEGREES_PER_HOUR;
-  const endAngle = (currentFrac - workEnd) * DEGREES_PER_HOUR;
   const start = pointOnCircle(radius, startAngle);
+  const spanDeg = (workEnd - workStart) * DEGREES_PER_HOUR;
+  // a full (or "find time"-stretched beyond full) day has start and end land on
+  // the exact same point, which a single SVG arc command can't express — it
+  // collapses to a zero-length path that renders as a dot instead of a ring.
+  // Split it into two half-circle arcs through the antipodal point instead.
+  if (spanDeg >= 360) {
+    const antipode = pointOnCircle(radius, startAngle + 180);
+    return (
+      `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 1 0 ${antipode.x.toFixed(2)},${antipode.y.toFixed(2)}` +
+      ` A${radius},${radius} 0 1 0 ${start.x.toFixed(2)},${start.y.toFixed(2)}`
+    );
+  }
+  const endAngle = (currentFrac - workEnd) * DEGREES_PER_HOUR;
   const end = pointOnCircle(radius, endAngle);
   // the two endpoints alone are ambiguous between two same-radius circles (this
   // ring's true center and its mirror across the start/end chord); a hardcoded
@@ -89,7 +101,6 @@ export function workingHoursArcPath(radius: number, currentFrac: number, workSta
   // <=180°, so spans >180° must flip it to stay on the correct circle instead of
   // bulging onto the mirrored one (sweep-flag stays 0 — same rotation direction
   // throughout, only which of the two candidate circles is used changes)
-  const spanDeg = (workEnd - workStart) * DEGREES_PER_HOUR;
   const largeArcFlag = spanDeg > 180 ? 1 : 0;
   return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 ${largeArcFlag} 0 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
 }

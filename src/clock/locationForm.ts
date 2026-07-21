@@ -15,6 +15,25 @@ export function isValidHexColor(value: string): boolean {
   return HEX_COLOR_PATTERN.test(value.trim());
 }
 
+// keeps a live-typed Start-hour input within [MIN_WORK_START, MAX_WORK_START] and
+// strictly below the paired End hour. Unlike AddLocationForm (which buffers input
+// and gates it behind validateNewLocation at submit time), ManageLocationsList's
+// row editor applies every keystroke straight to the location with no submit step
+// and no error-message affordance, so out-of-range or inverted values must be
+// clamped here instead of merely reported
+export function clampWorkStart(rawValue: number, workEnd: number): number {
+  if (!Number.isFinite(rawValue)) return MIN_WORK_START;
+  const bounded = Math.min(MAX_WORK_START, Math.max(MIN_WORK_START, Math.round(rawValue)));
+  return Math.min(bounded, workEnd - 1);
+}
+
+// same as clampWorkStart, mirrored for the End hour
+export function clampWorkEnd(rawValue: number, workStart: number): number {
+  if (!Number.isFinite(rawValue)) return MAX_WORK_END;
+  const bounded = Math.min(MAX_WORK_END, Math.max(MIN_WORK_END, Math.round(rawValue)));
+  return Math.max(bounded, workStart + 1);
+}
+
 // suggests a palette swatch not already used by an existing location, so
 // newly added rings default to visually distinct colors; falls back to any
 // palette color once every swatch is already taken

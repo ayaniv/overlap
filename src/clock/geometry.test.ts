@@ -358,4 +358,44 @@ describe('workingHoursArcPath', () => {
     const expectedLength = (392 * (195 * Math.PI)) / 180;
     expect(totalLength).toBeCloseTo(expectedLength, 0);
   });
+
+  describe('a full 24h span (0-24)', () => {
+    // a single "M...A..." arc command can't be parsed by parsePath/sampleArcPoints
+    // above (they expect exactly one arc); this parses the two-half-circle-arc
+    // shape workingHoursArcPath falls back to instead, and samples each half with
+    // the same endpoint-to-center formula
+    function sampleTwoArcPath(path: string, n = 36): Point[] {
+      const match = path.match(
+        /^M([-\d.]+),([-\d.]+) A([-\d.]+),([-\d.]+) 0 (\d) (\d) ([-\d.]+),([-\d.]+) A([-\d.]+),([-\d.]+) 0 (\d) (\d) ([-\d.]+),([-\d.]+)$/,
+      );
+      if (!match) throw new Error(`unparseable two-arc path: ${path}`);
+      const [x1, y1, r1x, r1y, laf1, sf1, x2, y2, r2x, r2y, laf2, sf2, x3, y3] = match.slice(1);
+      const seg1 = sampleArcPoints(`M${x1},${y1} A${r1x},${r1y} 0 ${laf1} ${sf1} ${x2},${y2}`, n);
+      const seg2 = sampleArcPoints(`M${x2},${y2} A${r2x},${r2y} 0 ${laf2} ${sf2} ${x3},${y3}`, n);
+      return [...seg1, ...seg2];
+    }
+
+    it('renders a true full circle instead of collapsing to a single point', () => {
+      const path = workingHoursArcPath(392, 12, 0, 24);
+      // must be two distinct arc commands, not one degenerate zero-length arc
+      expect(path.match(/A/g)).toHaveLength(2);
+      const points = sampleTwoArcPath(path);
+      for (const p of points) {
+        expect(Math.hypot(p.x - CENTER, p.y - CENTER)).toBeCloseTo(392, 1);
+      }
+      // the midpoint between the two arcs must be antipodal (diametrically
+      // opposite the start), not coincident with it — otherwise this would
+      // still collapse visually despite having two arc commands
+      const start = points[0];
+      const midpoint = points[points.length / 2];
+      expect(Math.hypot(start.x - midpoint.x, start.y - midpoint.y)).toBeCloseTo(2 * 392, 0);
+    });
+
+    it('also renders a full circle when a stretched find-time window pushes the span past 24h', () => {
+      // WorldClock widens a 'stretched' match's arc by STRETCH_HOURS on each
+      // side; a location already open 1-24 (23h) stretched becomes 0-25 (25h)
+      const path = workingHoursArcPath(392, 12, 0, 25);
+      expect(path.match(/A/g)).toHaveLength(2);
+    });
+  });
 });

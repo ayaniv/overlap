@@ -285,6 +285,48 @@ describe('ManageLocationsList row expand/edit', () => {
     expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 19 });
   });
 
+  // regression: this row editor applies every keystroke live with no submit
+  // step and no error message (unlike AddLocationForm's validateNewLocation
+  // gate), so out-of-range or inverted values used to reach the location
+  // unclamped — e.g. typing "30" for End, or a Start >= End
+  it('clamps a typed End value above 24 down to the max instead of setting it', () => {
+    const { onUpdateLocation } = renderList();
+
+    fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
+    fireEvent.change(screen.getByLabelText('End'), { target: { value: '30' } });
+
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 24 });
+  });
+
+  it('clamps Start so it can never reach or exceed End (SF starts at 9, ends at 18)', () => {
+    const { onUpdateLocation } = renderList();
+
+    fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '18' } });
+
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workStart: 17 });
+  });
+
+  it('clamps End so it can never reach or drop below Start (SF starts at 9, ends at 18)', () => {
+    const { onUpdateLocation } = renderList();
+
+    fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
+    fireEvent.change(screen.getByLabelText('End'), { target: { value: '5' } });
+
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 10 });
+  });
+
+  it('allows the full 0-24 day span, since Start stays strictly below End', () => {
+    const { onUpdateLocation } = renderList();
+
+    fireEvent.click(screen.getByTestId('row-toggle-san-francisco'));
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText('End'), { target: { value: '24' } });
+
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workStart: 0 });
+    expect(onUpdateLocation).toHaveBeenCalledWith('san-francisco', { workEnd: 24 });
+  });
+
   it('calls onSetHome with the full location when Set as home is tapped', async () => {
     const user = userEvent.setup();
     const { onSetHome } = renderList();
