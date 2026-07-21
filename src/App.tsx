@@ -163,16 +163,39 @@ function App() {
   // clicked it. A ring that can never fit alongside the current selection
   // gets its checkbox disabled with an explanation instead of silently
   // snapping back to unchecked the moment autoExcludeUnfitRings re-excludes
-  // it (see RingIncludeCheckbox's disabledReason)
+  // it (see RingIncludeCheckbox's disabledReason).
+  //
+  // Also covers a subtler case: findBestMeetingOffset picks ONE offset that
+  // maximizes total fit across the whole included set, re-sweeping from
+  // scratch on every toggle -- so adding a ring that itself fits fine can
+  // still shift the winning offset to a different moment that drops a
+  // DIFFERENT, already-fitting ring the user never touched (reported live:
+  // checking New York moved the search to a time where New York fit, but
+  // silently un-checked Sydney, which had been fitting at "now"). Comparing
+  // each candidate's cityResults against the current result's catches this:
+  // a candidate ring is disabled if checking it would flip any
+  // currently-included, currently-fitting ring to 'out'.
   const unreachableRingReasonById = useMemo(() => {
     if (!findResult) return undefined;
+    const currentStatusById = Object.fromEntries(findResult.cityResults.map((city) => [city.id, city.status]));
     const reasons: Record<string, string> = {};
     for (const ring of config.rings) {
       if (!excludedRingIds.has(ring.id)) continue;
       const candidateRings = config.rings.filter((candidate) => !excludedRingIds.has(candidate.id) || candidate.id === ring.id);
       const candidateResult = findBestMeetingOffset(now, config.home, candidateRings);
-      if (candidateResult.cityResults.find((city) => city.id === ring.id)?.status === 'out') {
+      const candidateStatusById = Object.fromEntries(candidateResult.cityResults.map((city) => [city.id, city.status]));
+
+      if (candidateStatusById[ring.id] === 'out') {
         reasons[ring.id] = `${ring.label} can't fit a meeting time with the cities currently selected`;
+        continue;
+      }
+
+      const displacedRing = config.rings.find(
+        (other) =>
+          !excludedRingIds.has(other.id) && currentStatusById[other.id] !== 'out' && candidateStatusById[other.id] === 'out',
+      );
+      if (displacedRing) {
+        reasons[ring.id] = `Including ${ring.label} would drop ${displacedRing.label} out of the meeting time`;
       }
     }
     return reasons;

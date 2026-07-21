@@ -835,4 +835,72 @@ describe('App — Find Time', () => {
 
     expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
   });
+
+  // regression: checking a ring that itself fits fine could still silently
+  // uncheck a DIFFERENT, already-included ring, because findBestMeetingOffset
+  // sweeps for a single best offset across the whole included set from
+  // scratch on every toggle, rather than trying to keep the current one.
+  // Reported live: checking New York (whose own window opens ~5h45m later)
+  // shifted the search there and dropped Sydney, which had been fitting fine
+  // at "now". New York's checkbox should be disabled with an explanation
+  // instead of letting that swap happen silently.
+  it('disables a ring whose inclusion would silently displace a different, already-fitting ring', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-22T07:15:00.000Z')); // ~10:15 IDT -- home mid-workday
+    // user.click fires a real pointer sequence (unlike fireEvent.click, which
+    // is just a bare 'click' event) -- it reaches useRingScrub's onPointerUp
+    // on the clock container, since checkbox clicks only stopPropagation on
+    // pointerDown, not pointerUp. jsdom doesn't implement the Pointer Capture
+    // API at all, so stub it the same way ManageLocationsList's drag tests do.
+    const originalHasPointerCapture = Element.prototype.hasPointerCapture;
+    const originalSetPointerCapture = Element.prototype.setPointerCapture;
+    const originalReleasePointerCapture = Element.prototype.releasePointerCapture;
+    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
+    try {
+      const config: ClockConfig = {
+        home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
+        rings: [
+          { id: 'london', label: 'London', timezoneId: 'Europe/London', color: '#34D399', workStart: 9, workEnd: 18 },
+          { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 },
+          { id: 'new-york', label: 'New York', timezoneId: 'America/New_York', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+        ],
+        meetings: [],
+      };
+      window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+      renderApp();
+
+      // the initial Find Time click sweeps all three rings together, and
+      // New York (whose own window is open sooner in this composition) wins
+      // that first sweep -- so Sydney starts out auto-excluded. Excluding New
+      // York only removes it from the search; it doesn't automatically
+      // re-include Sydney (auto-exclusion doesn't self-heal), so re-check it
+      // explicitly to get to the state the report started from: London +
+      // Sydney both fitting at "now".
+      fireEvent.click(screen.getByTestId('control-find-time-button'));
+      fireEvent.click(screen.getByTestId('ring-include-checkbox-new-york'));
+      fireEvent.click(screen.getByTestId('ring-include-checkbox-sydney'));
+
+      expect((screen.getByTestId('ring-include-checkbox-london') as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByTestId('ring-include-checkbox-sydney') as HTMLInputElement).checked).toBe(true);
+
+      const nyCheckbox = screen.getByTestId('ring-include-checkbox-new-york') as HTMLInputElement;
+      expect(nyCheckbox.checked).toBe(false);
+      expect(nyCheckbox.disabled).toBe(true);
+      expect(nyCheckbox.closest('label')?.getAttribute('title')).toMatch(/drop Sydney/i);
+
+      // a disabled input is a native no-op -- clicking it anyway must not
+      // toggle it or disturb Sydney's already-fitting checked state
+      await user.click(nyCheckbox);
+      expect(nyCheckbox.checked).toBe(false);
+      expect((screen.getByTestId('ring-include-checkbox-sydney') as HTMLInputElement).checked).toBe(true);
+    } finally {
+      vi.useRealTimers();
+      Element.prototype.hasPointerCapture = originalHasPointerCapture;
+      Element.prototype.setPointerCapture = originalSetPointerCapture;
+      Element.prototype.releasePointerCapture = originalReleasePointerCapture;
+    }
+  });
 });
