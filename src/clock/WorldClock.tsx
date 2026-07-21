@@ -582,25 +582,18 @@ export function WorldClock({
         {isFindResultActive &&
           ringViews
             .filter((ring) => !ring.location.isHome)
-            .map((ring) => {
-              const checkedCount = rings.length - (excludedRingIds?.size ?? 0);
-              const isChecked = !excludedRingIds?.has(ring.location.id);
-              // only disable the last remaining checked box when there's more
-              // than one ring to choose from — with a single ring total, this
-              // condition would otherwise permanently lock its only checkbox,
-              // since checkedCount === 1 trivially whenever nothing has been
-              // excluded yet
-              return (
-                <RingIncludeCheckbox
-                  key={`include-${ring.location.id}`}
-                  location={ring.location}
-                  dotPosition={ring.dotPosition}
-                  checked={isChecked}
-                  disabled={isChecked && checkedCount === 1 && rings.length > 1}
-                  onToggle={() => onToggleRingIncluded?.(ring.location.id)}
-                />
-              );
-            })}
+            .map((ring) => (
+              <RingIncludeCheckbox
+                key={`include-${ring.location.id}`}
+                location={ring.location}
+                dotPosition={ring.dotPosition}
+                // unchecking the very last remaining ring is allowed — the
+                // caller (App's handleToggleRingIncluded) treats that as
+                // Back-to-now instead of leaving nothing to search over
+                checked={!excludedRingIds?.has(ring.location.id)}
+                onToggle={() => onToggleRingIncluded?.(ring.location.id)}
+              />
+            ))}
       </div>
 
       <div className={styles.statusRow}>

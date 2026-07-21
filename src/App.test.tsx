@@ -650,7 +650,7 @@ describe('App — Find Time', () => {
     expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
   });
 
-  it('disables the last remaining checked ring', () => {
+  it('keeps the last remaining checked ring enabled, unlike the old disabled-checkbox behavior', () => {
     renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
 
@@ -660,7 +660,31 @@ describe('App — Find Time', () => {
     }
 
     const lastRing = config.rings.at(-1);
-    expect((screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement).disabled).toBe(true);
+    const lastCheckbox = screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement;
+    expect(lastCheckbox.disabled).toBe(false);
+    expect(lastCheckbox.checked).toBe(true);
+  });
+
+  // regression: the last remaining checked ring's checkbox used to be
+  // disabled to prevent reaching zero included rings, which reads as broken
+  // from the user's side (fully interactive-looking control that a click
+  // does nothing to). Unchecking it now goes through instead, exactly like
+  // hitting Cancel — there's nothing left to search a meeting time over.
+  it('unchecking the last remaining checked ring returns to now, same as Cancel', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings.slice(0, -1)) {
+      fireEvent.click(screen.getByTestId(`ring-include-checkbox-${ring.id}`));
+    }
+
+    const lastRing = config.rings.at(-1);
+    fireEvent.click(screen.getByTestId(`ring-include-checkbox-${lastRing.id}`));
+
+    expect(screen.queryByTestId(`ring-include-checkbox-${lastRing.id}`)).toBeNull();
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('control-scrub-cancel-button')).toBeNull();
   });
 
   it('Cancel clears the find result: checkboxes disappear and the plain icon menu returns', () => {

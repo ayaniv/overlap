@@ -234,24 +234,6 @@ function App() {
     });
   }, [config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics]);
 
-  const handleToggleRingIncluded = useCallback(
-    (id: string) => {
-      const wasExcluded = excludedRingIds.has(id);
-      const nextExcluded = new Set(excludedRingIds);
-      if (wasExcluded) nextExcluded.delete(id);
-      else nextExcluded.add(id);
-      setExcludedRingIds(nextExcluded);
-
-      const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
-      const initialResult = runFindMeetingTime(includedRings);
-      const result = autoExcludeUnfitRings(initialResult, nextExcluded);
-      analytics.trackEvent(wasExcluded ? 'find_meeting_time_city_included' : 'find_meeting_time_city_excluded', {
-        remaining_count: result.totalCount - 1,
-      });
-    },
-    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
-  );
-
   // clears the find-result state alongside a real resetScrub() — used
   // everywhere Cancel/Schedule/Remove-Meeting already return the clock to
   // "now", so a landed find result never lingers (stale checkboxes/arcs)
@@ -266,6 +248,34 @@ function App() {
     resetScrub();
     clearFindResult();
   }, [resetScrub, clearFindResult]);
+
+  const handleToggleRingIncluded = useCallback(
+    (id: string) => {
+      const wasExcluded = excludedRingIds.has(id);
+      const nextExcluded = new Set(excludedRingIds);
+      if (wasExcluded) nextExcluded.delete(id);
+      else nextExcluded.add(id);
+
+      const includedRings = config.rings.filter((ring) => !nextExcluded.has(ring.id));
+      // unchecking the last remaining ring leaves nothing to search a meeting
+      // over. Disabling that checkbox to prevent this reads as broken (a
+      // fully-interactive-looking control the user can't actually operate),
+      // so instead let it through and treat it exactly like Cancel/Back-to-now
+      if (includedRings.length === 0) {
+        analytics.trackEvent('find_meeting_time_city_excluded', { remaining_count: 0 });
+        handleBackToNow();
+        return;
+      }
+
+      setExcludedRingIds(nextExcluded);
+      const initialResult = runFindMeetingTime(includedRings);
+      const result = autoExcludeUnfitRings(initialResult, nextExcluded);
+      analytics.trackEvent(wasExcluded ? 'find_meeting_time_city_included' : 'find_meeting_time_city_excluded', {
+        remaining_count: result.totalCount - 1,
+      });
+    },
+    [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics, handleBackToNow],
+  );
 
   const handleShare = useCallback(() => {
     void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {

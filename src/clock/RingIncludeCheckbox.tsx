@@ -6,7 +6,6 @@ export type RingIncludeCheckboxProps = {
   location: Location;
   dotPosition: Point;
   checked: boolean;
-  disabled: boolean;
   onToggle: () => void;
 };
 
@@ -20,7 +19,7 @@ const VIEWBOX_UNITS_PER_PERCENT = 10;
 // geometry instead of measuring label text width, per the visual-companion
 // mockup comparison during brainstorming (docs/superpowers/specs/2026-07-20-
 // find-meeting-time-design.md).
-export function RingIncludeCheckbox({ location, dotPosition, checked, disabled, onToggle }: RingIncludeCheckboxProps) {
+export function RingIncludeCheckbox({ location, dotPosition, checked, onToggle }: RingIncludeCheckboxProps) {
   return (
     <label
       className={styles.checkboxWrap}
@@ -44,7 +43,6 @@ export function RingIncludeCheckbox({ location, dotPosition, checked, disabled, 
         className={styles.checkboxInput}
         data-testid={`ring-include-checkbox-${location.id}`}
         checked={checked}
-        disabled={disabled}
         onChange={onToggle}
         aria-label={`Include ${location.label} in Find Time search`}
       />
