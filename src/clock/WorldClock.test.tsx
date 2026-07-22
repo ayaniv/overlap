@@ -1072,39 +1072,65 @@ describe('WorldClock Find Time integration', () => {
 // o'clock mark, the only point on the dial with a fixed reference (the triangle marker) to
 // expose the misalignment against. See useSweepAngle.ts.
 describe('WorldClock sweep hand', () => {
+  const renderClockAt = (now: Date) =>
+    (
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={now}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+        />
+      </AnalyticsProvider>
+    );
+
+  // the acceptance bar for this fix, stated plainly: the hand must always represent the
+  // current second in real time (not a stale or animation-only value), and a full sweep
+  // must land exactly on the topmost (12 o'clock) point.
+  it('represents the current real-time second immediately on mount, before any animation frame has run', () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); // requestAnimationFrame stays real and unflushed here on purpose
+    const midMinute = new Date('2026-01-01T12:00:37.500Z'); // 37.5s in -> 225deg
+    vi.setSystemTime(midMinute);
+
+    render(renderClockAt(midMinute));
+
+    // this is the very first paint, computed once at mount from the real clock — no rAF
+    // frame has had a chance to run yet, so this proves the *initial* render already shows
+    // the true current-second position rather than defaulting to 0/top and animating in
+    expect(screen.getByTestId('sweep-hand').getAttribute('transform')).toBe('rotate(225.00 500 500)');
+  });
+
+  it('lands exactly on the topmost point at a real minute boundary', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const topOfMinute = new Date('2026-01-01T12:01:00.000Z');
+    vi.setSystemTime(topOfMinute);
+
+    render(renderClockAt(topOfMinute));
+
+    expect(screen.getByTestId('sweep-hand').getAttribute('transform')).toBe('rotate(0.00 500 500)');
+  });
+
   it('is not reset by a React re-render (the once-a-second `now` tick) between animation frames', () => {
     vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
     vi.setSystemTime(NOW);
 
-    const renderAt = (now: Date) =>
-      (
-        <AnalyticsProvider service={createMockAnalyticsService()}>
-          <WorldClock
-            now={now}
-            home={HOME}
-            rings={[SF]}
-            meetings={[]}
-            mode="view"
-            onSetMode={vi.fn()}
-            onShare={vi.fn()}
-            isMenuExpanded={false}
-            onMenuExpandedChange={vi.fn()}
-            onRemoveLocation={vi.fn()}
-            onReorder={vi.fn()}
-            onUpdateLocation={vi.fn()}
-            onSetHome={vi.fn()}
-          />
-        </AnalyticsProvider>
-      );
-
-    const { rerender } = render(renderAt(NOW));
+    const { rerender } = render(renderClockAt(NOW));
 
     vi.advanceTimersByTime(16); // let the sweep hand's rAF loop take over the DOM
     const handBefore = screen.getByTestId('sweep-hand').getAttribute('transform');
 
     // simulate the app's once-a-second `now` update re-rendering WorldClock, without letting
     // another animation frame run in between
-    rerender(renderAt(new Date(NOW.getTime() + 1000)));
+    rerender(renderClockAt(new Date(NOW.getTime() + 1000)));
 
     expect(screen.getByTestId('sweep-hand').getAttribute('transform')).toBe(handBefore);
   });
