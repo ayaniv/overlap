@@ -19,6 +19,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const HOME: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 };
@@ -1061,5 +1062,50 @@ describe('WorldClock Find Time integration', () => {
 
     expect(onBackToNow).toHaveBeenCalledTimes(1);
     expect(onFindTime).not.toHaveBeenCalled();
+  });
+});
+
+// regression: the sweep hand's <g transform> used to be bound to `handAngle(now)`, a value
+// derived from the once-a-second `now` prop. Every time that prop changed, React's own
+// re-render clobbered whatever frame-accurate angle useSweepAngle's rAF loop had just written
+// directly to the DOM, producing a once-a-second stutter — most visible right at the 12
+// o'clock mark, the only point on the dial with a fixed reference (the triangle marker) to
+// expose the misalignment against. See useSweepAngle.ts.
+describe('WorldClock sweep hand', () => {
+  it('is not reset by a React re-render (the once-a-second `now` tick) between animation frames', () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'Date'] });
+    vi.setSystemTime(NOW);
+
+    const renderAt = (now: Date) =>
+      (
+        <AnalyticsProvider service={createMockAnalyticsService()}>
+          <WorldClock
+            now={now}
+            home={HOME}
+            rings={[SF]}
+            meetings={[]}
+            mode="view"
+            onSetMode={vi.fn()}
+            onShare={vi.fn()}
+            isMenuExpanded={false}
+            onMenuExpandedChange={vi.fn()}
+            onRemoveLocation={vi.fn()}
+            onReorder={vi.fn()}
+            onUpdateLocation={vi.fn()}
+            onSetHome={vi.fn()}
+          />
+        </AnalyticsProvider>
+      );
+
+    const { rerender } = render(renderAt(NOW));
+
+    vi.advanceTimersByTime(16); // let the sweep hand's rAF loop take over the DOM
+    const handBefore = screen.getByTestId('sweep-hand').getAttribute('transform');
+
+    // simulate the app's once-a-second `now` update re-rendering WorldClock, without letting
+    // another animation frame run in between
+    rerender(renderAt(new Date(NOW.getTime() + 1000)));
+
+    expect(screen.getByTestId('sweep-hand').getAttribute('transform')).toBe(handBefore);
   });
 });

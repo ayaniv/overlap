@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
@@ -298,7 +298,11 @@ export function WorldClock({
     () => directionChevrons(Array.from({ length: totalRings }, (_, index) => ringRadius(index, totalRings))),
     [totalRings],
   );
-  const arrowAngle = handAngle(now);
+  // computed once at mount (not from the reactive `now` prop) so this only ever supplies the
+  // very first paint, before useSweepAngle's effect takes over the DOM directly — if this were
+  // recomputed from `now` on every render instead, that once-a-second re-render would clobber
+  // useSweepAngle's frame-accurate writes (see useSweepAngle.ts)
+  const [initialHandAngle] = useState(() => handAngle(new Date()));
   const handRef = useRef<SVGGElement>(null);
   useSweepAngle(handRef);
   const glowFilterId = `${idPrefix}-glow`;
@@ -543,7 +547,7 @@ export function WorldClock({
             style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
           />
 
-          <g ref={handRef} transform={`rotate(${arrowAngle.toFixed(2)} 500 500)`}>
+          <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
             <line
               x1={500}
               y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
