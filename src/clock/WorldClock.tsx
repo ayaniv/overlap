@@ -591,6 +591,12 @@ export function WorldClock({
             .filter((ring) => !ring.location.isHome)
             .map((ring) => {
               const unreachableReason = unreachableRingReasonById?.[ring.location.id];
+              // RingIncludeCheckboxProps models disabled/disabledReason as a
+              // discriminated union, so the pairing is built once here rather
+              // than as two independently-typed props that could drift apart
+              const disabledProps: { disabled: false } | { disabled: true; disabledReason: string } = unreachableReason
+                ? { disabled: true, disabledReason: unreachableReason }
+                : { disabled: false };
               return (
                 <RingIncludeCheckbox
                   key={`include-${ring.location.id}`}
@@ -600,8 +606,7 @@ export function WorldClock({
                   // allowed — it just leaves the search running over home
                   // alone instead of forcing the clock back to "now"
                   checked={!excludedRingIds?.has(ring.location.id)}
-                  disabled={!!unreachableReason}
-                  disabledReason={unreachableReason}
+                  {...disabledProps}
                   onToggle={() => onToggleRingIncluded?.(ring.location.id)}
                 />
               );

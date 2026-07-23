@@ -40,6 +40,13 @@ beforeEach(() => {
   // this key explicitly wherever it wants the first-run scenario instead
   window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
   window.history.replaceState(null, '', '/');
+  // jsdom doesn't implement the Pointer Capture API at all -- stubbed as a
+  // no-op here (same convention as ManageLocationsList.test.tsx) so any test
+  // using real pointer events (userEvent.click, drag) doesn't throw when it
+  // reaches useRingScrub's onPointerUp on the clock container
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
+  Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -848,17 +855,12 @@ describe('App — Find Time', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-22T07:15:00.000Z')); // ~10:15 IDT -- home mid-workday
-    // user.click fires a real pointer sequence (unlike fireEvent.click, which
-    // is just a bare 'click' event) -- it reaches useRingScrub's onPointerUp
-    // on the clock container, since checkbox clicks only stopPropagation on
-    // pointerDown, not pointerUp. jsdom doesn't implement the Pointer Capture
-    // API at all, so stub it the same way ManageLocationsList's drag tests do.
-    const originalHasPointerCapture = Element.prototype.hasPointerCapture;
-    const originalSetPointerCapture = Element.prototype.setPointerCapture;
-    const originalReleasePointerCapture = Element.prototype.releasePointerCapture;
-    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-    Element.prototype.setPointerCapture = vi.fn();
-    Element.prototype.releasePointerCapture = vi.fn();
+    // user.click below fires a real pointer sequence (unlike fireEvent.click,
+    // which is just a bare 'click' event) -- it reaches useRingScrub's
+    // onPointerUp on the clock container, since checkbox clicks only
+    // stopPropagation on pointerDown, not pointerUp. The module-level
+    // beforeEach above already stubs the Pointer Capture API jsdom doesn't
+    // implement, so no per-test stubbing is needed here.
     try {
       const config: ClockConfig = {
         home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
@@ -898,9 +900,6 @@ describe('App — Find Time', () => {
       expect((screen.getByTestId('ring-include-checkbox-sydney') as HTMLInputElement).checked).toBe(true);
     } finally {
       vi.useRealTimers();
-      Element.prototype.hasPointerCapture = originalHasPointerCapture;
-      Element.prototype.setPointerCapture = originalSetPointerCapture;
-      Element.prototype.releasePointerCapture = originalReleasePointerCapture;
     }
   });
 });
