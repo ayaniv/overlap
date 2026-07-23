@@ -67,7 +67,7 @@
     <main>
       <a class="back" href="/">&larr; Back to overlap</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: 2026-07-13</p>
+      <p class="updated">Last updated: 2026-07-22</p>
 
       <p>
         <strong>overlap</strong> ("the app") is a static, backend-free world clock and
@@ -126,14 +126,24 @@
 
       <h3>Data Protection</h3>
       <p>
-        This entire flow is client-side: your browser talks directly to Google using
-        Google Identity Services' token-based OAuth flow. overlap's developer never
-        receives, sees, or stores your Google access token, your calendar data, or any
-        event you create — there is no backend in the request path at all. The access
-        token Google issues is held only in memory for the duration of the request and is
-        not persisted by the app (a separate, non-sensitive flag is saved to
-        <code>localStorage</code> noting only that you've connected before, so the app
-        knows to show your existing meetings on this device).
+        Google classifies <code>calendar.events</code> as a sensitive scope, so here is
+        specifically how that data and the access token are protected. This entire flow
+        is client-side: your browser talks directly to Google over HTTPS/TLS-encrypted
+        connections — both to Google Identity Services (<code>accounts.google.com</code>)
+        for sign-in and to the Calendar API (<code>www.googleapis.com</code>) for
+        creating and deleting events — so the access token and any calendar data are
+        encrypted in transit at every step. overlap's developer never receives, sees, or
+        stores your Google access token, your calendar data, or any event you create —
+        there is no backend in the request path, and no developer-controlled server ever
+        sees this traffic. The access token itself is held only in an in-memory
+        JavaScript variable in your browser tab for the duration of the request: it is
+        never written to <code>localStorage</code>, cookies, or disk, is confined by the
+        browser's same-origin sandboxing to overlap's own page, and is discarded once the
+        request completes — each further action (or removing a meeting) requests a fresh,
+        short-lived token from Google rather than reusing a stored one. (A separate,
+        non-sensitive flag is saved to <code>localStorage</code> noting only that you've
+        connected before, so the app knows to show your existing meetings on this device
+        — this flag contains no token, event data, or other personal information.)
       </p>
 
       <h2>Data Transfer</h2>
