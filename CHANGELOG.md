@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-23
+
+- [#49](https://github.com/ayaniv/overlap/pull/49) Privacy: add data-protection disclosure for sensitive scope
+
 ## 2026-07-21
 
 - [#45](https://github.com/ayaniv/overlap/pull/45) Fix working-hours arc overshoot for spans >12 hours
