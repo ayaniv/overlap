@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-07-23
 
+- [#48](https://github.com/ayaniv/overlap/pull/48) clock: sync the sweep hand and once-a-second clock state to real wall-clock time
 - [#47](https://github.com/ayaniv/overlap/pull/47) Address PR #45 self-review findings + checkbox audit
 - [#49](https://github.com/ayaniv/overlap/pull/49) Privacy: add data-protection disclosure for sensitive scope
 
