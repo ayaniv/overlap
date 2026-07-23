@@ -4,7 +4,7 @@ import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { DragHandleIcon } from './icons/DragHandleIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { TrashIcon } from './icons/TrashIcon';
-import { isValidHexColor } from './locationForm';
+import { clampWorkEnd, clampWorkStart, isValidHexColor } from './locationForm';
 import { LocationColorAndHoursFields } from './LocationColorAndHoursFields';
 import type { Location } from './types';
 import styles from './ManageLocationsList.module.css';
@@ -47,8 +47,12 @@ function LocationEditor({ location, onUpdateLocation, onSetHome }: LocationEdito
         onColorPick={commitColor}
         workStart={location.workStart}
         workEnd={location.workEnd}
-        onChangeWorkStart={(value) => onUpdateLocation(location.id, { workStart: value })}
-        onChangeWorkEnd={(value) => onUpdateLocation(location.id, { workEnd: value })}
+        // this row editor has no submit step and no error-message affordance
+        // (unlike AddLocationForm, which buffers and validates at submit via
+        // validateNewLocation), so out-of-range or inverted typed values are
+        // clamped here, live, before ever reaching the location
+        onChangeWorkStart={(rawValue) => onUpdateLocation(location.id, { workStart: clampWorkStart(rawValue, location.workEnd) })}
+        onChangeWorkEnd={(rawValue) => onUpdateLocation(location.id, { workEnd: clampWorkEnd(rawValue, location.workStart) })}
         ariaLabelSuffix={` for ${location.label}`}
         testIdSuffix={`-${location.id}`}
       />

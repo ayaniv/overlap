@@ -892,7 +892,13 @@ describe('WorldClock Find Time integration', () => {
     expect(onToggleRingIncluded).toHaveBeenCalledWith('san-francisco');
   });
 
-  it('disables the last remaining checked ring\'s checkbox', () => {
+  // regression: the last remaining checked ring's checkbox used to be
+  // `disabled` to prevent reaching zero included rings — from the user's
+  // side that reads as a broken control (fully interactive-looking, but
+  // clicks do nothing). WorldClock itself no longer special-cases this;
+  // App's handleToggleRingIncluded is what treats unchecking the last one
+  // as Back-to-now instead (see App.test.tsx)
+  it('keeps every ring checkbox enabled regardless of how many are currently checked', () => {
     const SF2: Location = { id: 'seattle', label: 'Seattle', timezoneId: 'America/Los_Angeles', color: '#34D399', workStart: 9, workEnd: 18 };
     render(
       <AnalyticsProvider service={createMockAnalyticsService()}>
@@ -918,12 +924,12 @@ describe('WorldClock Find Time integration', () => {
       </AnalyticsProvider>,
     );
 
-    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).disabled).toBe(false);
     expect((screen.getByTestId('ring-include-checkbox-seattle') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByTestId('ring-include-checkbox-seattle') as HTMLInputElement).disabled).toBe(false);
   });
 
-  it('keeps the sole checkbox enabled when there is only one ring total, even though it is the last checked one', () => {
+  it('disables a ring checkbox and shows a title tooltip when unreachableRingReasonById marks it unreachable', () => {
     render(
       <AnalyticsProvider service={createMockAnalyticsService()}>
         <WorldClock
@@ -942,14 +948,47 @@ describe('WorldClock Find Time integration', () => {
           onSetHome={vi.fn()}
           previewOffsetMs={MS_PER_HOUR}
           isFindResultActive={true}
-          excludedRingIds={new Set()}
+          excludedRingIds={new Set(['san-francisco'])}
+          unreachableRingReasonById={{ 'san-francisco': "San Francisco can't fit a meeting time with the cities currently selected" }}
           onToggleRingIncluded={vi.fn()}
         />
       </AnalyticsProvider>,
     );
 
-    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement).disabled).toBe(false);
+    const checkbox = screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement;
+    expect(checkbox.disabled).toBe(true);
+    expect(checkbox.closest('label')?.getAttribute('title')).toBe("San Francisco can't fit a meeting time with the cities currently selected");
+  });
+
+  it('does not disable a ring checkbox absent from unreachableRingReasonById', () => {
+    render(
+      <AnalyticsProvider service={createMockAnalyticsService()}>
+        <WorldClock
+          now={NOW}
+          home={HOME}
+          rings={[SF]}
+          meetings={[]}
+          mode="view"
+          onSetMode={vi.fn()}
+          onShare={vi.fn()}
+          isMenuExpanded={false}
+          onMenuExpandedChange={vi.fn()}
+          onRemoveLocation={vi.fn()}
+          onReorder={vi.fn()}
+          onUpdateLocation={vi.fn()}
+          onSetHome={vi.fn()}
+          previewOffsetMs={MS_PER_HOUR}
+          isFindResultActive={true}
+          excludedRingIds={new Set(['san-francisco'])}
+          unreachableRingReasonById={{}}
+          onToggleRingIncluded={vi.fn()}
+        />
+      </AnalyticsProvider>,
+    );
+
+    const checkbox = screen.getByTestId('ring-include-checkbox-san-francisco') as HTMLInputElement;
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.closest('label')?.getAttribute('title')).toBeNull();
   });
 
   it('renders a stretched ring with a dashed arc, from findResultStatusById', () => {

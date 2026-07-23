@@ -1,5 +1,5 @@
 import { PALETTE } from './defaultCities';
-import { clampWorkEnd, clampWorkStart, isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_START } from './locationForm';
+import { isValidHexColor, MAX_WORK_END, MAX_WORK_START, MIN_WORK_END, MIN_WORK_START } from './locationForm';
 import styles from './LocationColorAndHoursFields.module.css';
 
 const FALLBACK_SWATCH_COLOR = '#000000';
@@ -17,8 +17,11 @@ export type LocationColorAndHoursFieldsProps = {
   onColorPick: (color: string) => void;
   workStart: number;
   workEnd: number;
-  onChangeWorkStart: (value: number) => void;
-  onChangeWorkEnd: (value: number) => void;
+  // raw typed value, not yet clamped/validated — each caller decides whether
+  // to clamp live (ManageLocationsList) or buffer and validate at submit
+  // (AddLocationForm); see the module comment below
+  onChangeWorkStart: (rawValue: number) => void;
+  onChangeWorkEnd: (rawValue: number) => void;
   // disambiguates the hex/picker aria-labels when several instances of this
   // component can be on screen at once (ManageLocationsList's per-row editors)
   ariaLabelSuffix?: string;
@@ -28,9 +31,12 @@ export type LocationColorAndHoursFieldsProps = {
 
 // color (swatches + free hex + native picker) and work-hours controls, shared by
 // AddLocationForm's desktop customize step and ManageLocationsList's per-row editor.
-// The two differ only in how/when a new value gets committed (AddLocationForm applies
-// on submit; ManageLocationsList applies live per keystroke) — that's the caller's
-// business, expressed entirely through hexValue/onHexInputChange/onColorPick.
+// The two differ in how/when a new value gets committed and validated
+// (AddLocationForm buffers the raw typed hours and only clamps/errors via
+// validateNewLocation at submit; ManageLocationsList clamps every keystroke live,
+// since its row editor has no submit step) — this component stays agnostic to that
+// and always hands the caller the raw Number(event.target.value), same as it does
+// for hex/color via hexValue/onHexInputChange/onColorPick.
 export function LocationColorAndHoursFields({
   color,
   hexValue,
@@ -84,7 +90,7 @@ export function LocationColorAndHoursFields({
             min={MIN_WORK_START}
             max={MAX_WORK_START}
             value={workStart}
-            onChange={(event) => onChangeWorkStart(clampWorkStart(Number(event.target.value), workEnd))}
+            onChange={(event) => onChangeWorkStart(Number(event.target.value))}
           />
         </label>
         <label className={styles.hoursLabel}>
@@ -95,7 +101,7 @@ export function LocationColorAndHoursFields({
             min={MIN_WORK_END}
             max={MAX_WORK_END}
             value={workEnd}
-            onChange={(event) => onChangeWorkEnd(clampWorkEnd(Number(event.target.value), workStart))}
+            onChange={(event) => onChangeWorkEnd(Number(event.target.value))}
           />
         </label>
       </div>

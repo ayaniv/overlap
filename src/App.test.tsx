@@ -650,7 +650,7 @@ describe('App — Find Time', () => {
     expect((screen.getByTestId(`ring-include-checkbox-${firstRing.id}`) as HTMLInputElement).checked).toBe(true);
   });
 
-  it('disables the last remaining checked ring', () => {
+  it('keeps the last remaining checked ring enabled, unlike the old disabled-checkbox behavior', () => {
     renderApp();
     fireEvent.click(screen.getByTestId('control-find-time-button'));
 
@@ -660,7 +660,31 @@ describe('App — Find Time', () => {
     }
 
     const lastRing = config.rings.at(-1);
-    expect((screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement).disabled).toBe(true);
+    const lastCheckbox = screen.getByTestId(`ring-include-checkbox-${lastRing.id}`) as HTMLInputElement;
+    expect(lastCheckbox.disabled).toBe(false);
+    expect(lastCheckbox.checked).toBe(true);
+  });
+
+  // regression: the last remaining checked ring's checkbox used to be
+  // disabled to prevent reaching zero included rings, which read as broken
+  // from the user's side. Unchecking it should not force the clock back to
+  // "now" either — Find Time stays active with every ring shown unchecked,
+  // since a search over home alone (trivially reconciled with itself) isn't
+  // an error state.
+  it('unchecking every ring, including the last one, leaves them all unchecked with Find Time still active', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const config = JSON.parse(window.localStorage.getItem('overlap:config:v1') ?? '{}');
+    for (const ring of config.rings) {
+      fireEvent.click(screen.getByTestId(`ring-include-checkbox-${ring.id}`));
+    }
+
+    for (const ring of config.rings) {
+      expect((screen.getByTestId(`ring-include-checkbox-${ring.id}`) as HTMLInputElement).checked).toBe(false);
+    }
+    expect(screen.getByTestId('control-find-time-button').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('control-scrub-cancel-button')).toBeTruthy();
   });
 
   it('Cancel clears the find result: checkboxes disappear and the plain icon menu returns', () => {
@@ -760,5 +784,123 @@ describe('App — Find Time', () => {
 
     expect((screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
+  });
+
+  // regression: a ring that auto-excludes because it can never be reconciled
+  // used to leave its checkbox fully interactive-looking, so re-checking it
+  // just silently snapped back to unchecked a moment later -- indistinguishable
+  // from a broken control. It should instead be disabled with a tooltip
+  // explaining why, computed via App's unreachableRingReasonById.
+  it('disables a checkbox with an explanatory tooltip for a ring that can never fit, but not for one that can', () => {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    const fitsCheckbox = screen.getByTestId('ring-include-checkbox-fits') as HTMLInputElement;
+    const neverFitsCheckbox = screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement;
+
+    expect(fitsCheckbox.disabled).toBe(false);
+    expect(fitsCheckbox.closest('label')?.getAttribute('title')).toBeNull();
+
+    expect(neverFitsCheckbox.disabled).toBe(true);
+    expect(neverFitsCheckbox.closest('label')?.getAttribute('title')).toMatch(/never fits/i);
+  });
+
+  // clicking a disabled checkbox is a native no-op (the browser never fires
+  // onChange), but this locks in that expectation against a future change to
+  // the disabled-check logic quietly making the click handler responsible instead
+  it('does not toggle a disabled, never-fits checkbox when clicked', () => {
+    const config: ClockConfig = {
+      ...DEFAULT_CONFIG,
+      home: { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 },
+      rings: [
+        { id: 'fits', label: 'Fits', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 },
+        { id: 'never-fits', label: 'Never Fits', timezoneId: 'Etc/GMT-12', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      ],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+    renderApp();
+
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+    fireEvent.click(screen.getByTestId('ring-include-checkbox-never-fits'));
+
+    expect((screen.getByTestId('ring-include-checkbox-never-fits') as HTMLInputElement).checked).toBe(false);
+  });
+
+  // regression: checking a ring that itself fits fine could still silently
+  // uncheck a DIFFERENT, already-included ring, because findBestMeetingOffset
+  // sweeps for a single best offset across the whole included set from
+  // scratch on every toggle, rather than trying to keep the current one.
+  // Reported live: checking New York (whose own window opens ~5h45m later)
+  // shifted the search there and dropped Sydney, which had been fitting fine
+  // at "now". New York's checkbox should be disabled with an explanation
+  // instead of letting that swap happen silently.
+  it('disables a ring whose inclusion would silently displace a different, already-fitting ring', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-22T07:15:00.000Z')); // ~10:15 IDT -- home mid-workday
+    // user.click fires a real pointer sequence (unlike fireEvent.click, which
+    // is just a bare 'click' event) -- it reaches useRingScrub's onPointerUp
+    // on the clock container, since checkbox clicks only stopPropagation on
+    // pointerDown, not pointerUp. jsdom doesn't implement the Pointer Capture
+    // API at all, so stub it the same way ManageLocationsList's drag tests do.
+    const originalHasPointerCapture = Element.prototype.hasPointerCapture;
+    const originalSetPointerCapture = Element.prototype.setPointerCapture;
+    const originalReleasePointerCapture = Element.prototype.releasePointerCapture;
+    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
+    try {
+      const config: ClockConfig = {
+        home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
+        rings: [
+          { id: 'london', label: 'London', timezoneId: 'Europe/London', color: '#34D399', workStart: 9, workEnd: 18 },
+          { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 },
+          { id: 'new-york', label: 'New York', timezoneId: 'America/New_York', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+        ],
+        meetings: [],
+      };
+      window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+      renderApp();
+
+      // the initial Find Time click sweeps all three rings together, and
+      // New York (whose own window is open sooner in this composition) wins
+      // that first sweep -- so Sydney starts out auto-excluded. Excluding New
+      // York only removes it from the search; it doesn't automatically
+      // re-include Sydney (auto-exclusion doesn't self-heal), so re-check it
+      // explicitly to get to the state the report started from: London +
+      // Sydney both fitting at "now".
+      fireEvent.click(screen.getByTestId('control-find-time-button'));
+      fireEvent.click(screen.getByTestId('ring-include-checkbox-new-york'));
+      fireEvent.click(screen.getByTestId('ring-include-checkbox-sydney'));
+
+      expect((screen.getByTestId('ring-include-checkbox-london') as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByTestId('ring-include-checkbox-sydney') as HTMLInputElement).checked).toBe(true);
+
+      const nyCheckbox = screen.getByTestId('ring-include-checkbox-new-york') as HTMLInputElement;
+      expect(nyCheckbox.checked).toBe(false);
+      expect(nyCheckbox.disabled).toBe(true);
+      expect(nyCheckbox.closest('label')?.getAttribute('title')).toMatch(/drop Sydney/i);
+
+      // a disabled input is a native no-op -- clicking it anyway must not
+      // toggle it or disturb Sydney's already-fitting checked state
+      await user.click(nyCheckbox);
+      expect(nyCheckbox.checked).toBe(false);
+      expect((screen.getByTestId('ring-include-checkbox-sydney') as HTMLInputElement).checked).toBe(true);
+    } finally {
+      vi.useRealTimers();
+      Element.prototype.hasPointerCapture = originalHasPointerCapture;
+      Element.prototype.setPointerCapture = originalSetPointerCapture;
+      Element.prototype.releasePointerCapture = originalReleasePointerCapture;
+    }
   });
 });

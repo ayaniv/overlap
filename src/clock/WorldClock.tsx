@@ -136,6 +136,12 @@ export type WorldClockProps = {
   // per-ring checkboxes and the 3-state arc styling below
   isFindResultActive?: boolean;
   findResultStatusById?: Record<string, CityFitStatus>;
+  // ring id -> explanation, present only for a currently-unchecked ring that
+  // would still come back 'out' if re-checked (see App's
+  // unreachableRingReasonById) — disables that ring's checkbox with a title
+  // tooltip instead of letting the user check it just to watch it bounce
+  // back a moment later
+  unreachableRingReasonById?: Record<string, string>;
   // rings the developer has unchecked out of the current Find Time search —
   // a ring not in this set is "checked" (included)
   excludedRingIds?: Set<string>;
@@ -176,6 +182,7 @@ export function WorldClock({
   onFindTime,
   isFindResultActive = false,
   findResultStatusById,
+  unreachableRingReasonById,
   excludedRingIds,
   onToggleRingIncluded,
 }: WorldClockProps) {
@@ -583,20 +590,18 @@ export function WorldClock({
           ringViews
             .filter((ring) => !ring.location.isHome)
             .map((ring) => {
-              const checkedCount = rings.length - (excludedRingIds?.size ?? 0);
-              const isChecked = !excludedRingIds?.has(ring.location.id);
-              // only disable the last remaining checked box when there's more
-              // than one ring to choose from — with a single ring total, this
-              // condition would otherwise permanently lock its only checkbox,
-              // since checkedCount === 1 trivially whenever nothing has been
-              // excluded yet
+              const unreachableReason = unreachableRingReasonById?.[ring.location.id];
               return (
                 <RingIncludeCheckbox
                   key={`include-${ring.location.id}`}
                   location={ring.location}
                   dotPosition={ring.dotPosition}
-                  checked={isChecked}
-                  disabled={isChecked && checkedCount === 1 && rings.length > 1}
+                  // unchecking every ring, including the very last one, is
+                  // allowed — it just leaves the search running over home
+                  // alone instead of forcing the clock back to "now"
+                  checked={!excludedRingIds?.has(ring.location.id)}
+                  disabled={!!unreachableReason}
+                  disabledReason={unreachableReason}
                   onToggle={() => onToggleRingIncluded?.(ring.location.id)}
                 />
               );

@@ -87,6 +87,36 @@ describe('AddLocationForm', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/color must be a hex value/i);
   });
 
+  // regression: LocationColorAndHoursFields' Start/End inputs used to clamp
+  // every keystroke live (a behavior meant for ManageLocationsList's row
+  // editor), which silently overrode this form's original free-type-then-
+  // validate-at-submit design — typing should reach the input raw, unclamped
+  it('lets Start/End be typed out of range without clamping, unlike ManageLocationsList', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await pickTokyo(user);
+    const startInput = screen.getByLabelText('Start');
+    await user.clear(startInput);
+    await user.type(startInput, '30');
+
+    expect((startInput as HTMLInputElement).value).toBe('30');
+  });
+
+  it('shows an inline validation error and does not call onAdd when Start is not before End', async () => {
+    const user = userEvent.setup();
+    const { onAdd } = renderForm();
+
+    await pickTokyo(user);
+    const startInput = screen.getByLabelText('Start');
+    await user.clear(startInput);
+    await user.type(startInput, String(DEFAULT_WORK_END));
+    await user.click(screen.getByTestId('add-location-submit'));
+
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toMatch(/start hour must be before end hour/i);
+  });
+
   it('does not call onAdd when no city has been selected', async () => {
     const user = userEvent.setup();
     const { onAdd } = renderForm();
