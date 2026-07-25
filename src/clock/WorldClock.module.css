@@ -41,11 +41,25 @@
    scrub-hint demo is active — blocks interaction with everything (including
    any future buttons added to ControlCluster) without threading a disabled
    flag through each one individually. --z-50 (ScrubHint's own
-   tooltip, see ScrubHint.module.css) stays reachable above it. */
+   tooltip, see ScrubHint.module.css) stays reachable above it.
+   `touch-action: none` matters just as much as the click-blocking: while the
+   hint is active, `.clockContainer` doesn't get its own `touch-action: none`
+   (scrubBind, and the `data-scrubbable` rule that carries it, are only wired
+   up once the hint is gone — see WorldClock.tsx's `isScrubbable`), so without
+   this the blocker has no touch-action restriction of its own and a vertical
+   drag on it is free to fall through to the page as a real scroll/swipe —
+   on iOS WebKit (Safari, and Chrome/Firefox for iOS, which are required to
+   use WebKit) that's exactly the gesture that opens the browser's
+   pull-down tab/reload UI. Once the hint is dismissed, `.clockContainer`
+   carries its own `touch-action: none` per WorldClock.module.css's
+   `[data-scrubbable]` rule and this blocker unmounts, so the gesture stops
+   being reachable at all — matching the reported "only during the hint"
+   behavior. */
 .scrubHintBlocker {
   position: absolute;
   inset: 0;
   z-index: var(--z-40);
+  touch-action: none;
 }
 
 /* ambient "wall display" mode (useIsIdle): fades the header, footer status
