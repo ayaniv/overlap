@@ -319,14 +319,37 @@
     display: none;
   }
 
-  /* capped by height too (not just width): without it, a shorter/narrower
-     viewport (address bar visible, smaller phone) lets the ring grow large
-     enough to reach the status row/Find Time footer below — 78dvh leaves
-     enough clearance above the footer's reserved space. `dvh` (not `vh`)
-     so the cap itself tracks the *current* toolbar-adjusted viewport rather
-     than the browser's largest-possible one. */
+  /* M8.2: this used to grow via `width` alone (up to 165vw), which changed
+     the container's layout box directly — dramatic on most phones (up to a
+     ~1.75x jump over the unscaled size below) and left the center time/date
+     untouched, since their font-sizes are fixed px values that don't respond
+     to a parent width change. Growing via `transform: scale()` instead means
+     the whole subtree — rings and center content alike — is painted bigger
+     together, so 1.2x reads as a much gentler "slightly bigger" than the old
+     jump while the center content finally scales with the rings.
+
+     `width` here is the *pre-scale* size; the `calc(...)/1.2` term is the
+     height-based ceiling, worked backwards from the footer so the *rendered*
+     (post-scale) size stays clear of it. .clockContainer is centered by
+     .stage's flex centering, so its rendered top/bottom sit at
+     `50dvh ± renderedSize/2`; .statusRow sits at a near-fixed `100dvh - 82px`
+     (26px bottom offset + its own ~56px row height, both independent of the
+     clock). Solving `50dvh + renderedSize/2 <= (100dvh - 82px) - margin` for
+     renderedSize gives `renderedSize <= 100dvh - 164px - 2*margin`; with a
+     20px margin that's `100dvh - 204px`, and dividing by the 1.2x transform
+     gives the pre-scale cap below. `dvh` (not `vh`) so it tracks the
+     *current* toolbar-adjusted viewport rather than the browser's
+     largest-possible one. Verified against the dev build at several
+     viewport heights (see TASK.md Result) — the 700-ish px tall range this
+     was written against (dvh not yet binding, 78dvh/65dvh flat coefficient)
+     had already started clipping into the footer, which this replaces.
+     The 630px outer cap (was 760px) is likewise divided by the 1.2x scale,
+     so very large portrait screens (e.g. tablets) land at roughly the same
+     rendered ceiling as before. */
   .clockContainer {
-    width: min(165vw, 78dvh, 760px);
+    width: min(86vmin, calc((100dvh - 204px) / 1.2), 630px);
+    transform: scale(1.2);
+    transform-origin: center;
   }
 
   .modePanel {
