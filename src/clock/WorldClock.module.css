@@ -293,9 +293,10 @@
   border: 0;
 }
 
-/* portrait/mobile: scale the clock up so it dominates the narrow screen,
-   centered in the viewport (the stage's default flex centering) with the
-   widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
+/* portrait/mobile: reflows the top-left context copy and bottom status row
+   (see below) and keeps the clock's own size clear of the footer — the
+   clock itself uses the same sizing as the base (non-portrait) rule, see
+   .clockContainer below (M5, M8.2, M8.3) */
 @media (orientation: portrait) {
   /* the top-left context copy and bottom status row used to be dropped
      entirely (display:none) on portrait so the clock could dominate the
@@ -319,37 +320,32 @@
     display: none;
   }
 
-  /* M8.2: this used to grow via `width` alone (up to 165vw), which changed
-     the container's layout box directly — dramatic on most phones (up to a
-     ~1.75x jump over the unscaled size below) and left the center time/date
-     untouched, since their font-sizes are fixed px values that don't respond
-     to a parent width change. Growing via `transform: scale()` instead means
-     the whole subtree — rings and center content alike — is painted bigger
-     together, so 1.2x reads as a much gentler "slightly bigger" than the old
-     jump while the center content finally scales with the rings.
+  /* M8.3: portrait no longer grows the clock past its base size at all —
+     an earlier version of this rule enlarged it (first via `width` up to
+     165vw, then via `transform: scale(1.2)`) to "dominate" the narrow
+     screen, but that read as an unwanted size change on top of the actual
+     goal here, which is just keeping the clock clear of the footer. So
+     this now reuses the exact same `min(86vmin, ..., 700px)` sizing as the
+     base (non-portrait) rule above, with one addition: a height term so a
+     short-but-still-portrait viewport (address bar visible, smaller phone)
+     can't let the box grow tall enough to reach the status row/Find Time
+     footer below it.
 
-     `width` here is the *pre-scale* size; the `calc(...)/1.2` term is the
-     height-based ceiling, worked backwards from the footer so the *rendered*
-     (post-scale) size stays clear of it. .clockContainer is centered by
-     .stage's flex centering, so its rendered top/bottom sit at
-     `50dvh ± renderedSize/2`; .statusRow sits at a near-fixed `100dvh - 82px`
-     (26px bottom offset + its own ~56px row height, both independent of the
-     clock). Solving `50dvh + renderedSize/2 <= (100dvh - 82px) - margin` for
-     renderedSize gives `renderedSize <= 100dvh - 164px - 2*margin`; with a
-     20px margin that's `100dvh - 204px`, and dividing by the 1.2x transform
-     gives the pre-scale cap below. `dvh` (not `vh`) so it tracks the
+     That height term is derived from the footer's actual position rather
+     than a flat percentage: .clockContainer is centered by .stage's flex
+     centering, so its rendered top/bottom sit at `50dvh ± size/2`;
+     .statusRow sits at a near-fixed `100dvh - 82px` (26px bottom offset +
+     its own ~56px row height, both independent of clock size). Solving
+     `50dvh + size/2 <= (100dvh - 82px) - margin` for size gives
+     `size <= 100dvh - 164px - 2*margin`; with a 20px margin that's the
+     `calc(100dvh - 204px)` below. `dvh` (not `vh`) so it tracks the
      *current* toolbar-adjusted viewport rather than the browser's
-     largest-possible one. Verified against the dev build at several
-     viewport heights (see TASK.md Result) — the 700-ish px tall range this
-     was written against (dvh not yet binding, 78dvh/65dvh flat coefficient)
-     had already started clipping into the footer, which this replaces.
-     The 630px outer cap (was 760px) is likewise divided by the 1.2x scale,
-     so very large portrait screens (e.g. tablets) land at roughly the same
-     rendered ceiling as before. */
+     largest-possible one. Verified directly against a running dev build
+     across a sweep of viewport heights (see TASK.md Result) — this also
+     fixes a footer overlap that existed in the base 86vmin size alone at
+     very short heights (e.g. 375x400), which nothing had capped before. */
   .clockContainer {
-    width: min(86vmin, calc((100dvh - 204px) / 1.2), 630px);
-    transform: scale(1.2);
-    transform-origin: center;
+    width: min(86vmin, calc(100dvh - 204px), 700px);
   }
 
   .modePanel {
