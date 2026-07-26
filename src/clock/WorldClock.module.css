@@ -357,13 +357,17 @@
   /* now a single short line (was two stacked lines pre-M8.1), so it needs less
      vertical space than before — bumped a few px further from the bottom edge
      (rather than tucked at the same 20px as the old two-line block) so it reads
-     with clear breathing room below the oversized portrait clock face above it */
+     with clear breathing room below the oversized portrait clock face above it.
+     `white-space` stays at the base rule's `nowrap` (not overridden to `normal`
+     here) so the status sentence itself never breaks mid-word into a second
+     line — `flex-wrap: wrap` below is a separate mechanism, still free to drop
+     the Find Time button to its own line if the sentence alone doesn't leave
+     it room, so this can't cause horizontal overflow. */
   .statusRow {
     bottom: 26px;
     font-size: 11px;
     flex-wrap: wrap;
     justify-content: center;
-    white-space: normal;
     max-width: 90vw;
   }
 
