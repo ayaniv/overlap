@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-07-26
 
+- [#62](https://github.com/ayaniv/overlap/pull/62) Tick the clock's now state once a minute instead of once a second
 - [#59](https://github.com/ayaniv/overlap/pull/59) Keep the portrait status line from wrapping onto two lines
 
 ## 2026-07-25
