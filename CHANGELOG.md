@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-26
+
+- [#59](https://github.com/ayaniv/overlap/pull/59) Keep the portrait status line from wrapping onto two lines
+
 ## 2026-07-25
 
 - [#58](https://github.com/ayaniv/overlap/pull/58) Fix mobile Safari/WebKit UI glitches during the scrub-hint demo
