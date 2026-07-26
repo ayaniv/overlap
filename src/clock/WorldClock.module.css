@@ -319,14 +319,8 @@
     display: none;
   }
 
-  /* capped by height too (not just width): without it, a shorter/narrower
-     viewport (address bar visible, smaller phone) lets the ring grow large
-     enough to reach the status row/Find Time footer below — 78dvh leaves
-     enough clearance above the footer's reserved space. `dvh` (not `vh`)
-     so the cap itself tracks the *current* toolbar-adjusted viewport rather
-     than the browser's largest-possible one. */
   .clockContainer {
-    width: min(165vw, 78dvh, 760px);
+    width: min(165vw, 760px);
   }
 
   .modePanel {
