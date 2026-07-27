@@ -142,23 +142,25 @@ function clipWindow(window: CityWindow, bound: CityWindow): CityWindow {
 
 const hasPositiveWidth = (window: CityWindow) => window.startOffsetHours < window.endOffsetHours;
 
-// two-pass search, bounded to home's own stretched window: home must always
-// end up at least 'stretched' (never 'out') at the chosen time, so every ring
-// window is clipped to `homeBound` before sweeping — a ring whose own window
-// doesn't intersect homeBound at all is simply excluded, exactly like it
-// would classify as 'out' at any offset within homeBound anyway. Within that
-// bound, try every included ring's strict working-hours window first; only
-// if that can't cover every ring does a second pass, using each ring's window
-// widened by STRETCH_HOURS on each side (still clipped to homeBound), get a
-// chance to win instead (and only if it actually covers more rings than the
-// strict pass did — see findMeetingTime-design.md's "Decisions locked"
-// section). Treating home as a hard bound rather than just one more city in
-// an unconstrained sweep prevents the search from picking a time that fits
-// more rings while leaving the meeting's own home city outside its working
-// hours entirely.
-export function findBestMeetingOffset(now: Date, home: Location, includedRings: Location[]): FindMeetingTimeResult {
-  const cities = [home, ...includedRings];
-  const homeWindow = getNextWorkingWindow(now, home);
+// the two-pass search itself, bounded to one given occurrence of home's own
+// working hours: home must always end up at least 'stretched' (never 'out')
+// at the chosen time, so every ring window is clipped to `homeBound` before
+// sweeping — a ring whose own window doesn't intersect homeBound at all is
+// simply excluded, exactly like it would classify as 'out' at any offset
+// within homeBound anyway. Within that bound, try every included ring's
+// strict working-hours window first; only if that can't cover every ring does
+// a second pass, using each ring's window widened by STRETCH_HOURS on each
+// side (still clipped to homeBound), get a chance to win instead (and only if
+// it actually covers more rings than the strict pass did — see
+// findMeetingTime-design.md's "Decisions locked" section). Treating home as a
+// hard bound rather than just one more city in an unconstrained sweep
+// prevents the search from picking a time that fits more rings while leaving
+// the meeting's own home city outside its working hours entirely.
+//
+// Takes the home occurrence as a parameter rather than deriving it, so
+// findBestMeetingOffset can run the same search against more than one of them
+// — see homeOccurrences there.
+function sweepWithinHomeBound(now: Date, homeWindow: CityWindow, includedRings: Location[], cityCount: number) {
   const homeBound = widenWindow(homeWindow, STRETCH_HOURS);
 
   // a ring's own next occurrence and the one following it (its next day's
@@ -175,10 +177,47 @@ export function findBestMeetingOffset(now: Date, home: Location, includedRings: 
     });
 
   let winner = sweepMaxOverlap([homeWindow, ...ringCandidateWindows(0)]);
-  if (winner.count < cities.length) {
+  if (winner.count < cityCount) {
     const stretchedWinner = sweepMaxOverlap([homeBound, ...ringCandidateWindows(STRETCH_HOURS)]);
     if (stretchedWinner.count > winner.count) winner = stretchedWinner;
   }
+  return winner;
+}
+
+export function findBestMeetingOffset(now: Date, home: Location, includedRings: Location[]): FindMeetingTimeResult {
+  const cities = [home, ...includedRings];
+  const { frac: homeFrac } = getCityTime(now, home.timezoneId);
+
+  // While home is mid-workday, getNextWorkingWindow clamps its start to 0
+  // (can't schedule in the past), so home's window is only the sliver left
+  // until workEnd — as little as a minute at 17:59. Bounding the search to
+  // that sliver alone declared every ring outside it permanently 'out', which
+  // is what left Sydney's checkbox disabled with only Tel Aviv (home)
+  // selected: at 17:00 in Tel Aviv the bound was 17:00-18:00, which Sydney's
+  // 09:00-18:00 can't reach, even though Sydney 16:00-18:00 lines up exactly
+  // with Tel Aviv 09:00-11:00 the next morning. So home's following
+  // occurrence — its next *full* workday — is searched as a second bound
+  // whenever the first one is a truncated sliver. Rings were already given
+  // two occurrences for the mirror-image reason; this makes home symmetric.
+  // Only added when home is currently in-hours: when it isn't,
+  // getNextWorkingWindow already returns a full, untruncated window, and
+  // adding another cycle would just push results a needless day out.
+  //
+  // Ring coverage still holds: a following home bound (widened) can only
+  // reach ~34h out, and the ring occurrences above already span 0-57h.
+  const homeOccurrences = isWithinWorkingHours(homeFrac, home.workStart, home.workEnd)
+    ? [getNextWorkingWindow(now, home), getFollowingWorkingWindow(now, home)]
+    : [getNextWorkingWindow(now, home)];
+
+  // more cities fitting wins; on a tie the earlier time wins, so home's
+  // following occurrence is only ever a fallback, never a preference
+  const winner = homeOccurrences
+    .map((occurrence) => sweepWithinHomeBound(now, occurrence, includedRings, cities.length))
+    .reduce((best, candidate) =>
+      candidate.count > best.count || (candidate.count === best.count && candidate.startOffsetHours < best.startOffsetHours)
+        ? candidate
+        : best,
+    );
 
   const snappedOffsetHours = snapForwardToQuarterHour(now, winner);
   const offsetMs = Math.round(snappedOffsetHours * MS_PER_HOUR);

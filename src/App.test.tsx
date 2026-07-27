@@ -903,3 +903,97 @@ describe('App — Find Time', () => {
     }
   });
 });
+
+// Reported live (2026-07-27, 17:00 in Tel Aviv): Sydney's checkbox was
+// disabled with San Francisco/New York/London checked, and stayed disabled
+// after unchecking all three -- "how am I supposed to check Sydney and Tel
+// Aviv?". The disabled flag was already recomputed from the live selection on
+// every render; findBestMeetingOffset was simply answering wrong, bounding the
+// whole search to the sliver of home's workday still left at 17:00 (see its
+// homeOccurrences comment). These cover the flag as a function of the current
+// selection, at the exact wall-clock time and city set that was reported.
+describe('App — Find Time: a city is disabled only by the cities selected right now', () => {
+  const REPORTED_MOMENT = new Date('2026-07-27T14:00:00.000Z'); // 17:00 IDT -- one hour left of Tel Aviv's workday
+
+  // the real default lineup, spelled out rather than taken from DEFAULT_CONFIG
+  // so these stay pinned to the reported scenario even if the defaults change
+  const REPORTED_CONFIG: ClockConfig = {
+    home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
+    rings: [
+      { id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 },
+      { id: 'new-york', label: 'New York', timezoneId: 'America/New_York', color: '#FBBF4B', workStart: 9, workEnd: 18 },
+      { id: 'london', label: 'London', timezoneId: 'Europe/London', color: '#34D399', workStart: 9, workEnd: 18 },
+      { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 },
+    ],
+    meetings: [],
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(REPORTED_MOMENT);
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(REPORTED_CONFIG));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const checkbox = (id: string) => screen.getByTestId(`ring-include-checkbox-${id}`) as HTMLInputElement;
+
+  // the reported bug, end to end: disabled while a genuine conflict exists,
+  // enabled again the moment the conflicting city is unchecked
+  it('re-enables a conflicting city once the cities it conflicts with are unchecked', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    // (b) with the American/European rings in the search there is no time that
+    // fits Sydney too, so its checkbox is disabled with an explanation
+    expect(checkbox('sydney').checked).toBe(false);
+    expect(checkbox('sydney').disabled).toBe(true);
+    expect(checkbox('sydney').closest('label')?.getAttribute('title')).toMatch(/sydney/i);
+
+    // (c) the regression: unchecking the cities Sydney conflicts with has to
+    // recompute the flag, not leave it stuck from the earlier selection
+    fireEvent.click(checkbox('san-francisco'));
+    fireEvent.click(checkbox('new-york'));
+
+    expect(checkbox('sydney').disabled).toBe(false);
+    expect(checkbox('sydney').closest('label')?.getAttribute('title')).toBeNull();
+  });
+
+  // (a) nothing selected means nothing left to conflict with
+  it('disables nothing once every ring is unchecked', () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    for (const ring of REPORTED_CONFIG.rings) {
+      if (checkbox(ring.id).checked) fireEvent.click(checkbox(ring.id));
+    }
+
+    for (const ring of REPORTED_CONFIG.rings) {
+      expect(checkbox(ring.id).checked).toBe(false);
+      expect(checkbox(ring.id).disabled).toBe(false);
+    }
+  });
+
+  // (d) the combination the report asked for: Sydney together with the base
+  // city and nothing else. Sydney 16:00-18:00 lines up with Tel Aviv
+  // 09:00-11:00 the next morning, so checking it must stick rather than
+  // getting auto-excluded straight back out again.
+  it('lets Sydney be checked alongside the home city alone, and counts it in the status line', () => {
+    const analyticsService = createMockAnalyticsService();
+    renderApp(analyticsService);
+    fireEvent.click(screen.getByTestId('control-find-time-button'));
+
+    for (const ring of REPORTED_CONFIG.rings) {
+      if (checkbox(ring.id).checked) fireEvent.click(checkbox(ring.id));
+    }
+    fireEvent.click(checkbox('sydney'));
+
+    expect(checkbox('sydney').checked).toBe(true);
+    expect(checkbox('sydney').disabled).toBe(false);
+    // Tel Aviv + Sydney out of the five cities on the clock
+    expect(screen.getByTestId('clock-status-text').textContent).toMatch(/^2\/5 teams available/);
+    expect(analyticsService.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', { remaining_count: 1 });
+  });
+});
