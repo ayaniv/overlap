@@ -243,4 +243,58 @@ describe('findBestMeetingOffset', () => {
       { id: 'ring', status: 'stretched' },
     ]);
   });
+
+  // Home-second-cycle regression (the Sydney "stuck disabled" report):
+  // getNextWorkingWindow clamps a currently-in-hours city's start to 0, so
+  // while home is mid-workday its window is only the sliver left until
+  // workEnd. Bounding the whole search to that sliver made any ring whose own
+  // hours fall outside it come back 'out' -- reported live as Sydney's
+  // checkbox staying disabled with nothing but Tel Aviv (home) selected, even
+  // though Sydney 16:00-18:00 lines up exactly with Tel Aviv 09:00-11:00 the
+  // next morning. Rings were already checked against two occurrences; home
+  // has to be too.
+  it("finds an overlap on home's following-day occurrence when home is mid-workday and only its sliver would be searched", () => {
+    const now = new Date('2026-07-27T14:00:00.000Z'); // 17:00 in Tel Aviv -- one hour left of home's workday
+    const home: Location = { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 };
+    const ring: Location = { id: 'sydney', label: 'Sydney', timezoneId: 'Australia/Sydney', color: '#A78BFA', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(now, home, [ring]);
+
+    expect(result.offsetMs).toBe(16 * 60 * 60_000); // next morning, home 09:00 / ring 16:00
+    expect(result.fitCount).toBe(2);
+    expect(result.cityResults).toEqual([
+      { id: 'tel-aviv', status: 'in-hours' },
+      { id: 'sydney', status: 'in-hours' },
+    ]);
+  });
+
+  // the flip side of the case above: home's following occurrence is only a
+  // fallback, never a preference. When the same number of cities fit inside
+  // home's remaining sliver today, that earlier time has to win -- otherwise
+  // the fix would push every search a day out.
+  it("prefers home's remaining sliver today over its following-day occurrence when both fit the same cities", () => {
+    const now = new Date('2026-01-01T15:00:00.000Z'); // 15:00 UTC -- home is mid-workday, 3h left
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 };
+    const ring: Location = { id: 'ring', label: 'Ring', timezoneId: 'UTC', color: '#FB7185', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(now, home, [ring]);
+
+    expect(result.offsetMs).toBe(0);
+    expect(result.fitCount).toBe(2);
+  });
+
+  // failure path: a ring exactly 12h from home on an identical 9-18 workday
+  // never overlaps it in ANY cycle, so widening the search to home's second
+  // occurrence must not manufacture a fit for it. This is the pair the
+  // product rule legitimately hard-blocks (App's unreachableRingReasonById).
+  it('still reports a genuinely irreconcilable ring as out, even with home mid-workday', () => {
+    const now = new Date('2026-01-01T15:00:00.000Z');
+    const home: Location = { id: 'home', label: 'Home', timezoneId: 'UTC', color: '#38BDF8', workStart: 9, workEnd: 18 };
+    const ring: Location = { id: 'ring', label: 'Ring', timezoneId: 'Etc/GMT-12', color: '#FB7185', workStart: 9, workEnd: 18 };
+
+    const result = findBestMeetingOffset(now, home, [ring]);
+
+    expect(result.cityResults.find((city) => city.id === 'ring')?.status).toBe('out');
+    expect(result.cityResults.find((city) => city.id === 'home')?.status).not.toBe('out');
+  });
 });
