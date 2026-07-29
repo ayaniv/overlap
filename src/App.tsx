@@ -65,7 +65,11 @@ function App() {
   // drag already in progress, useRingScrub's onPointerDown already set
   // isScrubbing true in that same event/render, so this stays false instead
   // of transiently yanking scrubBind out from under it.
-  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
+  // `!isPortrait` keeps the demo off vertical/mobile screens entirely — it stays
+  // "unseen" (not marked seen) so it's ready to show if the viewport ever goes
+  // landscape, rather than being silently dismissed by an orientation the user
+  // never saw it in.
+  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing && !isPortrait;
   // true from the "Got it" click until the clock finishes easing back to now.
   // The demo sweep is gated off while this runs: if the user dismisses
   // mid-sweep, both rAF loops would otherwise fight over the same offset.

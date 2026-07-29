@@ -452,6 +452,25 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
+  it('never shows on a portrait/vertical viewport, even when unseen', () => {
+    stubMatchMedia(true);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
+  });
+
+  it('does not track scrub_hint_shown on a portrait/vertical viewport', () => {
+    stubMatchMedia(true);
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
+  it('stays unseen (not marked seen) while hidden on portrait, so it can still show later on landscape', () => {
+    stubMatchMedia(true);
+    renderApp();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
+  });
+
   it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
     const user = userEvent.setup();
     const { unmount } = renderApp();
