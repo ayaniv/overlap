@@ -21,6 +21,7 @@ import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
+import { useIsBigScreen } from './hooks/useIsBigScreen';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -54,6 +55,7 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
+  const isBigScreen = useIsBigScreen();
   const isIdle = useIsIdle();
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
@@ -65,11 +67,12 @@ function App() {
   // drag already in progress, useRingScrub's onPointerDown already set
   // isScrubbing true in that same event/render, so this stays false instead
   // of transiently yanking scrubBind out from under it.
-  // `!isPortrait` keeps the demo off vertical/mobile screens entirely — it stays
-  // "unseen" (not marked seen) so it's ready to show if the viewport ever goes
-  // landscape, rather than being silently dismissed by an orientation the user
-  // never saw it in.
-  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing && !isPortrait;
+  // `!isBigScreen` keeps the demo off large wall-display monitors/TVs (any orientation —
+  // see useIsBigScreen) where there's no one at arm's reach to tap "Got it"; a phone or
+  // tablet held in portrait is a legitimate small-screen case and still gets the hint. It
+  // stays "unseen" (not marked seen) so it's ready to show if the display size ever
+  // changes, rather than being silently dismissed by a screen the user never saw it on.
+  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing && !isBigScreen;
   // true from the "Got it" click until the clock finishes easing back to now.
   // The demo sweep is gated off while this runs: if the user dismisses
   // mid-sweep, both rAF loops would otherwise fight over the same offset.

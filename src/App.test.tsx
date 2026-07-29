@@ -31,8 +31,17 @@ function stubMatchMedia(portrait = false) {
   );
 }
 
+// useIsBigScreen reads window.screen.width/height (the physical display's resolution, not
+// the viewport) — jsdom defaults both to 0, i.e. not a big screen, so only tests simulating
+// a large wall-display monitor/TV need to call this
+function stubScreenSize(width: number, height: number) {
+  Object.defineProperty(window.screen, 'width', { value: width, configurable: true });
+  Object.defineProperty(window.screen, 'height', { value: height, configurable: true });
+}
+
 beforeEach(() => {
   stubMatchMedia();
+  stubScreenSize(0, 0);
   window.localStorage.clear();
   // pre-seed "already dismissed" so the ~400 existing assertions in this file
   // (written before this feature existed) keep exercising the app's steady
@@ -452,21 +461,35 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('never shows on a portrait/vertical viewport, even when unseen', () => {
+  it('still shows on a phone/tablet held in portrait — small screens keep the hint', () => {
     stubMatchMedia(true);
+    stubScreenSize(390, 844); // a phone's physical resolution, portrait
+    renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('never shows on a big-screen wall display, landscape', () => {
+    stubScreenSize(1920, 1080);
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
     expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
   });
 
-  it('does not track scrub_hint_shown on a portrait/vertical viewport', () => {
+  it('never shows on a big-screen wall display rotated to portrait — screen size, not orientation, gates it', () => {
     stubMatchMedia(true);
+    stubScreenSize(1080, 1920);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('does not track scrub_hint_shown on a big-screen wall display', () => {
+    stubScreenSize(1920, 1080);
     const { analytics } = renderApp();
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('stays unseen (not marked seen) while hidden on portrait, so it can still show later on landscape', () => {
-    stubMatchMedia(true);
+  it('stays unseen (not marked seen) while hidden on a big screen, so it can still show later on a normal-sized display', () => {
+    stubScreenSize(1920, 1080);
     renderApp();
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
   });
