@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-07-30
 
+- [#69](https://github.com/ayaniv/overlap/pull/69) Hide the hint only on big screens rotated to portrait, not big screens generally
 - [#66](https://github.com/ayaniv/overlap/pull/66) Big screens (wall displays) start in ambient/idle mode by default
 
 ## 2026-07-27
