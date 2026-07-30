@@ -17,24 +17,33 @@ vi.mock('./clock/googleCalendar', async (importOriginal) => {
   return { ...actual, scheduleMeetingOnGoogleCalendar: vi.fn(), deleteMeetingFromGoogleCalendar: vi.fn() };
 });
 
-// useSweepAngle (reduced-motion), useIsPortrait (orientation), and useIsKioskDisplay (orientation
-// + pointer type) all read window.matchMedia, which jsdom doesn't implement; `portrait` and
-// `touch` let individual tests opt into simulating the portrait/mobile layout and a touch-primary
-// input device (a real phone/tablet is both; a kiosk display driven by a mouse/remote/nothing is
-// portrait but not touch)
-function stubMatchMedia(portrait = false, touch = false) {
+// useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read window.matchMedia,
+// which jsdom doesn't implement; `portrait` lets individual tests opt into simulating the
+// portrait/mobile layout
+function stubMatchMedia(portrait = false) {
   vi.stubGlobal(
     'matchMedia',
     vi.fn().mockImplementation((query: string) => ({
-      matches: query === '(orientation: portrait)' ? portrait : query === '(pointer: coarse)' ? touch : false,
+      matches: query === '(orientation: portrait)' ? portrait : false,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })),
   );
 }
 
+const IPHONE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+const DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+
+// isMobileOS() reads navigator.userAgent once at mount; jsdom's default userAgent already
+// reads as "desktop" (doesn't match isMobileOS's patterns), so this is only needed to
+// simulate an iOS/Android device
+function stubUserAgent(userAgent: string) {
+  Object.defineProperty(window.navigator, 'userAgent', { value: userAgent, configurable: true });
+}
+
 beforeEach(() => {
   stubMatchMedia();
+  stubUserAgent(DESKTOP_USER_AGENT);
   window.localStorage.clear();
   // pre-seed "already dismissed" so the ~400 existing assertions in this file
   // (written before this feature existed) keep exercising the app's steady
@@ -430,6 +439,11 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 describe('App — first-time scrub hint', () => {
   beforeEach(() => {
     window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
+    // most tests below are about the hint's own lifecycle (dismiss, analytics, idle-hide),
+    // not about how it first became visible — default to mobile here so they keep exercising
+    // "shows immediately" without needing a wheel event; the mobile-vs-desktop distinction
+    // itself is covered by the dedicated tests further down
+    stubUserAgent(IPHONE_USER_AGENT);
   });
 
   it('shows immediately on load when not yet dismissed — same as the header/title/buttons, no activity required', () => {
@@ -468,33 +482,46 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('still shows on a phone/tablet held in portrait — touch-primary devices keep the hint', () => {
-    stubMatchMedia(true, true); // portrait + touch-primary
+  it('still shows immediately on Android, same as iOS', () => {
+    stubUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36');
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('still shows in landscape on a non-touch device — a normal desktop/kiosk-in-landscape setup', () => {
-    stubMatchMedia(false, false); // landscape, not touch-primary
-    renderApp();
-    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
-  });
-
-  it('never shows in portrait on a non-touch device — the wall-kiosk signal', () => {
-    stubMatchMedia(true, false); // portrait, not touch-primary
+  it('does not show on desktop before any mouse-wheel scroll', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
     expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
   });
 
-  it('does not track scrub_hint_shown on a kiosk display', () => {
-    stubMatchMedia(true, false);
+  it('shows on desktop once the user scrolls the mouse wheel for the first time', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+
+    act(() => window.dispatchEvent(new Event('wheel')));
+
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('does not track scrub_hint_shown on desktop before any scroll', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
     const { analytics } = renderApp();
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('stays unseen (not marked seen) while hidden on a kiosk display, so it can still show later in a normal-use context', () => {
-    stubMatchMedia(true, false);
+  it('tracks scrub_hint_shown once the desktop user scrolls for the first time', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    const { analytics } = renderApp();
+
+    act(() => window.dispatchEvent(new Event('wheel')));
+
+    expect(analytics.trackEvent).toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
+  it('stays unseen (not marked seen) on desktop before any scroll, so it can still show once scrolled', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
     renderApp();
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
   });
@@ -595,46 +622,6 @@ describe('App — first-time scrub hint', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe('App — kiosk display (wall display) starts in ambient idle mode by default', () => {
-  it('hides chrome (data-chrome-hidden) immediately on a kiosk display, no activity/timeout needed', () => {
-    stubMatchMedia(true, false); // portrait, not touch-primary
-    renderApp();
-    const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
-  });
-
-  it('does not hide chrome in landscape on a non-touch device — a normal desktop/kiosk-in-landscape setup', () => {
-    stubMatchMedia(false, false);
-    renderApp();
-    const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
-  });
-
-  it('does not hide chrome in portrait on a touch-primary device — a phone/tablet held upright', () => {
-    stubMatchMedia(true, true);
-    renderApp();
-    const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
-  });
-
-  it('does not hide chrome without waiting for the idle timeout, in the default (non-kiosk) test setup', () => {
-    renderApp();
-    const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
-  });
-
-  it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
-    stubMatchMedia(true, false);
-    renderApp();
-    const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
-
-    act(() => window.dispatchEvent(new Event('pointerdown')));
-
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 });
 
