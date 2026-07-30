@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // (the browser viewport) — a maximized small window shouldn't count as "big", and a small or
 // split browser window on a large external monitor/TV should still count. Checks the long edge
 // via Math.max so a big screen counts regardless of its current rotation.
-const BIG_SCREEN_LONG_EDGE_PX = 1920;
+export const BIG_SCREEN_LONG_EDGE_PX = 1920;
 
 function isBigScreenNow(): boolean {
   return Math.max(window.screen.width, window.screen.height) > BIG_SCREEN_LONG_EDGE_PX;

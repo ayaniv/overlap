@@ -1,11 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useIsBigScreen } from './useIsBigScreen';
-
-function stubScreenSize(width: number, height: number) {
-  Object.defineProperty(window.screen, 'width', { value: width, configurable: true });
-  Object.defineProperty(window.screen, 'height', { value: height, configurable: true });
-}
+import { stubScreenSize } from '../testHelpers';
+import { BIG_SCREEN_LONG_EDGE_PX, useIsBigScreen } from './useIsBigScreen';
 
 afterEach(() => {
   // jsdom defaults window.screen.width/height to 0; restore that so a stub in one test
@@ -20,8 +16,8 @@ describe('useIsBigScreen', () => {
     expect(result.current).toBe(false);
   });
 
-  it('is false exactly at the threshold — 1920 must not count as big', () => {
-    stubScreenSize(1920, 1080);
+  it('is false exactly at the threshold — must not count as big', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
     const { result } = renderHook(() => useIsBigScreen());
     expect(result.current).toBe(false);
   });

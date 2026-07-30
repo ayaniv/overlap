@@ -8,8 +8,10 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
+import { BIG_SCREEN_LONG_EDGE_PX } from './hooks/useIsBigScreen';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
+import { stubScreenSize } from './testHelpers';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -29,14 +31,6 @@ function stubMatchMedia(portrait = false) {
       removeEventListener: vi.fn(),
     })),
   );
-}
-
-// useIsBigScreen reads window.screen.width/height (the physical display's resolution, not
-// the viewport) — jsdom defaults both to 0, i.e. not a big screen, so only tests simulating
-// a large wall-display monitor/TV need to call this
-function stubScreenSize(width: number, height: number) {
-  Object.defineProperty(window.screen, 'width', { value: width, configurable: true });
-  Object.defineProperty(window.screen, 'height', { value: height, configurable: true });
 }
 
 beforeEach(() => {
@@ -468,8 +462,8 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('still shows at exactly the 1920 threshold — must be strictly greater to count as big', () => {
-    stubScreenSize(1920, 1080);
+  it('still shows at exactly the threshold — must be strictly greater to count as big', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
@@ -607,8 +601,8 @@ describe('App — big screen (wall display) starts in ambient idle mode by defau
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
-  it('does not hide chrome at exactly the 1920 threshold — must be strictly greater to count as big', () => {
-    stubScreenSize(1920, 1080);
+  it('does not hide chrome at exactly the threshold — must be strictly greater to count as big', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
