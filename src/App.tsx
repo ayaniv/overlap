@@ -21,7 +21,7 @@ import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
-import { useIsBigScreen } from './hooks/useIsBigScreen';
+import { useIsBigVerticalScreen } from './hooks/useIsBigVerticalScreen';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -55,13 +55,15 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  // a big wall-mounted monitor/TV (any orientation — see useIsBigScreen) starts already
-  // in the ambient/idle state instead of waiting out the first DEFAULT_IDLE_TIMEOUT_MS:
-  // there's nobody at arm's reach to tap "Got it" or dismiss the chrome, so it should read
-  // as a clean ambient display from the very first frame. A phone/tablet held in portrait
-  // is a legitimate small-screen case and still starts active, same as landscape/desktop.
-  const isBigScreen = useIsBigScreen();
-  const isIdle = useIsIdle(undefined, isBigScreen);
+  // a big wall-mounted monitor/TV rotated to portrait (see useIsBigVerticalScreen) starts
+  // already in the ambient/idle state instead of waiting out the first
+  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach to tap "Got it" or dismiss the
+  // chrome, so it should read as a clean ambient display from the very first frame. A wide
+  // desktop monitor at any size, and a phone/tablet held in portrait, are both legitimate
+  // small/normal-desk cases and still start active — only big AND vertical together signal
+  // an unattended wall kiosk rather than someone actually sitting at it.
+  const isBigVerticalScreen = useIsBigVerticalScreen();
+  const isIdle = useIsIdle(undefined, isBigVerticalScreen);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
@@ -82,10 +84,14 @@ function App() {
 
   // fires once per actual appearance — the effect only re-runs when
   // isScrubHintActive changes (including the very first render, if it's
-  // already true on load), not on every render while it stays visible
+  // already true on load), not on every render while it stays visible.
+  // Persists "seen" right here, the moment it's shown — not only once the
+  // user clicks "Got it" — so the demo is shown at most once ever: a reload
+  // before the user gets around to dismissing it must not resurrect it.
   useEffect(() => {
     if (isScrubHintActive) {
       analytics.trackEvent('scrub_hint_shown');
+      markScrubHintSeen();
     }
   }, [isScrubHintActive, analytics]);
 
@@ -106,15 +112,13 @@ function App() {
     }
   }, [isIdle, isScrubHintUnseen, resetScrub]);
 
-  // the flag is persisted here rather than on completion: a reload part-way
-  // through the return animation must not resurrect a hint the user has
-  // explicitly dismissed. Only the on-screen teardown waits for the animation.
+  // "seen" is already persisted (see the appearance effect above) by the time this
+  // can fire — this just starts the on-screen teardown/return animation
   const handleDismissScrubHint = useCallback(() => {
     // the button stays mounted and hit-testable for the length of the return
     // animation, so a second click would otherwise re-fire the analytics event
-    // (the state writes below are already idempotent)
+    // (the state write below is already idempotent)
     if (isDismissingScrubHint) return;
-    markScrubHintSeen();
     setIsDismissingScrubHint(true);
     analytics.trackEvent('scrub_hint_dismissed');
   }, [isDismissingScrubHint, analytics]);
