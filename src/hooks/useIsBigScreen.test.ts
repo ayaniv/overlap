@@ -16,8 +16,14 @@ describe('useIsBigScreen', () => {
     expect(result.current).toBe(false);
   });
 
-  it('is false exactly at the threshold — must not count as big', () => {
+  it('is true exactly at the threshold — inclusive boundary', () => {
     stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
+    const { result } = renderHook(() => useIsBigScreen());
+    expect(result.current).toBe(true);
+  });
+
+  it('is false just below the threshold', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX - 1, 1080);
     const { result } = renderHook(() => useIsBigScreen());
     expect(result.current).toBe(false);
   });

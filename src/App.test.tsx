@@ -462,8 +462,14 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('still shows at exactly the threshold — must be strictly greater to count as big', () => {
+  it('never shows exactly at the threshold — inclusive boundary counts as big', () => {
     stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('still shows just below the threshold', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX - 1, 1080);
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
@@ -601,11 +607,11 @@ describe('App — big screen (wall display) starts in ambient idle mode by defau
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
-  it('does not hide chrome at exactly the threshold — must be strictly greater to count as big', () => {
+  it('hides chrome exactly at the threshold — inclusive boundary counts as big', () => {
     stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
     renderApp();
     const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
   it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
