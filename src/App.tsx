@@ -21,7 +21,7 @@ import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
-import { useIsBigScreen } from './hooks/useIsBigScreen';
+import { useIsBigVerticalScreen } from './hooks/useIsBigVerticalScreen';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -55,13 +55,15 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  // a big wall-mounted monitor/TV (any orientation — see useIsBigScreen) starts already
-  // in the ambient/idle state instead of waiting out the first DEFAULT_IDLE_TIMEOUT_MS:
-  // there's nobody at arm's reach to tap "Got it" or dismiss the chrome, so it should read
-  // as a clean ambient display from the very first frame. A phone/tablet held in portrait
-  // is a legitimate small-screen case and still starts active, same as landscape/desktop.
-  const isBigScreen = useIsBigScreen();
-  const isIdle = useIsIdle(undefined, isBigScreen);
+  // a big wall-mounted monitor/TV rotated to portrait (see useIsBigVerticalScreen) starts
+  // already in the ambient/idle state instead of waiting out the first
+  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach to tap "Got it" or dismiss the
+  // chrome, so it should read as a clean ambient display from the very first frame. A wide
+  // desktop monitor at any size, and a phone/tablet held in portrait, are both legitimate
+  // small/normal-desk cases and still start active — only big AND vertical together signal
+  // an unattended wall kiosk rather than someone actually sitting at it.
+  const isBigVerticalScreen = useIsBigVerticalScreen();
+  const isIdle = useIsIdle(undefined, isBigVerticalScreen);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
