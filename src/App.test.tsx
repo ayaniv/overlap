@@ -468,8 +468,14 @@ describe('App — first-time scrub hint', () => {
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('never shows on a big-screen wall display, landscape', () => {
+  it('still shows at exactly the 1920 threshold — must be strictly greater to count as big', () => {
     stubScreenSize(1920, 1080);
+    renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('never shows on a big-screen wall display, landscape', () => {
+    stubScreenSize(3840, 2160);
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
     expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
@@ -477,19 +483,19 @@ describe('App — first-time scrub hint', () => {
 
   it('never shows on a big-screen wall display rotated to portrait — screen size, not orientation, gates it', () => {
     stubMatchMedia(true);
-    stubScreenSize(1080, 1920);
+    stubScreenSize(2160, 3840);
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
   });
 
   it('does not track scrub_hint_shown on a big-screen wall display', () => {
-    stubScreenSize(1920, 1080);
+    stubScreenSize(3840, 2160);
     const { analytics } = renderApp();
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
   it('stays unseen (not marked seen) while hidden on a big screen, so it can still show later on a normal-sized display', () => {
-    stubScreenSize(1920, 1080);
+    stubScreenSize(3840, 2160);
     renderApp();
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
   });
@@ -595,10 +601,17 @@ describe('App — first-time scrub hint', () => {
 
 describe('App — big screen (wall display) starts in ambient idle mode by default', () => {
   it('hides chrome (data-chrome-hidden) immediately on a big screen, no activity/timeout needed', () => {
-    stubScreenSize(1920, 1080);
+    stubScreenSize(3840, 2160);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+  });
+
+  it('does not hide chrome at exactly the 1920 threshold — must be strictly greater to count as big', () => {
+    stubScreenSize(1920, 1080);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
   it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
@@ -608,7 +621,7 @@ describe('App — big screen (wall display) starts in ambient idle mode by defau
   });
 
   it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
-    stubScreenSize(1920, 1080);
+    stubScreenSize(3840, 2160);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);

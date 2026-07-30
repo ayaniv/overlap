@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 const BIG_SCREEN_LONG_EDGE_PX = 1920;
 
 function isBigScreenNow(): boolean {
-  return Math.max(window.screen.width, window.screen.height) >= BIG_SCREEN_LONG_EDGE_PX;
+  return Math.max(window.screen.width, window.screen.height) > BIG_SCREEN_LONG_EDGE_PX;
 }
 
 // this clock is meant to run unattended on a wall display (see useNow.ts, useIsIdle.ts) where

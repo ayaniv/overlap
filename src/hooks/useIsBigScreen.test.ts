@@ -20,14 +20,20 @@ describe('useIsBigScreen', () => {
     expect(result.current).toBe(false);
   });
 
-  it('is true once the long edge reaches the big-screen threshold, landscape', () => {
+  it('is false exactly at the threshold — 1920 must not count as big', () => {
     stubScreenSize(1920, 1080);
+    const { result } = renderHook(() => useIsBigScreen());
+    expect(result.current).toBe(false);
+  });
+
+  it('is true once the long edge exceeds the big-screen threshold, landscape', () => {
+    stubScreenSize(3840, 2160);
     const { result } = renderHook(() => useIsBigScreen());
     expect(result.current).toBe(true);
   });
 
-  it('is true at the same threshold rotated to portrait — orientation does not matter', () => {
-    stubScreenSize(1080, 1920);
+  it('is true at the same size rotated to portrait — orientation does not matter', () => {
+    stubScreenSize(2160, 3840);
     const { result } = renderHook(() => useIsBigScreen());
     expect(result.current).toBe(true);
   });
@@ -38,7 +44,7 @@ describe('useIsBigScreen', () => {
     expect(result.current).toBe(false);
 
     act(() => {
-      stubScreenSize(1920, 1080);
+      stubScreenSize(3840, 2160);
       window.dispatchEvent(new Event('resize'));
     });
     expect(result.current).toBe(true);
