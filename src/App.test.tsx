@@ -593,6 +593,32 @@ describe('App — first-time scrub hint', () => {
   });
 });
 
+describe('App — big screen (wall display) starts in ambient idle mode by default', () => {
+  it('hides chrome (data-chrome-hidden) immediately on a big screen, no activity/timeout needed', () => {
+    stubScreenSize(1920, 1080);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+  });
+
+  it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+
+  it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
+    stubScreenSize(1920, 1080);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+
+    act(() => window.dispatchEvent(new Event('pointerdown')));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+});
+
 describe('App — Find Time', () => {
   // seeds every city (home + rings) with maximally wide hours so nothing can
   // ever end up 'out' -- these tests exercise checkbox/UI mechanics, not

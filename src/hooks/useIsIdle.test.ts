@@ -78,6 +78,33 @@ describe('useIsIdle', () => {
     expect(result.current).toBe(false);
   });
 
+  it('is true immediately after mount when initialIdle is true', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useIsIdle(1000, true));
+    expect(result.current).toBe(true);
+  });
+
+  it('still clears on activity when it started idle via initialIdle', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useIsIdle(1000, true));
+    expect(result.current).toBe(true);
+
+    act(() => window.dispatchEvent(new Event('pointerdown')));
+
+    expect(result.current).toBe(false);
+  });
+
+  it('still re-idles after the timeout even when it started idle via initialIdle', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useIsIdle(1000, true));
+
+    act(() => window.dispatchEvent(new Event('pointerdown')));
+    expect(result.current).toBe(false);
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current).toBe(true);
+  });
+
   it('removes its listeners and cancels the timer on unmount', () => {
     vi.useFakeTimers();
     const addSpy = vi.spyOn(window, 'addEventListener');
