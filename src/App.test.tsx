@@ -443,6 +443,20 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).toHaveBeenCalledWith('scrub_hint_shown');
   });
 
+  it('persists the seen flag as soon as it appears, before any dismissal', () => {
+    renderApp();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).toBe('true');
+  });
+
+  it('never reappears after a refresh, even if the user never clicked Got it', () => {
+    const { unmount } = renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+
+    unmount();
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
   it('never shows if already marked as seen', () => {
     window.localStorage.setItem(SCRUB_HINT_SEEN_STORAGE_KEY, 'true');
     renderApp();
@@ -545,7 +559,7 @@ describe('App — first-time scrub hint', () => {
     expect(dismissEvents).toHaveLength(1);
   });
 
-  it('persists the seen flag on click, not when the return animation lands', async () => {
+  it('keeps the seen flag persisted through the click and return animation, not reset mid-flow', async () => {
     const user = userEvent.setup();
     renderApp();
 
