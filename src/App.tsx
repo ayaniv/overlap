@@ -21,8 +21,8 @@ import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
-import { useIsBigVerticalScreen } from './hooks/useIsBigVerticalScreen';
 import { useIsIdle } from './hooks/useIsIdle';
+import { useIsKioskDisplay } from './hooks/useIsKioskDisplay';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
@@ -55,15 +55,15 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  // a big wall-mounted monitor/TV rotated to portrait (see useIsBigVerticalScreen) starts
-  // already in the ambient/idle state instead of waiting out the first
-  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach to tap "Got it" or dismiss the
+  // an unattended wall-mounted kiosk display (see useIsKioskDisplay — portrait + non-touch
+  // input, since client displays are arbitrary resolutions and can't be told apart from a
+  // tablet by size alone) starts already in the ambient/idle state instead of waiting out the
+  // first DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach to tap "Got it" or dismiss the
   // chrome, so it should read as a clean ambient display from the very first frame. A wide
-  // desktop monitor at any size, and a phone/tablet held in portrait, are both legitimate
-  // small/normal-desk cases and still start active — only big AND vertical together signal
-  // an unattended wall kiosk rather than someone actually sitting at it.
-  const isBigVerticalScreen = useIsBigVerticalScreen();
-  const isIdle = useIsIdle(undefined, isBigVerticalScreen);
+  // desktop monitor, and a phone/tablet held in portrait, are both legitimate normal-use cases
+  // and still start active.
+  const isKioskDisplay = useIsKioskDisplay();
+  const isIdle = useIsIdle(undefined, isKioskDisplay);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown

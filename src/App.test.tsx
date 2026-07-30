@@ -8,10 +8,8 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
-import { BIG_SCREEN_LONG_EDGE_PX } from './hooks/useIsBigVerticalScreen';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
-import { stubScreenSize } from './testHelpers';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -19,14 +17,16 @@ vi.mock('./clock/googleCalendar', async (importOriginal) => {
   return { ...actual, scheduleMeetingOnGoogleCalendar: vi.fn(), deleteMeetingFromGoogleCalendar: vi.fn() };
 });
 
-// useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read
-// window.matchMedia, which jsdom doesn't implement; `portrait` lets individual
-// tests opt into simulating the portrait/mobile layout
-function stubMatchMedia(portrait = false) {
+// useSweepAngle (reduced-motion), useIsPortrait (orientation), and useIsKioskDisplay (orientation
+// + pointer type) all read window.matchMedia, which jsdom doesn't implement; `portrait` and
+// `touch` let individual tests opt into simulating the portrait/mobile layout and a touch-primary
+// input device (a real phone/tablet is both; a kiosk display driven by a mouse/remote/nothing is
+// portrait but not touch)
+function stubMatchMedia(portrait = false, touch = false) {
   vi.stubGlobal(
     'matchMedia',
     vi.fn().mockImplementation((query: string) => ({
-      matches: query === '(orientation: portrait)' ? portrait : false,
+      matches: query === '(orientation: portrait)' ? portrait : query === '(pointer: coarse)' ? touch : false,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })),
@@ -35,7 +35,6 @@ function stubMatchMedia(portrait = false) {
 
 beforeEach(() => {
   stubMatchMedia();
-  stubScreenSize(0, 0);
   window.localStorage.clear();
   // pre-seed "already dismissed" so the ~400 existing assertions in this file
   // (written before this feature existed) keep exercising the app's steady
@@ -469,45 +468,33 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('still shows on a phone/tablet held in portrait — small screens keep the hint', () => {
-    stubScreenSize(390, 844); // a phone's physical resolution, portrait
+  it('still shows on a phone/tablet held in portrait — touch-primary devices keep the hint', () => {
+    stubMatchMedia(true, true); // portrait + touch-primary
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('still shows on a big screen in landscape — a wide desktop monitor is a normal desk setup', () => {
-    stubScreenSize(3840, 2160);
+  it('still shows in landscape on a non-touch device — a normal desktop/kiosk-in-landscape setup', () => {
+    stubMatchMedia(false, false); // landscape, not touch-primary
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('never shows on a big screen rotated to portrait — the wall-kiosk signal', () => {
-    stubScreenSize(2160, 3840);
+  it('never shows in portrait on a non-touch device — the wall-kiosk signal', () => {
+    stubMatchMedia(true, false); // portrait, not touch-primary
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
     expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
   });
 
-  it('never shows exactly at the threshold in portrait — inclusive boundary counts as big', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX);
-    renderApp();
-    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
-  });
-
-  it('still shows just below the threshold in portrait', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX - 1);
-    renderApp();
-    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
-  });
-
-  it('does not track scrub_hint_shown on a big vertical screen', () => {
-    stubScreenSize(2160, 3840);
+  it('does not track scrub_hint_shown on a kiosk display', () => {
+    stubMatchMedia(true, false);
     const { analytics } = renderApp();
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('stays unseen (not marked seen) while hidden on a big vertical screen, so it can still show later on a normal display', () => {
-    stubScreenSize(2160, 3840);
+  it('stays unseen (not marked seen) while hidden on a kiosk display, so it can still show later in a normal-use context', () => {
+    stubMatchMedia(true, false);
     renderApp();
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
   });
@@ -611,36 +598,36 @@ describe('App — first-time scrub hint', () => {
   });
 });
 
-describe('App — big vertical screen (wall display) starts in ambient idle mode by default', () => {
-  it('hides chrome (data-chrome-hidden) immediately on a big vertical screen, no activity/timeout needed', () => {
-    stubScreenSize(2160, 3840);
+describe('App — kiosk display (wall display) starts in ambient idle mode by default', () => {
+  it('hides chrome (data-chrome-hidden) immediately on a kiosk display, no activity/timeout needed', () => {
+    stubMatchMedia(true, false); // portrait, not touch-primary
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
-  it('does not hide chrome on a big screen in landscape — a wide desktop monitor is a normal desk setup', () => {
-    stubScreenSize(3840, 2160);
+  it('does not hide chrome in landscape on a non-touch device — a normal desktop/kiosk-in-landscape setup', () => {
+    stubMatchMedia(false, false);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
-  it('hides chrome exactly at the threshold in portrait — inclusive boundary counts as big', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX);
+  it('does not hide chrome in portrait on a touch-primary device — a phone/tablet held upright', () => {
+    stubMatchMedia(true, true);
     renderApp();
     const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
-  it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
+  it('does not hide chrome without waiting for the idle timeout, in the default (non-kiosk) test setup', () => {
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
   it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
-    stubScreenSize(2160, 3840);
+    stubMatchMedia(true, false);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
