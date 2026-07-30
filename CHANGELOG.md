@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-30
+
+- [#66](https://github.com/ayaniv/overlap/pull/66) Big screens (wall displays) start in ambient/idle mode by default
+
 ## 2026-07-27
 
 - [#64](https://github.com/ayaniv/overlap/pull/64) fix(find-time): Sydney's checkbox stayed disabled even with every other city unchecked
