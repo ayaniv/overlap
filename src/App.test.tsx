@@ -8,8 +8,10 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
+import { BIG_SCREEN_LONG_EDGE_PX } from './hooks/useIsBigScreen';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
+import { stubScreenSize } from './testHelpers';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -33,6 +35,7 @@ function stubMatchMedia(portrait = false) {
 
 beforeEach(() => {
   stubMatchMedia();
+  stubScreenSize(0, 0);
   window.localStorage.clear();
   // pre-seed "already dismissed" so the ~400 existing assertions in this file
   // (written before this feature existed) keep exercising the app's steady
@@ -452,6 +455,45 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
+  it('still shows on a phone/tablet held in portrait — small screens keep the hint', () => {
+    stubMatchMedia(true);
+    stubScreenSize(390, 844); // a phone's physical resolution, portrait
+    renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('still shows at exactly the threshold — must be strictly greater to count as big', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
+    renderApp();
+    expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
+  });
+
+  it('never shows on a big-screen wall display, landscape', () => {
+    stubScreenSize(3840, 2160);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+    expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
+  });
+
+  it('never shows on a big-screen wall display rotated to portrait — screen size, not orientation, gates it', () => {
+    stubMatchMedia(true);
+    stubScreenSize(2160, 3840);
+    renderApp();
+    expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
+  });
+
+  it('does not track scrub_hint_shown on a big-screen wall display', () => {
+    stubScreenSize(3840, 2160);
+    const { analytics } = renderApp();
+    expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
+  });
+
+  it('stays unseen (not marked seen) while hidden on a big screen, so it can still show later on a normal-sized display', () => {
+    stubScreenSize(3840, 2160);
+    renderApp();
+    expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
+  });
+
   it('is removed from the DOM (not just hidden) and never reappears after Got it is clicked', async () => {
     const user = userEvent.setup();
     const { unmount } = renderApp();
@@ -548,6 +590,39 @@ describe('App — first-time scrub hint', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('App — big screen (wall display) starts in ambient idle mode by default', () => {
+  it('hides chrome (data-chrome-hidden) immediately on a big screen, no activity/timeout needed', () => {
+    stubScreenSize(3840, 2160);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+  });
+
+  it('does not hide chrome at exactly the threshold — must be strictly greater to count as big', () => {
+    stubScreenSize(BIG_SCREEN_LONG_EDGE_PX, 1080);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+
+  it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
+  });
+
+  it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
+    stubScreenSize(3840, 2160);
+    renderApp();
+    const stage = document.querySelector('section');
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+
+    act(() => window.dispatchEvent(new Event('pointerdown')));
+
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 });
 

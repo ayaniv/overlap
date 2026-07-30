@@ -21,6 +21,7 @@ import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { useClockConfig } from './hooks/useClockConfig';
+import { useIsBigScreen } from './hooks/useIsBigScreen';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -54,12 +55,19 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  const isIdle = useIsIdle();
+  // a big wall-mounted monitor/TV (any orientation — see useIsBigScreen) starts already
+  // in the ambient/idle state instead of waiting out the first DEFAULT_IDLE_TIMEOUT_MS:
+  // there's nobody at arm's reach to tap "Got it" or dismiss the chrome, so it should read
+  // as a clean ambient display from the very first frame. A phone/tablet held in portrait
+  // is a legitimate small-screen case and still starts active, same as landscape/desktop.
+  const isBigScreen = useIsBigScreen();
+  const isIdle = useIsIdle(undefined, isBigScreen);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
   // by default (like the header/title/ControlCluster chrome) and hidden by
-  // the same ambient-idle mechanism, rather than waiting for a first touch.
+  // the same ambient-idle mechanism (including the big-screen default above),
+  // rather than waiting for a first touch.
   // `!isScrubbing` closes a same-render race: if the activity that clears
   // `isIdle` (resuming from an ambient/idle state) is itself a real pointer
   // drag already in progress, useRingScrub's onPointerDown already set
