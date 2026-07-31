@@ -11,8 +11,8 @@ const ACTIVITY_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'touchstart'] 
 // the caller can fade out interactive chrome so the clock reads as a clean
 // ambient display instead of an app waiting for input; any activity (a touch,
 // a keystroke, moving/hovering the pointer) immediately clears it again.
-// `initialIdle` lets a caller start already in that ambient state (e.g. a big
-// wall-mounted screen, where there's nobody at arm's reach yet) instead of
+// `initialIdle` lets a caller start already in that ambient state (e.g. a portrait
+// desktop/kiosk display, where there's nobody at arm's reach yet) instead of
 // waiting out the first `timeoutMs` — activity still clears it exactly the
 // same way from there.
 export function useIsIdle(timeoutMs: number = DEFAULT_IDLE_TIMEOUT_MS, initialIdle: boolean = false): boolean {

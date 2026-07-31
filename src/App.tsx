@@ -20,8 +20,8 @@ import { useScrubHintDemo } from './clock/useScrubHintDemo';
 import { useScrubHintReturn } from './clock/useScrubHintReturn';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
+import { isMobileOS } from './hooks/isMobileOS';
 import { useClockConfig } from './hooks/useClockConfig';
-import { useIsBigVerticalScreen } from './hooks/useIsBigVerticalScreen';
 import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
@@ -55,20 +55,22 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  // a big wall-mounted monitor/TV rotated to portrait (see useIsBigVerticalScreen) starts
-  // already in the ambient/idle state instead of waiting out the first
-  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach to tap "Got it" or dismiss the
-  // chrome, so it should read as a clean ambient display from the very first frame. A wide
-  // desktop monitor at any size, and a phone/tablet held in portrait, are both legitimate
-  // small/normal-desk cases and still start active — only big AND vertical together signal
-  // an unattended wall kiosk rather than someone actually sitting at it.
-  const isBigVerticalScreen = useIsBigVerticalScreen();
-  const isIdle = useIsIdle(undefined, isBigVerticalScreen);
+  // a derived value, not mutable state (there's no setter) — never changes mid-session, so an
+  // empty dep array is enough. Read before useIsIdle below since it feeds that hook's initial
+  // value. See isMobileOS.ts.
+  const isMobile = useMemo(isMobileOS, []);
+  // a portrait, non-mobile display (a desktop/kiosk PC rotated vertically — the actual
+  // wall-kiosk signal, since real desktop use is landscape and mobile is exempted regardless
+  // of orientation) starts already in the ambient/idle state instead of waiting out the first
+  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach yet, so it should read as a clean
+  // ambient display from the very first frame. Any real activity — not just a specific
+  // gesture — clears it exactly like the normal timeout-based path already does.
+  const isIdle = useIsIdle(undefined, isPortrait && !isMobile);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
   // by default (like the header/title/ControlCluster chrome) and hidden by
-  // the same ambient-idle mechanism (including the big-screen default above),
+  // the same ambient-idle mechanism (including the portrait-kiosk default above),
   // rather than waiting for a first touch.
   // `!isScrubbing` closes a same-render race: if the activity that clears
   // `isIdle` (resuming from an ambient/idle state) is itself a real pointer

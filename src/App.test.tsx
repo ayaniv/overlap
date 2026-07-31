@@ -8,10 +8,8 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
-import { BIG_SCREEN_LONG_EDGE_PX } from './hooks/useIsBigVerticalScreen';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
-import { stubScreenSize } from './testHelpers';
 import type { ClockConfig } from './clock/types';
 
 vi.mock('./clock/googleCalendar', async (importOriginal) => {
@@ -19,9 +17,9 @@ vi.mock('./clock/googleCalendar', async (importOriginal) => {
   return { ...actual, scheduleMeetingOnGoogleCalendar: vi.fn(), deleteMeetingFromGoogleCalendar: vi.fn() };
 });
 
-// useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read
-// window.matchMedia, which jsdom doesn't implement; `portrait` lets individual
-// tests opt into simulating the portrait/mobile layout
+// useSweepAngle (reduced-motion) and useIsPortrait (orientation) both read window.matchMedia,
+// which jsdom doesn't implement; `portrait` lets individual tests opt into simulating the
+// portrait/mobile layout
 function stubMatchMedia(portrait = false) {
   vi.stubGlobal(
     'matchMedia',
@@ -33,9 +31,19 @@ function stubMatchMedia(portrait = false) {
   );
 }
 
+const IPHONE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+const DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+
+// isMobileOS() reads navigator.userAgent once at mount; jsdom's default userAgent already
+// reads as "desktop" (doesn't match isMobileOS's patterns), so this is only needed to
+// simulate an iOS/Android device
+function stubUserAgent(userAgent: string) {
+  Object.defineProperty(window.navigator, 'userAgent', { value: userAgent, configurable: true });
+}
+
 beforeEach(() => {
   stubMatchMedia();
-  stubScreenSize(0, 0);
+  stubUserAgent(DESKTOP_USER_AGENT);
   window.localStorage.clear();
   // pre-seed "already dismissed" so the ~400 existing assertions in this file
   // (written before this feature existed) keep exercising the app's steady
@@ -431,6 +439,12 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
 describe('App — first-time scrub hint', () => {
   beforeEach(() => {
     window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
+    // most tests below are about the hint's own lifecycle (dismiss, analytics, idle-hide),
+    // not about how it first became visible — default to mobile here so they keep exercising
+    // "shows immediately" without needing the portrait+desktop ambient-idle gate to clear
+    // first; the mobile-vs-desktop distinction itself is covered by the dedicated tests
+    // further down
+    stubUserAgent(IPHONE_USER_AGENT);
   });
 
   it('shows immediately on load when not yet dismissed — same as the header/title/buttons, no activity required', () => {
@@ -469,45 +483,49 @@ describe('App — first-time scrub hint', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('still shows on a phone/tablet held in portrait — small screens keep the hint', () => {
-    stubScreenSize(390, 844); // a phone's physical resolution, portrait
+  it('still shows immediately on Android in portrait, same as iOS — mobile is exempt regardless of orientation', () => {
+    stubUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36');
+    stubMatchMedia(true); // portrait
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('still shows on a big screen in landscape — a wide desktop monitor is a normal desk setup', () => {
-    stubScreenSize(3840, 2160);
+  it('shows immediately on desktop in landscape — a normal desk setup', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(false); // landscape
     renderApp();
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('never shows on a big screen rotated to portrait — the wall-kiosk signal', () => {
-    stubScreenSize(2160, 3840);
+  it('does not show on a portrait desktop/kiosk display until real activity happens', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true); // portrait
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
     expect(screen.queryByTestId('scrub-hint-overlay')).toBeNull();
   });
 
-  it('never shows exactly at the threshold in portrait — inclusive boundary counts as big', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX);
+  it('shows on a portrait desktop/kiosk display once real activity clears the ambient state', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true);
     renderApp();
     expect(screen.queryByTestId('scrub-hint-dismiss-button')).toBeNull();
-  });
 
-  it('still shows just below the threshold in portrait', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX - 1);
-    renderApp();
+    act(() => window.dispatchEvent(new Event('pointermove')));
+
     expect(screen.getByTestId('scrub-hint-dismiss-button')).toBeTruthy();
   });
 
-  it('does not track scrub_hint_shown on a big vertical screen', () => {
-    stubScreenSize(2160, 3840);
+  it('does not track scrub_hint_shown on a portrait desktop/kiosk display before any activity', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true);
     const { analytics } = renderApp();
     expect(analytics.trackEvent).not.toHaveBeenCalledWith('scrub_hint_shown');
   });
 
-  it('stays unseen (not marked seen) while hidden on a big vertical screen, so it can still show later on a normal display', () => {
-    stubScreenSize(2160, 3840);
+  it('stays unseen (not marked seen) on a portrait desktop/kiosk display before any activity, so it can still show later', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true);
     renderApp();
     expect(window.localStorage.getItem(SCRUB_HINT_SEEN_STORAGE_KEY)).not.toBe('true');
   });
@@ -611,36 +629,40 @@ describe('App — first-time scrub hint', () => {
   });
 });
 
-describe('App — big vertical screen (wall display) starts in ambient idle mode by default', () => {
-  it('hides chrome (data-chrome-hidden) immediately on a big vertical screen, no activity/timeout needed', () => {
-    stubScreenSize(2160, 3840);
+describe('App — portrait desktop/kiosk display starts in ambient idle mode by default', () => {
+  it('hides chrome (data-chrome-hidden) immediately on a portrait desktop/kiosk display, no activity/timeout needed', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true); // portrait
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
   });
 
-  it('does not hide chrome on a big screen in landscape — a wide desktop monitor is a normal desk setup', () => {
-    stubScreenSize(3840, 2160);
+  it('does not hide chrome on desktop in landscape — a normal desk setup', () => {
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(false);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
-  it('hides chrome exactly at the threshold in portrait — inclusive boundary counts as big', () => {
-    stubScreenSize(1080, BIG_SCREEN_LONG_EDGE_PX);
+  it('does not hide chrome on a mobile device in portrait — mobile is exempt', () => {
+    stubUserAgent(IPHONE_USER_AGENT);
+    stubMatchMedia(true);
     renderApp();
     const stage = document.querySelector('section');
-    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
+    expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
-  it('does not hide chrome on a normal-sized screen without waiting for the idle timeout', () => {
+  it('does not hide chrome without waiting for the idle timeout, in the default (desktop/landscape) test setup', () => {
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(false);
   });
 
   it('leaves ambient/idle mode on activity, same as the normal timeout-based path', () => {
-    stubScreenSize(2160, 3840);
+    stubUserAgent(DESKTOP_USER_AGENT);
+    stubMatchMedia(true);
     renderApp();
     const stage = document.querySelector('section');
     expect(stage?.hasAttribute('data-chrome-hidden')).toBe(true);
