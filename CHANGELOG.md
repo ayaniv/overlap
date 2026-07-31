@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-07-31
+
+- [#71](https://github.com/ayaniv/overlap/pull/71) Seed ambient-idle state from portrait + isMobileOS, not screen/touch detection
+
 ## 2026-07-30
 
 - [#69](https://github.com/ayaniv/overlap/pull/69) Hide the hint only on big screens rotated to portrait, not big screens generally
