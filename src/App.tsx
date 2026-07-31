@@ -55,9 +55,10 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  // never changes mid-session, so a plain lazy useState (no listener needed) is enough — see
-  // isMobileOS.ts. Read before useIsIdle below since it feeds that hook's initial value.
-  const [isMobile] = useState(isMobileOS);
+  // a derived value, not mutable state (there's no setter) — never changes mid-session, so an
+  // empty dep array is enough. Read before useIsIdle below since it feeds that hook's initial
+  // value. See isMobileOS.ts.
+  const isMobile = useMemo(isMobileOS, []);
   // a portrait, non-mobile display (a desktop/kiosk PC rotated vertically — the actual
   // wall-kiosk signal, since real desktop use is landscape and mobile is exempted regardless
   // of orientation) starts already in the ambient/idle state instead of waiting out the first
