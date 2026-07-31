@@ -55,36 +55,28 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
-  const isIdle = useIsIdle();
   // never changes mid-session, so a plain lazy useState (no listener needed) is enough — see
-  // isMobileOS.ts
+  // isMobileOS.ts. Read before useIsIdle below since it feeds that hook's initial value.
   const [isMobile] = useState(isMobileOS);
+  // a portrait, non-mobile display (a desktop/kiosk PC rotated vertically — the actual
+  // wall-kiosk signal, since real desktop use is landscape and mobile is exempted regardless
+  // of orientation) starts already in the ambient/idle state instead of waiting out the first
+  // DEFAULT_IDLE_TIMEOUT_MS: there's nobody at arm's reach yet, so it should read as a clean
+  // ambient display from the very first frame. Any real activity — not just a specific
+  // gesture — clears it exactly like the normal timeout-based path already does.
+  const isIdle = useIsIdle(undefined, isPortrait && !isMobile);
   const [isScrubHintUnseen, setIsScrubHintUnseen] = useState(() => !hasSeenScrubHint());
-  // on a phone/tablet the hint is shown right away, same as the header/title/buttons — a touch
-  // device is always someone actually holding it. On desktop, wait for a real mouse-wheel
-  // scroll before ever showing it: a kiosk/wall display, driven by a mouse, a remote, or
-  // nothing at all, never receives one, so it naturally never shows the hint — without having
-  // to detect "is this a kiosk" at all. `{ once: true }` means this only ever needs to catch
-  // the very first scroll.
-  const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
-  useEffect(() => {
-    if (isMobile) return;
-    const handleWheel = () => setHasScrolledOnce(true);
-    window.addEventListener('wheel', handleWheel, { once: true, passive: true });
-    return () => window.removeEventListener('wheel', handleWheel);
-  }, [isMobile]);
   // full gate for "is the hint actually visible/animating right now" — the
   // narrower `isScrubHintUnseen` state only tracks permanent dismissal. Shown
-  // by default (like the header/title/ControlCluster chrome) on mobile, or after the first
-  // scroll on desktop, and hidden by the same ambient-idle mechanism, rather than waiting for
-  // a first touch beyond that.
+  // by default (like the header/title/ControlCluster chrome) and hidden by
+  // the same ambient-idle mechanism (including the portrait-kiosk default above),
+  // rather than waiting for a first touch.
   // `!isScrubbing` closes a same-render race: if the activity that clears
   // `isIdle` (resuming from an ambient/idle state) is itself a real pointer
   // drag already in progress, useRingScrub's onPointerDown already set
   // isScrubbing true in that same event/render, so this stays false instead
   // of transiently yanking scrubBind out from under it.
-  const isScrubHintActive =
-    isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing && (isMobile || hasScrolledOnce);
+  const isScrubHintActive = isScrubHintUnseen && mode === 'view' && !isIdle && !isScrubbing;
   // true from the "Got it" click until the clock finishes easing back to now.
   // The demo sweep is gated off while this runs: if the user dismisses
   // mid-sweep, both rAF loops would otherwise fight over the same offset.
