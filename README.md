@@ -1,5 +1,7 @@
 # overlap
 
+> World Clock at a Glance
+
 [![Live demo](https://img.shields.io/badge/live%20demo-overlapclock.com-4c9a6b)](https://overlapclock.com)
 
 A free, open-source, backend-free world clock for scheduling across timezones.
