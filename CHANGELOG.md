@@ -7,6 +7,7 @@ PR merges into `main`. Manual edits to old entries are safe — only new entries
 
 ## 2026-08-16
 
+- [#78](https://github.com/ayaniv/overlap/pull/78) Fix Chrome-iOS add-city bugs: silent desktop fallback, duplicate palette hues
 - [#76](https://github.com/ayaniv/overlap/pull/76) Add CLAUDE.md: never bypass main's PR requirement
 
 ## 2026-08-09
