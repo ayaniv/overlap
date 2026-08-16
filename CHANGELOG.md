@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-08-16
+
+- [#76](https://github.com/ayaniv/overlap/pull/76) Add CLAUDE.md: never bypass main's PR requirement
+
 ## 2026-08-09
 
 - [#74](https://github.com/ayaniv/overlap/pull/74) Update README with live demo link and project info
