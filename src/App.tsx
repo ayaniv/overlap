@@ -55,6 +55,22 @@ function App() {
   const canScrub = mode !== 'edit';
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const isPortrait = useIsPortrait();
+  // freezes the portrait/mobile-layout choice for the duration of an edit session.
+  // `isPortrait` (see useIsPortrait) tracks `matchMedia('(orientation: portrait)')`
+  // live — on Chrome/WebKit for iOS the on-screen keyboard shrinks the *layout*
+  // viewport (unlike Android Chrome's default of only resizing the visual
+  // viewport), which on a short-enough device can flip that query mid-typing, with
+  // no real device rotation involved. Both AddLocationForm's immediate-add-on-pick
+  // behavior and WorldClock's MobileConfigView-vs-ConfigPanel choice key off this,
+  // so a live value flipping mid-edit either silently falls back to the desktop
+  // "pick, then tap Add" flow (confirmed: this is what "selecting a city doesn't
+  // add it" on Chrome mobile turned out to be) or remounts the panel entirely,
+  // dropping keyboard focus. Re-syncs the instant edit mode closes, so a real
+  // device rotation is still picked up next time the panel opens.
+  const [panelIsPortrait, setPanelIsPortrait] = useState(isPortrait);
+  useEffect(() => {
+    if (mode !== 'edit') setPanelIsPortrait(isPortrait);
+  }, [isPortrait, mode]);
   // a derived value, not mutable state (there's no setter) — never changes mid-session, so an
   // empty dep array is enough. Read before useIsIdle below since it feeds that hook's initial
   // value. See isMobileOS.ts.
@@ -428,7 +444,7 @@ function App() {
         existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
         onAdd={addLocation}
         onDone={() => setMode('view')}
-        isPortrait={isPortrait}
+        isPortrait={panelIsPortrait}
       />
     ) : undefined;
 
@@ -459,7 +475,7 @@ function App() {
       hasMatchedMeeting={Boolean(matchedMeeting)}
       onRemoveMeeting={handleRemoveMatchedMeeting}
       isRemovingMeeting={isRemovingMeeting}
-      isPortrait={isPortrait}
+      isPortrait={panelIsPortrait}
       isIdle={isIdle}
       isScrubHintVisible={isScrubHintActive}
       onDismissScrubHint={handleDismissScrubHint}
