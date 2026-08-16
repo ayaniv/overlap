@@ -99,6 +99,16 @@
   flex-shrink: 0;
 }
 
+/* a big landscape display (a wall monitor/TV, or just a large desktop/laptop screen) gets the
+   same oversized/bleeding treatment portrait already had — otherwise the 700px cap above leaves
+   the clock looking small and adrift on a big canvas. 1200x700 also comfortably excludes tablets
+   in landscape (~1024px max), so this is desktop/laptop and up, not just wall displays. */
+@media (min-width: 1200px) and (min-height: 700px) {
+  .clockContainer {
+    width: min(120vmin, 2800px);
+  }
+}
+
 .svg {
   position: absolute;
   inset: 0;
@@ -382,5 +392,16 @@
     bottom: 6px;
     right: 12px;
     font-size: 10px;
+  }
+}
+
+/* a big vertical display (a rotated wall monitor/TV, not a phone — 700px+ of portrait width
+   rules out real phones) gets the same oversized/bleeding treatment as the landscape big-screen
+   rule above, scaled by vw like the base portrait rule (rather than vmin) since the long edge
+   in portrait is the height, and vw tracks the width most portrait panels are actually
+   constrained by */
+@media (orientation: portrait) and (min-width: 700px) {
+  .clockContainer {
+    width: min(165vw, 2800px);
   }
 }
