@@ -39,11 +39,33 @@ button {
   touch-action: manipulation;
 }
 
+/* `height: 100%` alone is known to go stale on iOS Safari/WebKit (Chrome for
+   iOS included, since Apple requires it to use WebKit): the percentage is
+   resolved against the viewport at the time it's first computed, and WebKit
+   doesn't reliably recompute it once the browser's own dynamic UI (URL bar /
+   bottom toolbar) settles into its final size shortly after a cold load —
+   leaving a gap of unstyled background below content sized off the earlier,
+   smaller value. A refresh doesn't show the bug because by then the browser
+   chrome is already in its settled state before layout ever runs. `dvh`
+   (dynamic viewport height) was added specifically to track the *current*
+   real viewport instead of a one-time snapshot. Gated behind `@supports`
+   rather than a plain second `height` declaration: the build's CSS minifier
+   collapses two same-property declarations in one rule into just the last
+   one, which would silently ship with no fallback for a browser that lacks
+   `dvh` — `@supports` survives minification as two separate rules. */
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
 }
 
 body {
