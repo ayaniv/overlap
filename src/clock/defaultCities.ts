@@ -3,7 +3,18 @@ import type { Location } from './types';
 export const DEFAULT_WORK_START = 9;
 export const DEFAULT_WORK_END = 18;
 
-// predefined swatches offered in the location color picker (M2), also used for defaults
+// predefined swatches offered in the location color picker (M2), also used for defaults.
+// Every entry needs to read as a distinct hue at a glance — these are drawn as thin glowing
+// ring strokes on a near-black background, where two swatches from the same family (e.g. the
+// original #FCD34D next to #FBBF4B, or #4ADE80 next to #34D399) become genuinely hard to tell
+// apart rather than just "similar in isolation". A first replacement attempt (cyan #22D3EE,
+// orange #FB923C) turned out to repeat the same mistake one hue-step over — Tailwind's
+// cyan-400/sky-400 and orange-400/amber-400 are themselves neighboring hues (~10-15° apart
+// on the hue circle). Lime and fuchsia below were chosen by actually computing hue distance
+// against all six other entries (not eyeballing swatches): both land 37-44° from their
+// closest neighbor, comfortably past the ~23° gap already tolerated between the existing
+// rose/pink pair. Eight hues, no two sharing a family: rose, amber, emerald, sky, violet,
+// pink, lime, fuchsia.
 export const PALETTE: string[] = [
   '#FB7185',
   '#FBBF4B',
@@ -11,8 +22,8 @@ export const PALETTE: string[] = [
   '#38BDF8',
   '#A78BFA',
   '#F472B6',
-  '#FCD34D',
-  '#4ADE80',
+  '#A3E635',
+  '#E879F9',
 ];
 
 export const DEFAULT_WORLD_CITIES: Location[] = [

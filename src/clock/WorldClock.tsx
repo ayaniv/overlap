@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
@@ -192,22 +192,11 @@ export function WorldClock({
   // its own mode rule
   const isScrubbable = Boolean(scrubBind);
 
-  // freezes which Config-panel variant (mobile full-screen vs desktop floating)
-  // is shown for the duration of an edit session. `isPortrait` is a live value
-  // (see useIsPortrait) that tracks `matchMedia('(orientation: portrait)')` —
-  // on Chrome/WebKit for iOS the on-screen keyboard shrinks the *layout*
-  // viewport (unlike Android Chrome's default of only resizing the visual
-  // viewport), which on a short-enough device can flip that query mid-typing.
-  // Without this, that flip would swap this branch out from under an open
-  // panel and remount the focused AddLocationForm input, closing the keyboard
-  // (confirmed: this is the actual mechanism behind the "keyboard flashes and
-  // closes" report, not a focus/blur handler misfiring). Re-syncs the instant
-  // edit mode closes, so a real device rotation is still picked up next time
-  // the panel opens.
-  const [panelIsPortrait, setPanelIsPortrait] = useState(isPortrait);
-  useEffect(() => {
-    if (mode !== 'edit') setPanelIsPortrait(isPortrait);
-  }, [isPortrait, mode]);
+  // `isPortrait` is already frozen for the duration of an edit session by the
+  // caller (App.tsx) — see its own comment for why: a live orientation flip
+  // (Chrome/WebKit-for-iOS's keyboard shrinking the layout viewport) would
+  // otherwise swap the Config-panel variant out from under an open panel and
+  // remount the focused AddLocationForm input mid-edit, closing the keyboard.
 
   // ambient "wall display" mode: fades the header copy, footer status line, and
   // ControlCluster after a stretch of no touch/keystroke/pointer activity, so a
@@ -247,7 +236,7 @@ export function WorldClock({
       onReorder={onReorder}
       onRemove={onRemoveLocation}
       onClose={() => onSetMode('view')}
-      hideCloseButton={panelIsPortrait}
+      hideCloseButton={isPortrait}
       onUpdateLocation={onUpdateLocation}
       onSetHome={onSetHome}
     />
@@ -414,7 +403,7 @@ export function WorldClock({
       {isScrubHintVisible && <div className={styles.scrubHintBlocker} data-testid="scrub-hint-blocker" />}
       {mode === 'edit' &&
         modePanelContent &&
-        (panelIsPortrait ? (
+        (isPortrait ? (
           <MobileConfigView
             addLocationContent={modePanelContent}
             manageLocationsContent={manageLocationsElement}

@@ -169,120 +169,12 @@ describe('WorldClock mobile Config view (isPortrait)', () => {
 
 });
 
-// regression: on Chrome/WebKit for iOS, the on-screen keyboard shrinks the layout
-// viewport (unlike Android Chrome's default of only resizing the visual viewport) —
-// on a short-enough device this can flip `matchMedia('(orientation: portrait)')`
-// (see useIsPortrait) mid-typing, purely from the keyboard opening, with no real
-// device rotation involved. Before this fix, WorldClock re-derived which panel
-// variant to show from that live value on every render, so the flip swapped
-// MobileConfigView out for the desktop ConfigPanel mid-edit — a different DOM
-// subtree at the same position, which unmounts the focused AddLocationForm input
-// and closes the keyboard. Confirmed empirically (not just theorized) against the
-// live site: forcing this exact isPortrait flip while an input inside the panel was
-// focused reproduced focus landing on <body>. WorldClock now freezes the choice for
-// the duration of an edit session and only re-syncs once mode leaves 'edit'.
-describe('WorldClock Config-panel choice is frozen for the duration of an edit session', () => {
-  function renderEditPanel(isPortrait: boolean, mode: Mode, onSetMode = vi.fn()) {
-    return render(
-      <AnalyticsProvider service={createMockAnalyticsService()}>
-        <WorldClock
-          now={NOW}
-          home={HOME}
-          rings={[SF]}
-          meetings={[]}
-          mode={mode}
-          onSetMode={onSetMode}
-          isMenuExpanded={false}
-          onMenuExpandedChange={vi.fn()}
-          onShare={vi.fn()}
-          onRemoveLocation={vi.fn()}
-          onReorder={vi.fn()}
-          onUpdateLocation={vi.fn()}
-          onSetHome={vi.fn()}
-          modePanelContent={<input data-testid="fake-city-input" aria-label="Search city" />}
-          isPortrait={isPortrait}
-        />
-      </AnalyticsProvider>,
-    );
-  }
-
-  it('keeps a focused form input mounted (and focused) when isPortrait flips transiently mid-edit', () => {
-    const { rerender } = renderEditPanel(true, 'edit');
-    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
-
-    const input = screen.getByTestId('fake-city-input');
-    input.focus();
-    expect(document.activeElement).toBe(input);
-
-    // isPortrait flips (e.g. the keyboard-driven orientation flip above) while
-    // the panel is still open and the input still focused
-    rerender(
-      <AnalyticsProvider service={createMockAnalyticsService()}>
-        <WorldClock
-          now={NOW}
-          home={HOME}
-          rings={[SF]}
-          meetings={[]}
-          mode="edit"
-          onSetMode={vi.fn()}
-          isMenuExpanded={false}
-          onMenuExpandedChange={vi.fn()}
-          onShare={vi.fn()}
-          onRemoveLocation={vi.fn()}
-          onReorder={vi.fn()}
-          onUpdateLocation={vi.fn()}
-          onSetHome={vi.fn()}
-          modePanelContent={<input data-testid="fake-city-input" aria-label="Search city" />}
-          isPortrait={false}
-        />
-      </AnalyticsProvider>,
-    );
-
-    // still the mobile full-screen view, not swapped to the desktop ConfigPanel...
-    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
-    // ...and it's the same input, still focused — a remount would have dropped focus to <body>
-    expect(document.activeElement).toBe(screen.getByTestId('fake-city-input'));
-  });
-
-  it('re-syncs to the current isPortrait value once edit mode is re-entered', () => {
-    const { rerender } = renderEditPanel(true, 'edit');
-    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
-
-    const rerenderWith = (isPortrait: boolean, mode: Mode) =>
-      rerender(
-        <AnalyticsProvider service={createMockAnalyticsService()}>
-          <WorldClock
-            now={NOW}
-            home={HOME}
-            rings={[SF]}
-            meetings={[]}
-            mode={mode}
-            onSetMode={vi.fn()}
-            isMenuExpanded={false}
-            onMenuExpandedChange={vi.fn()}
-            onShare={vi.fn()}
-            onRemoveLocation={vi.fn()}
-            onReorder={vi.fn()}
-            onUpdateLocation={vi.fn()}
-            onSetHome={vi.fn()}
-            modePanelContent={<input data-testid="fake-city-input" aria-label="Search city" />}
-            isPortrait={isPortrait}
-          />
-        </AnalyticsProvider>,
-      );
-
-    // flips while open — stays frozen on the mobile view (same behavior as above)
-    rerenderWith(false, 'edit');
-    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
-
-    // closes, then reopens: the frozen value re-syncs to the now-current isPortrait
-    rerenderWith(false, 'view');
-    rerenderWith(false, 'edit');
-
-    expect(screen.queryByTestId('mobile-config-title')).toBeNull();
-    expect(screen.getByTestId('manage-locations-section-toggle')).toBeTruthy();
-  });
-});
+// WorldClock trusts its `isPortrait` prop directly — the caller (App.tsx) is
+// responsible for freezing it for the duration of an edit session so a live
+// orientation flip (Chrome/WebKit-for-iOS's keyboard shrinking the layout
+// viewport) can't swap MobileConfigView out for the desktop ConfigPanel mid-edit
+// and unmount the focused AddLocationForm input. See App.test.tsx's "isPortrait
+// is frozen for the duration of an edit session" for that regression coverage.
 
 describe('WorldClock scrub slider', () => {
   it('has no slider role when scrubBind is not provided', () => {

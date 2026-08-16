@@ -436,6 +436,85 @@ describe('App — mobile Config view replaces the floating panel on portrait', (
   });
 });
 
+// regression: on Chrome/WebKit for iOS, the on-screen keyboard shrinks the layout
+// viewport (unlike Android Chrome's default of only resizing the visual viewport) —
+// on a short-enough device this can flip `matchMedia('(orientation: portrait)')`
+// mid-typing, purely from the keyboard opening, with no real device rotation
+// involved (see useIsPortrait). Before this fix, both AddLocationForm's
+// immediate-add-on-pick behavior and WorldClock's MobileConfigView-vs-ConfigPanel
+// choice re-derived from that live value on every render — so the flip silently
+// fell back AddLocationForm to the desktop "pick, then tap Add" flow (reported:
+// "selecting a city doesn't add it, you have to tap the input again and then tap
+// Add") and, separately, could remount the panel outright, dropping keyboard
+// focus. App now freezes the value passed to both for the duration of an edit
+// session, only re-syncing once mode leaves 'edit'.
+function stubLiveOrientationMatchMedia(initialPortrait: boolean) {
+  const listeners = new Set<(event: { matches: boolean }) => void>();
+  const mql = {
+    matches: initialPortrait,
+    addEventListener: (_type: 'change', listener: (event: { matches: boolean }) => void) => listeners.add(listener),
+    removeEventListener: (_type: 'change', listener: (event: { matches: boolean }) => void) => listeners.delete(listener),
+  };
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockImplementation((query: string) =>
+      query === '(orientation: portrait)' ? mql : { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+    ),
+  );
+  return {
+    flip: (matches: boolean) => {
+      mql.matches = matches;
+      for (const listener of listeners) listener({ matches });
+    },
+  };
+}
+
+describe('App — isPortrait is frozen for the duration of an edit session', () => {
+  it('keeps adding a city immediately (no extra Add tap) even if isPortrait flips mid-edit', async () => {
+    const orientation = stubLiveOrientationMatchMedia(true);
+    const user = userEvent.setup();
+    renderApp();
+
+    await openClusterMenu(user);
+    await user.click(screen.getByTestId('control-config-button'));
+    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
+
+    // the keyboard-driven flip: no real rotation, panel still open
+    act(() => orientation.flip(false));
+
+    // still the mobile full-screen view, not swapped to the desktop ConfigPanel
+    expect(screen.getByTestId('mobile-config-title')).toBeTruthy();
+    // and still immediate-add: no Add/Cancel row rendered, ever, for this pick
+    expect(screen.queryByTestId('add-location-submit')).toBeNull();
+
+    await user.type(screen.getByLabelText('Search city'), 'Tokyo');
+    await user.click(await screen.findByTestId('city-suggestion-Asia/Tokyo-Tokyo'));
+
+    // added right away — no Add tap required despite the flip
+    expect(screen.queryByTestId('add-location-submit')).toBeNull();
+    expect(screen.getByTestId('reorder-handle-tokyo')).toBeTruthy();
+  });
+
+  it('re-syncs to the current isPortrait value once edit mode is re-entered', async () => {
+    const orientation = stubLiveOrientationMatchMedia(true);
+    const user = userEvent.setup();
+    renderApp();
+
+    await openClusterMenu(user);
+    await user.click(screen.getByTestId('control-config-button'));
+    act(() => orientation.flip(false));
+    expect(screen.getByTestId('mobile-config-title')).toBeTruthy(); // still frozen
+
+    await user.click(screen.getByTestId('mobile-config-done'));
+    await openClusterMenu(user);
+    await user.click(screen.getByTestId('control-config-button'));
+
+    // now picks up the post-flip value: desktop ConfigPanel, not MobileConfigView
+    expect(screen.queryByTestId('mobile-config-title')).toBeNull();
+    expect(screen.getByTestId('manage-locations-section-toggle')).toBeTruthy();
+  });
+});
+
 describe('App — first-time scrub hint', () => {
   beforeEach(() => {
     window.localStorage.removeItem(SCRUB_HINT_SEEN_STORAGE_KEY);
