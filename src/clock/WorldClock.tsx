@@ -643,7 +643,7 @@ export function WorldClock({
             onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime?.())}
           >
             <SparkleIcon />
-            Find Time
+            Find overlap
           </button>
         )}
       </div>
