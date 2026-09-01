@@ -16,6 +16,13 @@ type ShareCapableNavigator = { share?: (data: ShareData) => Promise<void> };
 
 export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
 
+// outcome -> toast copy; shared so the popup (the second call site) can't
+// fork this mapping from the web app's
+export const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
+  copied: 'Link copied',
+  failed: "Couldn't copy link",
+};
+
 function isAbortError(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'name' in err && (err as { name: unknown }).name === 'AbortError';
 }

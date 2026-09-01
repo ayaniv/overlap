@@ -1,6 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { logger } from './logger';
 import type { LoggerService } from './LoggerService';
 
 interface LoggerContextValue {
@@ -15,10 +14,15 @@ const LoggerContext = createContext<LoggerContextValue | undefined>(undefined);
 
 export type LoggerProviderProps = {
   children: ReactNode;
-  service?: LoggerService;
+  // required, not defaulted: a static import of the real `logger` singleton
+  // here would pull posthog-js into every consumer's bundle (including the
+  // extension popup, which can never load it under MV3's CSP) — see
+  // tech-design.md's bundling measurement. The composition root (main.tsx)
+  // is the only place that should name a vendor.
+  service: LoggerService;
 };
 
-export function LoggerProvider({ children, service = logger }: LoggerProviderProps) {
+export function LoggerProvider({ children, service }: LoggerProviderProps) {
   const contextValue = useMemo(() => ({ service }), [service]);
 
   return <LoggerContext.Provider value={contextValue}>{children}</LoggerContext.Provider>;

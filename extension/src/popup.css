@@ -1,0 +1,9 @@
+/* fixed popup box: a Chrome toolbar popup auto-sizes to its content, and
+   index.css's `height: 100dvh` has nothing to resolve against without this —
+   see tech-design.md's "Why 380x600, and why that's the whole layout story" */
+html,
+body {
+  width: 380px;
+  height: 600px;
+  overflow: hidden;
+}

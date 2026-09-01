@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
-const manifest = JSON.parse(readFileSync(resolve(extensionDir, 'manifest.json'), 'utf8')) as Record<string, unknown>;
+const manifest = JSON.parse(readFileSync(resolve(extensionDir, 'public', 'manifest.json'), 'utf8')) as Record<string, unknown>;
 const popupHtml = readFileSync(resolve(extensionDir, 'popup.html'), 'utf8');
 
 // Everything here is a contract Chrome enforces at load/review time rather than

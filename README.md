@@ -49,6 +49,20 @@ Scheduling meetings is gated behind a Google OAuth Client ID (client-side only, 
 backend). Copy `.env.example` to `.env.local` and fill in `VITE_GOOGLE_CLIENT_ID` to
 enable it; without it, the Schedule panel shows a note instead of the form.
 
+## Chrome extension
+
+A Manifest V3 toolbar popup renders the same `WorldClock` at 380×600, with a
+Share action and an "Open in Overlap" handoff to the full web app — see
+`tech-design.md` for what it deliberately leaves out (Google Calendar
+scheduling, time-scrubbing, Find overlap) and why.
+
+```bash
+npm run build:extension   # typecheck + production build into dist-extension/
+```
+
+Then load `dist-extension/` unpacked at `chrome://extensions` (enable
+Developer mode, "Load unpacked").
+
 ## Structure
 
 - `src/clock/geometry.ts` — ring/arc/tick/chevron math on a 1000×1000 viewBox

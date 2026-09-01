@@ -1,17 +1,10 @@
 import posthog from 'posthog-js';
 import { ensurePostHogInitialized } from '../posthog/posthogClient';
+import { consoleLogParts } from './consoleLogParts';
 import type { LoggerService } from './LoggerService';
 
 export const postHogLogger: LoggerService = {
-  debug(message) {
-    console.debug(`overlap: ${message}`);
-  },
-  info(message) {
-    console.info(`overlap: ${message}`);
-  },
-  warn(message) {
-    console.warn(`overlap: ${message}`);
-  },
+  ...consoleLogParts,
   error(error, context) {
     ensurePostHogInitialized();
     posthog.captureException(error, { context });

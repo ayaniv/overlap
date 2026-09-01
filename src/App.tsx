@@ -12,8 +12,7 @@ import { findBestMeetingOffset } from './clock/findMeetingTime';
 import type { FindMeetingTimeResult } from './clock/findMeetingTime';
 import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
 import { hasSeenScrubHint, markScrubHintSeen } from './clock/scrubHint';
-import { shareLink } from './clock/share';
-import type { ShareOutcome } from './clock/share';
+import { SHARE_TOAST_MESSAGE, shareLink } from './clock/share';
 import { useFindMeetingTimeSweep } from './clock/useFindMeetingTimeSweep';
 import { useRingScrub } from './clock/useRingScrub';
 import { useScrubHintDemo } from './clock/useScrubHintDemo';
@@ -26,11 +25,6 @@ import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
-
-const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
-  copied: 'Link copied',
-  failed: "Couldn't copy link",
-};
 
 // how close the scrub preview needs to land to an existing meeting's instant to
 // surface it (as ControlCluster's extra "Remove Meeting" button) — a window,
