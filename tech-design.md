@@ -54,12 +54,28 @@ which is a design constraint rather than a preference:
 **Analytics/logging — confirmed, and the one genuinely open question resolved.**
 The `useAnalytics()` / `useLogger()` abstractions from PR #17 are present and are
 plain React contexts whose providers already accept an injected `service` — exactly
-the seam an extension needs, so they mount in a popup with no changes. What does
+the seam an extension needs, so the *runtime* wiring works in a popup untouched
+(one bundling caveat below). What does
 *not* survive the move is the default implementation: `posthog-js` lazy-loads its
 feature bundles (recorder, surveys, exception autocapture) as remote `<script>` tags
 from `api_host`, which MV3 blocks. So the extension keeps the abstraction and swaps
 the transport — a small `fetch`-based PostHog capture adapter implementing both
 `AnalyticsService` and `LoggerService`. No new abstraction is introduced.
+
+**Injecting a service is not, by itself, enough to keep `posthog-js` out of the
+popup bundle — measured, not assumed.** `AnalyticsProvider.tsx` and
+`LoggerProvider.tsx` each hold their fallback in a *static* import
+(`service = analytics`, `service = logger`), and `useClockConfig` imports
+`useAnalytics` from that same module — so the whole
+`analytics → postHogAdapter → posthog-js` chain is reachable from the popup
+entry no matter what `popup.tsx` passes in. A probe `vite build` of a minimal
+entry that renders both providers *with* injected services came out at **402 kB
+with `posthog` still in the emitted chunk**. Nothing breaks at runtime
+(`posthog-js` ships no `eval`/`new Function` — grepped — and is never `init`ed
+here, so no remote `<script>` is ever created), but ~250 kB of dead vendor SDK
+would ride inside the very bundle whose whole premise is that this SDK cannot
+run there. The fix is one line per provider: drop the default and make `service`
+required. See Changed below.
 
 **Test framework: Vitest, not Playwright.** There is no Playwright, no `e2e/`
 directory and no browser-driver dependency anywhere in the repo (`docs/plan.md`
@@ -79,20 +95,50 @@ M1 "config + share + handoff" → M2 "analytics" — but M1 and M2 both edit the
 `popup.tsx`/`PopupApp.tsx` surface M0 creates, so the split would buy serialization
 and merge conflicts rather than independent progress. Flat.
 
+Deliberately no `## Milestones` section, therefore no `needs:` graph to resolve or
+check for cycles: `parseMilestonesContent` in `taskParser.ts` returns an empty
+declaration list when that heading is absent, which is exactly how a flat task is
+represented. The flat-task equivalent of a milestone's `spec:` — the standalone
+`**QA Spec:**` line `parseQaSpecFile` looks for — is under Tests below.
+
 ## Changes
 
 ### New — `extension/`
 
 | File | Purpose |
 | --- | --- |
-| `manifest.json` | MV3 manifest (already committed with this plan; the contract test reads it) |
-| `popup.html` | Vite entry (already committed with this plan) |
+| `public/manifest.json` | MV3 manifest — **moved here from `extension/manifest.json`**; see "Why the manifest has to live in `public/`" below |
+| `popup.html` | Vite entry (already committed with this plan; still needs its font `<link>`s — see Fonts) |
 | `public/icons/icon{16,48,128}.png` | Toolbar/Web Store icons |
 | `src/popup.tsx` | Mounts `PopupApp` inside `AnalyticsProvider`/`LoggerProvider` with the HTTP service |
 | `src/PopupApp.tsx` | The popup composition |
 | `src/popup.css` | Fixed 380×600 popup box |
 | `src/httpPostHogService.ts` | MV3-safe `AnalyticsService & LoggerService` over `fetch` |
 | `src/openWebApp.ts` | `chrome.tabs.create` wrapper that logs failures |
+
+### Why the manifest has to live in `public/`
+
+Verified by probe build, because getting this wrong ships a directory Chrome
+refuses to load at all. With `root: 'extension'`, `vite build` emits exactly
+three things into `dist-extension/`: the HTML entry, the chunks it pulls in
+under `assets/`, and a verbatim copy of everything in `publicDir`. A file
+sitting at `<root>/manifest.json` is none of those, so the original
+`extension/manifest.json` would simply never reach the build output — the
+extension would build "successfully" and then fail to load with *Manifest file
+is missing or unreadable*.
+
+So `manifest.json` moves to `extension/public/manifest.json`. That also makes
+the icon paths inside it (`icons/icon16.png` …) resolve consistently: the probe
+confirmed `extension/public/icons/icon16.png` lands at `dist-extension/icons/icon16.png`,
+i.e. right next to the manifest at the bundle root, which is exactly what those
+relative paths mean to Chrome. A copy plugin would work too, but `publicDir` is
+already "files copied verbatim to the bundle root" — the manifest is precisely
+that, and using it keeps the extension build config to plain Vite options.
+
+One consequence for the committed contract test: `extension/manifest.test.ts`
+must read `resolve(extensionDir, 'public', 'manifest.json')`, and its icon
+assertion — already `resolve(extensionDir, 'public', icons[size])` — then
+resolves against the same directory rather than straddling two.
 
 ### Changed — shared app code (small, all driven by a real second call site)
 
@@ -105,6 +151,28 @@ and merge conflicts rather than independent progress. Flat.
   a second copy. `useClockConfig` imports it instead of declaring its own.
 - **`src/clock/share.ts`.** Move `SHARE_TOAST_MESSAGE` here from `App.tsx` — the
   popup is the second call site, and the outcome→copy mapping must not fork.
+- **`src/analytics/AnalyticsProvider.tsx` and `src/logger/LoggerProvider.tsx`.**
+  `service` becomes a **required** prop: delete the `= analytics` / `= logger`
+  defaults and the `import { analytics } from './analytics'` /
+  `import { logger } from './logger'` lines with them. That static import is the
+  only thing welding `posthog-js` to every consumer of these modules (including
+  `useClockConfig`, which imports `useAnalytics` from one of them), and it is
+  what puts the SDK in the popup bundle — see the probe measurement above.
+  Making the prop required also matches what these modules' own comments
+  already claim to want: a tree that forgets to wrap should "fail loudly instead
+  of silently falling through to the real, unmocked posthog-js singleton".
+  Driven by a real second call site, same rule as every other shared-code edit
+  here.
+- **`src/main.tsx`.** Pass the services the providers no longer default to:
+  `<AnalyticsProvider service={analytics}>` / `<LoggerProvider service={logger}>`,
+  imported from `./analytics/analytics` and `./logger/logger`. Web-app behavior
+  is unchanged; the vendor choice just moves to the composition root, which is
+  the only place that should name one.
+- **`src/analytics/AnalyticsProvider.test.tsx` / `src/logger/LoggerProvider.test.tsx`.**
+  Drop the one case in each that asserts the removed default ("returns the real
+  singleton by default when … has no service prop"). The other two cases in each
+  file — throws without a provider, returns an injected service — still describe
+  real behavior and stay.
 - **`src/logger/consoleLogParts.ts` (new).** The `debug`/`info`/`warn` console trio
   currently inline in `postHogLogger.ts`, extracted so `postHogLogger` and
   `httpPostHogService` share one implementation. `postHogLogger` spreads it.
@@ -118,8 +186,25 @@ and merge conflicts rather than independent progress. Flat.
     `data-testid="center-local-label"` on the centre home-city label. Both are
     needed because the tests must not select by visible copy.
 - **`package.json`.** Add `"build:extension": "tsc -b && vite build --config vite.config.extension.ts"` and devDependency `@types/chrome` (`0.2.7` on the registry).
-- **`tsconfig.app.json`.** `include: ["src", "extension"]` and `types: ["vite/client", "chrome"]`, so the existing `npm run build` typechecks extension code too.
-- **`vite.config.extension.ts` (new).** `root: 'extension'`, `publicDir: 'public'`, `build.outDir: '../dist-extension'`, `emptyOutDir: true`, react plugin.
+- **`tsconfig.app.json`.** `include: ["src", "extension"]` and
+  `types: ["vite/client", "chrome", "node"]`, so the existing `npm run build`
+  typechecks extension code too. **`"node"` is not optional** — verified by
+  running `tsc` against exactly this config: without it,
+  `extension/manifest.test.ts` fails with three `TS2591: Cannot find name
+  'node:fs' / 'node:url' / 'node:path'` errors, because a `types` array
+  suppresses the automatic inclusion of `@types/node` (already a devDependency).
+- **`vite.config.extension.ts` (new).** `root: 'extension'`,
+  `publicDir: 'public'`, `build.outDir: '../dist-extension'`,
+  `emptyOutDir: true`, react plugin, and — **required** —
+  `build.rollupOptions.input: resolve(__dirname, 'extension/popup.html')`.
+  Verified by probe build: Vite's default entry is `<root>/index.html`, which
+  does not exist here, so without an explicit `input` the build dies on an
+  unresolved entry rather than picking up `popup.html`. It also needs
+  **`envDir: resolve(__dirname)`** — Vite's `envDir` defaults to `root`, so with
+  `root: 'extension'` it would look for `.env` in `extension/` and silently miss
+  the repo-root `.env` the web app uses. Without this the extension builds
+  cleanly and then behaves as permanently unconfigured: `httpPostHogService`
+  warns once and no-ops every capture, with nothing failing to point at why.
 - **`.gitignore`.** `dist-extension`.
 - **`README.md`.** A "Chrome extension" section: `npm run build:extension`, then load `dist-extension/` unpacked via `chrome://extensions`.
 
@@ -161,6 +246,12 @@ export function createHttpPostHogService(fetchImpl?: typeof fetch): AnalyticsSer
   message/type, matching `postHogLogger.error`'s shape.
 - `debug`/`info`/`warn` come from `consoleLogParts` — never the network.
 - `distinct_id` is a `crypto.randomUUID()` persisted under the key above.
+- Every request is sent with `keepalive: true`. `openWebApp` calls
+  `chrome.tabs.create`, which focuses the new tab and tears the popup page down
+  immediately — without `keepalive` the `extension_open_web_app_clicked` capture
+  is cancelled mid-flight and that event effectively never arrives. The
+  committed transport test asserts only `url`/`method`/`body`, so this is
+  additive.
 - Every capture is fire-and-forget with a `.catch` and a non-`ok` check, both logging
   to `console.error`. `console` is the floor here on purpose: this module *is* the
   logger's transport, so routing its own failures back through `useLogger()` would
@@ -190,9 +281,20 @@ and Open in Overlap) but not inward. A first popup open shows the same
 
 ### Fonts
 
-`popup.html` keeps the same Google Fonts `<link>` as `index.html`. MV3's default CSP
-restricts `script-src`/`object-src` only, so a remote stylesheet and its font files
-load fine, and the popup matches the web app exactly. Offline, it falls back through
+`popup.html` must carry the same three font `<link>`s `index.html` has. They are
+**not** in the committed `popup.html` yet, so this is a real edit, not a
+description of the status quo:
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+```
+
+MV3's default CSP restricts `script-src`/`object-src` only, so a remote stylesheet
+and its font files load fine, and the popup matches the web app exactly. The
+committed `manifest.test.ts` constrains `<script>` sources only, so adding these
+keeps it green. Offline, it falls back through
 the existing `'Space Grotesk', -apple-system, sans-serif` stack. Self-hosting the two
 woff2 files is a follow-up, not a blocker.
 
@@ -202,9 +304,18 @@ woff2 files is a follow-up, not a blocker.
 npm run lint && npm run build && NODE_OPTIONS=--no-experimental-webstorage npm test && npm run build:extension
 ```
 
-Confirmed on this branch at `3a21480`: `lint`, `build` and `test` all exist and pass
-— 37 files, 498 tests. `build:extension` is the one new segment, added by this task's
-own diff, and is placed last so a failure there is unambiguous.
+Re-confirmed by actually running it on this branch at `6bf1775` (the plan commit,
+whose parent is `3a21480`): `lint` passes (2 pre-existing `only-export-components`
+warnings, no errors), `build` passes, and `test` runs 40 files / 506 tests —
+**498 of them the 37 pre-existing files, all green**. The remaining 8 belong to this
+task's own deliberately red tests (see below). `build:extension` is the one segment
+that does not exist yet; it is added by this task's own diff and placed last so a
+failure there is unambiguous.
+
+Note the ordering constraint this implies: `npm run build` runs `tsc -b`, and
+`tsconfig.app.json` grows to include `extension`, so **the whole plan's TypeScript
+has to compile before the test segment is ever reached**. A half-written
+`PopupApp.tsx` fails the verifier at `build`, not at `test`.
 
 **Flagged, pre-existing, and deliberately not fixed here.** Without
 `NODE_OPTIONS=--no-experimental-webstorage`, `npm test` fails **110 tests across 7
@@ -258,17 +369,33 @@ own change.
 7. `popup.html` loads only same-origin scripts.
 8. `popup.html` has no inline script.
 
-Currently: `manifest.test.ts` passes 7/8 (red on the missing icon files);
-`PopupApp.test.tsx` and `httpPostHogService.test.ts` fail to resolve their
-not-yet-written modules. That is the intended red starting state.
+Currently, measured rather than assumed — `NODE_OPTIONS=--no-experimental-webstorage npx vitest run`
+reports `3 failed | 37 passed (40)` files and `1 failed | 505 passed (506)` tests:
+`manifest.test.ts` passes 7/8 (red only on the missing icon files), while
+`PopupApp.test.tsx` and `httpPostHogService.test.ts` fail at *collection* — they
+cannot resolve `./PopupApp`, `./httpPostHogService` or `src/clock/webAppUrl`, so
+their cases are not counted at all yet. That is the intended red starting state.
 
-Icons are producible with tooling already on the machine (verified):
+**QA Spec:** `extension/src/PopupApp.test.tsx`, `extension/src/httpPostHogService.test.ts` and `extension/manifest.test.ts`
+
+Icons are producible with tooling already on the machine (verified — the source
+`public/apple-touch-icon.png` is 180×180, so all three sizes are downscales).
+`sips` will not create the destination directory, so the `mkdir` is part of the
+command, not an aside:
 
 ```
+mkdir -p extension/public/icons
 for s in 16 48 128; do sips -z $s $s public/apple-touch-icon.png --out extension/public/icons/icon$s.png; done
 ```
 
 ## Manual QA (not automatable without a browser driver)
+
+**Note for the `cockpit-qa` stage.** There is no browser driver and no dev
+server to point at, so this task produces no `DEV_URL`. QA's automated half is
+`NODE_OPTIONS=--no-experimental-webstorage npm test -- extension` (the three
+files named under QA Spec above), run against the built branch; its manual half
+is the checklist below, against `npm run build:extension`'s output. Skipping the
+DEV_URL precondition is deliberate for this task, not an omission.
 
 Load `dist-extension/` unpacked at `chrome://extensions` and confirm: the popup opens
 at 380×600 with the dial legible and no scrollbars; the config sheet is
@@ -282,7 +409,8 @@ opens the hosted policy.
 
 | Risk | Mitigation |
 | --- | --- |
-| A stray `posthog-js` import reaches the popup bundle and breaks under CSP | The manifest/CSP contract test plus the manual console check; `popup.tsx` injects the HTTP service explicitly rather than falling through to the default |
+| `posthog-js` reaches the popup bundle | Injecting a service does **not** prevent this — measured at 402 kB with `posthog` in the chunk. What prevents it is making `service` a required prop on both providers, so no static import of `analytics`/`logger` remains for the popup entry to reach. The manifest/CSP contract test and the manual console check stay as the backstop for the runtime half |
+| A future change re-introduces a remote `<script>` under MV3's `script-src 'self'` | The CSP contract test in `manifest.test.ts` plus the manual "no CSP violation in the popup's DevTools console" check |
 | `VITE_POSTHOG_HOST` is set to a self-hosted origin the manifest's `https://*.i.posthog.com/*` doesn't cover | Capture fails, `console.error` fires — observable, not silent; documented in the README section |
 | Popup sizing drifts from portrait and silently swaps in the desktop `ConfigPanel` | `popup.css` pins 380×600; the tests pin `matchMedia` to portrait and assert the mobile surface |
 | Users expect their web-app cities in the popup | Stated non-goal above; Open in Overlap covers the outward direction, and active-tab seeding is the named follow-up |
