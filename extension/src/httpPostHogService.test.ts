@@ -117,4 +117,24 @@ describe('createHttpPostHogService — failure paths', () => {
 
     await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledTimes(1));
   });
+
+  it('reuses one stable throwaway distinct id across events when localStorage keeps throwing on write', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
+    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    const fetchImpl = okFetch();
+    const service = createHttpPostHogService(fetchImpl as unknown as typeof fetch);
+
+    service.trackEvent('first_event');
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    service.trackEvent('second_event');
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    const first = readCapturedBody(fetchImpl, 0).distinct_id;
+    const second = readCapturedBody(fetchImpl, 1).distinct_id;
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBe(first);
+  });
 });

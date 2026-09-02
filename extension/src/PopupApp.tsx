@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useAnalytics } from '../../src/analytics/AnalyticsProvider';
 import { useLogger } from '../../src/logger/LoggerProvider';
-import { AddLocationForm } from '../../src/clock/AddLocationForm';
-import { SHARE_TOAST_MESSAGE, shareLink } from '../../src/clock/share';
+import { AddLocationModePanel } from '../../src/clock/AddLocationModePanel';
+import { useShareHandler } from '../../src/clock/useShareHandler';
 import { WEB_APP_PRIVACY_URL, buildWebAppUrl } from '../../src/clock/webAppUrl';
 import { WorldClock } from '../../src/clock/WorldClock';
 import type { Mode } from '../../src/clock/types';
@@ -27,13 +27,10 @@ export function PopupApp() {
   const isPortrait = useIsPortrait();
   const { message: toastMessage, showToast } = useToast();
 
-  const handleShare = useCallback(() => {
-    void shareLink(navigator, navigator.clipboard, buildWebAppUrl(config)).then((outcome) => {
-      const message = SHARE_TOAST_MESSAGE[outcome];
-      if (message) showToast(message);
-      analytics.trackEvent('clock_shared', { outcome });
-    });
-  }, [config, showToast, analytics]);
+  // config-dependent, unlike App.tsx's window.location.href-based getter —
+  // its identity only needs to change when the shareable config itself does
+  const getShareUrl = useCallback(() => buildWebAppUrl(config), [config]);
+  const handleShare = useShareHandler(getShareUrl, showToast);
 
   const handleOpenInWebApp = useCallback(() => {
     analytics.trackEvent('extension_open_web_app_clicked');
@@ -42,13 +39,7 @@ export function PopupApp() {
 
   const modePanelContent =
     mode === 'edit' ? (
-      <AddLocationForm
-        existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
-        existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
-        onAdd={addLocation}
-        onDone={() => setMode('view')}
-        isPortrait={isPortrait}
-      />
+      <AddLocationModePanel config={config} onAdd={addLocation} onDone={() => setMode('view')} isPortrait={isPortrait} />
     ) : undefined;
 
   return (

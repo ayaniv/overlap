@@ -17,6 +17,12 @@ function getPostHogConfig(): { token: string; apiHost: string } | undefined {
   return { token: token.trim(), apiHost: apiHost.trim() };
 }
 
+// cached in module scope (not just returned) so a localStorage that keeps
+// throwing (e.g. quota exceeded) still yields one stable id for the life of
+// this page, rather than a fresh distinct_id — and therefore a fresh
+// "session" — on every single capture
+let fallbackDistinctId: string | undefined;
+
 function getOrCreateDistinctId(): string {
   try {
     const existing = window.localStorage.getItem(EXTENSION_DISTINCT_ID_STORAGE_KEY);
@@ -26,7 +32,8 @@ function getOrCreateDistinctId(): string {
     return created;
   } catch (err) {
     console.error('overlap: failed to persist extension distinct id, generating a throwaway one', err);
-    return crypto.randomUUID();
+    fallbackDistinctId ??= crypto.randomUUID();
+    return fallbackDistinctId;
   }
 }
 
