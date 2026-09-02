@@ -676,7 +676,7 @@ export function WorldClock({
         <span className={styles.bottomLinkSeparator} aria-hidden="true">
           •
         </span>
-        <a className={styles.privacyLink} data-testid="privacy-link" href={privacyHref}>
+        <a className={styles.privacyLink} data-testid="privacy-link" href={privacyHref} target="_blank" rel="noreferrer">
           Privacy
         </a>
         {onOpenInWebApp && (

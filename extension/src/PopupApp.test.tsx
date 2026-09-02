@@ -184,6 +184,17 @@ describe('PopupApp — handing off to the full web app', () => {
     const privacyLink = screen.getByTestId('privacy-link') as HTMLAnchorElement;
     expect(privacyLink.getAttribute('href')).toBe(WEB_APP_PRIVACY_URL);
   });
+
+  // without target="_blank" the link would navigate the popup's own 380x600
+  // frame away from the extension instead of opening a new tab, losing the
+  // mounted clock until the popup is reopened
+  it('opens the privacy link in a new tab, not the popup itself', () => {
+    renderPopup();
+
+    const privacyLink = screen.getByTestId('privacy-link') as HTMLAnchorElement;
+    expect(privacyLink.target).toBe('_blank');
+    expect(privacyLink.rel).toBe('noreferrer');
+  });
 });
 
 describe('PopupApp — features deliberately left to the web app', () => {
