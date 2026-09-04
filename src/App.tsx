@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from './analytics/AnalyticsProvider';
 import { useLogger } from './logger/LoggerProvider';
-import { AddLocationForm } from './clock/AddLocationForm';
+import { AddLocationModePanel } from './clock/AddLocationModePanel';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
   deleteMeetingFromGoogleCalendar,
@@ -12,12 +12,11 @@ import { findBestMeetingOffset } from './clock/findMeetingTime';
 import type { FindMeetingTimeResult } from './clock/findMeetingTime';
 import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
 import { hasSeenScrubHint, markScrubHintSeen } from './clock/scrubHint';
-import { shareLink } from './clock/share';
-import type { ShareOutcome } from './clock/share';
 import { useFindMeetingTimeSweep } from './clock/useFindMeetingTimeSweep';
 import { useRingScrub } from './clock/useRingScrub';
 import { useScrubHintDemo } from './clock/useScrubHintDemo';
 import { useScrubHintReturn } from './clock/useScrubHintReturn';
+import { useShareHandler } from './clock/useShareHandler';
 import { WorldClock } from './clock/WorldClock';
 import type { Location, Mode } from './clock/types';
 import { isMobileOS } from './hooks/isMobileOS';
@@ -26,11 +25,6 @@ import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
-
-const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
-  copied: 'Link copied',
-  failed: "Couldn't copy link",
-};
 
 // how close the scrub preview needs to land to an existing meeting's instant to
 // surface it (as ControlCluster's extra "Remove Meeting" button) — a window,
@@ -345,15 +339,10 @@ function App() {
     [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
   );
 
-  const handleShare = useCallback(() => {
-    void shareLink(navigator, navigator.clipboard, window.location.href).then((outcome) => {
-      // "shared" (native share sheet shown) and "cancelled" (user dismissed it)
-      // get no toast — the OS UI already gave feedback, or there's nothing to report
-      const message = SHARE_TOAST_MESSAGE[outcome];
-      if (message) showToast(message);
-      analytics.trackEvent('clock_shared', { outcome });
-    });
-  }, [showToast, analytics]);
+  // stable identity: window.location.href is read fresh at call time inside
+  // useShareHandler, so the getter itself never needs to change
+  const getShareUrl = useCallback(() => window.location.href, []);
+  const handleShare = useShareHandler(getShareUrl, showToast);
 
   // memoized (mirrors WorldClock's effectiveNow) so matchedMeeting below only
   // recomputes when the previewed instant actually moves, not on every render —
@@ -439,13 +428,7 @@ function App() {
 
   const modePanelContent =
     mode === 'edit' ? (
-      <AddLocationForm
-        existingIds={[config.home.id, ...config.rings.map((location) => location.id)]}
-        existingColors={[config.home.color, ...config.rings.map((location) => location.color)]}
-        onAdd={addLocation}
-        onDone={() => setMode('view')}
-        isPortrait={panelIsPortrait}
-      />
+      <AddLocationModePanel config={config} onAdd={addLocation} onDone={() => setMode('view')} isPortrait={panelIsPortrait} />
     ) : undefined;
 
   return (

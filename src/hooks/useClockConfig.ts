@@ -3,11 +3,10 @@ import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
 import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
-import { decodeConfig, encodeConfig } from '../clock/shareCodec';
+import { decodeConfig, encodeConfig, HASH_PREFIX } from '../clock/shareCodec';
 import type { ClockConfig, Location, Meeting } from '../clock/types';
 
 export const CONFIG_STORAGE_KEY = 'overlap:config:v1';
-const HASH_PREFIX = '#c=';
 
 export const DEFAULT_CONFIG: ClockConfig = {
   home: DEFAULT_HOME_CITY,

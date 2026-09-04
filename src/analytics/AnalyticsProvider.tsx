@@ -1,6 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { analytics } from './analytics';
 import type { AnalyticsService } from './AnalyticsService';
 
 interface AnalyticsContextValue {
@@ -15,10 +14,15 @@ const AnalyticsContext = createContext<AnalyticsContextValue | undefined>(undefi
 
 export type AnalyticsProviderProps = {
   children: ReactNode;
-  service?: AnalyticsService;
+  // required, not defaulted: a static import of the real `analytics` singleton
+  // here would pull posthog-js into every consumer's bundle (including the
+  // extension popup, which can never load it under MV3's CSP) — see
+  // tech-design.md's bundling measurement. The composition root (main.tsx)
+  // is the only place that should name a vendor.
+  service: AnalyticsService;
 };
 
-export function AnalyticsProvider({ children, service = analytics }: AnalyticsProviderProps) {
+export function AnalyticsProvider({ children, service }: AnalyticsProviderProps) {
   const contextValue = useMemo(() => ({ service }), [service]);
 
   return <AnalyticsContext.Provider value={contextValue}>{children}</AnalyticsContext.Provider>;

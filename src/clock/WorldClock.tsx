@@ -146,6 +146,14 @@ export type WorldClockProps = {
   // a ring not in this set is "checked" (included)
   excludedRingIds?: Set<string>;
   onToggleRingIncluded?: (id: string) => void;
+  // overrides the footer Privacy link's href — the popup's own relative
+  // '/privacy.html' resolves to a 404 under chrome-extension://, so it passes
+  // the hosted web-app URL instead
+  privacyHref?: string;
+  // present only in the popup: hands the current config off to the full web
+  // app in a new tab. Absent hides the button entirely, same convention as
+  // onFindTime.
+  onOpenInWebApp?: () => void;
 };
 
 export function WorldClock({
@@ -185,6 +193,8 @@ export function WorldClock({
   unreachableRingReasonById,
   excludedRingIds,
   onToggleRingIncluded,
+  privacyHref = '/privacy.html',
+  onOpenInWebApp,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -484,7 +494,7 @@ export function WorldClock({
             const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
             const halfLength = labelArcHalfLength(ring.labelRadius);
             return (
-              <g key={`label-${ring.location.id}`}>
+              <g key={`label-${ring.location.id}`} data-testid={`ring-label-${ring.location.id}`}>
                 <text fill={textColor} fontFamily="Space Grotesk" fontSize={23} fontWeight={400} letterSpacing="0.4" dominantBaseline="central">
                   <textPath href={`#${ring.textPathId}`} startOffset={halfLength - LABEL_DOT_GAP} textAnchor="end">
                     {ring.location.label}
@@ -582,7 +592,9 @@ export function WorldClock({
         </svg>
 
         <div className={styles.centerOverlay} aria-hidden="true">
-          <div className={styles.centerLocalLabel}>{home.label.toUpperCase()}</div>
+          <div className={styles.centerLocalLabel} data-testid="center-local-label">
+            {home.label.toUpperCase()}
+          </div>
           <div className={styles.centerTime}>{homeTime.label}</div>
           <div className={styles.centerDate}>{homeDateLabel}</div>
         </div>
@@ -664,9 +676,24 @@ export function WorldClock({
         <span className={styles.bottomLinkSeparator} aria-hidden="true">
           •
         </span>
-        <a className={styles.privacyLink} href="/privacy.html">
+        <a className={styles.privacyLink} data-testid="privacy-link" href={privacyHref} target="_blank" rel="noreferrer">
           Privacy
         </a>
+        {onOpenInWebApp && (
+          <>
+            <span className={styles.bottomLinkSeparator} aria-hidden="true">
+              •
+            </span>
+            <button
+              type="button"
+              className={`${styles.privacyLink} ${styles.linkButtonReset}`}
+              data-testid="open-in-web-app"
+              onClick={onOpenInWebApp}
+            >
+              Open in Overlap ↗
+            </button>
+          </>
+        )}
       </div>
 
       <p className={styles.srOnly} role="status">

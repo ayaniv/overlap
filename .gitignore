@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-extension
 *.local
 
 # Env vars (VITE_GOOGLE_CLIENT_ID etc.) — see .env.example for the template
