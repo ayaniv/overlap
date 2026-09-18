@@ -109,3 +109,36 @@ describe('useClockConfig — shared_config_loaded analytics event', () => {
     expect(analytics.trackEvent).not.toHaveBeenCalled();
   });
 });
+
+describe('useClockConfig — URL mirror path', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  function renderClockConfig() {
+    const analytics = createMockAnalyticsService();
+    renderHook(() => useClockConfig(), {
+      wrapper: ({ children }) => <AnalyticsProvider service={analytics}>{children}</AnalyticsProvider>,
+    });
+  }
+
+  // the extension popup runs this same hook at chrome-extension://<id>/popup.html
+  it('keeps a non-short-link path (e.g. /popup.html) and only rewrites the hash', () => {
+    window.history.replaceState(null, '', '/popup.html');
+
+    renderClockConfig();
+
+    expect(window.location.pathname).toBe('/popup.html');
+    expect(window.location.hash).toBe(`#c=${encodeConfig(DEFAULT_CONFIG)}`);
+  });
+
+  it('a hash link opened at a short-link-shaped path drops the path, so a re-share is a clean /#c= link', () => {
+    window.history.replaceState(null, '', `/abc123#c=${encodeConfig(SAMPLE_CONFIG)}`);
+
+    renderClockConfig();
+
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.hash).toBe(`#c=${encodeConfig(SAMPLE_CONFIG)}`);
+  });
+});
