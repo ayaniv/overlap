@@ -133,12 +133,15 @@ describe('useClockConfig — URL mirror path', () => {
     expect(window.location.hash).toBe(`#c=${encodeConfig(DEFAULT_CONFIG)}`);
   });
 
-  it('a hash link opened at a short-link-shaped path drops the path, so a re-share is a clean /#c= link', () => {
+  // the developer's stated preference: the address bar must never change away
+  // from a path the user actually typed or opened, so a short-link-shaped
+  // path is kept even once a hash is mirrored alongside it
+  it('a hash link opened at a short-link-shaped path keeps the path, only the hash is rewritten', () => {
     window.history.replaceState(null, '', `/abc123#c=${encodeConfig(SAMPLE_CONFIG)}`);
 
     renderClockConfig();
 
-    expect(window.location.pathname).toBe('/');
+    expect(window.location.pathname).toBe('/abc123');
     expect(window.location.hash).toBe(`#c=${encodeConfig(SAMPLE_CONFIG)}`);
   });
 });

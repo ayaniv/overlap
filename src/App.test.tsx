@@ -1252,14 +1252,19 @@ describe('App — opening a path-based short link (GET /links/:id)', () => {
     expect(screen.queryByTestId('ring-label-san-francisco')).toBeNull();
   });
 
-  it('persists the resolved config and rewrites the URL to the root + #c= hash, so a reload or re-share is self-contained', async () => {
+  // the developer's stated preference: the address bar must never change away
+  // from the short-link path actually typed/opened — only the hash is
+  // mirrored alongside it. A reload still avoids re-hitting the API, because
+  // the mirrored hash wins over the path on the next load (see "hash beats
+  // path" above), regardless of what the pathname is.
+  it('persists the resolved config and mirrors it into the hash, without touching the short-link path', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, SHORT_LINK_CONFIG));
     window.history.replaceState(null, '', '/abc123');
 
     renderApp();
 
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) ?? 'null')).toEqual(SHORT_LINK_CONFIG));
-    expect(window.location.pathname).toBe('/');
+    expect(window.location.pathname).toBe('/abc123');
     expect(window.location.hash).toBe(`#c=${encodeConfig(SHORT_LINK_CONFIG)}`);
   });
 
@@ -1304,7 +1309,9 @@ describe('App — opening a path-based short link (GET /links/:id)', () => {
     expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'not_found' });
     expect(logger.warn).toHaveBeenCalled();
     expect(logger.error).not.toHaveBeenCalled();
-    expect(window.location.pathname).toBe('/');
+    // the address bar stays at the path the user opened even on failure —
+    // only the hash is rewritten, to mirror the fallback config
+    expect(window.location.pathname).toBe('/gone123');
     expect(JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) ?? 'null')).toEqual(STORED_CONFIG);
   });
 

@@ -69,13 +69,13 @@ function trackSharedConfigLoaded(analytics: AnalyticsService, config: ClockConfi
   });
 }
 
-// shouldResetPath drops a short-link-shaped path (`/abc123`) down to `/` once the
-// session is self-contained, so a reload never re-hits the API and a re-share is a
-// clean `/#c=…` link, not `/abc123#c=…`. This is independent of the env gate and of
-// whether a hash was present — see tech-design.md's "URL mirror path" correction —
-// so `chrome-extension://<id>/popup.html` (which contains a dot, so it never matches)
-// keeps its relative hash write unchanged.
-function persistConfig(config: ClockConfig, shouldResetPath: boolean): void {
+// Always a *relative* hash-only write — whatever the current pathname is (the
+// root session, `/popup.html`, or a short-link path like `/abc123`) is left
+// alone, and only the `#c=…` fragment is replaced. This deliberately never
+// resets a short-link path to `/`: the developer's stated preference is that
+// the address bar must never change away from what was typed or opened. See
+// tech-design.md's "URL mirror path" section for what that trades off.
+function persistConfig(config: ClockConfig): void {
   try {
     window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
   } catch (err) {
@@ -83,7 +83,7 @@ function persistConfig(config: ClockConfig, shouldResetPath: boolean): void {
   }
 
   try {
-    window.history.replaceState(null, '', `${shouldResetPath ? '/' : ''}${HASH_PREFIX}${encodeConfig(config)}`);
+    window.history.replaceState(null, '', `${HASH_PREFIX}${encodeConfig(config)}`);
   } catch (err) {
     console.error('overlap: failed to mirror config to the URL hash', err);
   }
@@ -123,8 +123,6 @@ export function useClockConfig() {
       console.warn('overlap: short-link-shaped path ignored — VITE_OVERLAP_API_URL is not set', window.location.pathname);
     }
   }, [shortLinkPathIgnoredForMissingApiUrl]);
-
-  const [shouldResetPath] = useState<boolean>(() => parseShortLinkId(window.location.pathname) !== null);
 
   const [config, setConfig] = useState<ClockConfig>(() => {
     let storedRaw: string | null = null;
@@ -178,8 +176,8 @@ export function useClockConfig() {
   // response arrives
   useEffect(() => {
     if (shortLinkStatus === 'resolving') return;
-    persistConfig(config, shouldResetPath);
-  }, [config, shortLinkStatus, shouldResetPath]);
+    persistConfig(config);
+  }, [config, shortLinkStatus]);
 
   const setHome = useCallback((home: Location) => {
     setConfig((prev) => setHomeOp(prev, home));

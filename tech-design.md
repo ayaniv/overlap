@@ -269,24 +269,41 @@ storage/defaults.
 - `persistConfig` is **skipped while `shortLinkStatus === 'resolving'`**. Otherwise
   the placeholder would overwrite the stored config's URL mirror and wipe out the
   `/abc123` path before the response arrives.
-- `persistConfig` drops the path **only when the page was loaded at a
-  short-link-shaped path**. At mount, compute
-  `shouldResetPath = parseShortLinkId(location.pathname) !== null` once (a
-  `useState` initializer or `useRef`, like `loadedFromShare`). This check does
-  not depend on the env gate or on whether a hash was present. `persistConfig` then
-  writes `\`${shouldResetPath ? '/' : ''}${HASH_PREFIX}${encoded}\``. After a short
-  link resolves or fails, the address bar reads `/#c=…`. The session stays
-  self-contained: reloading doesn't hit the API again, and the hash fallback share URL
-  (`location.href`) is a clean hash link, not `/abc123#c=…`. The same applies to a hash
-  link opened at a short-link path, and to a short-link path opened with the env unset.
-  *Plan review correction:* the original plan always wrote an absolute `/#c=…`. That
-  is wrong, because **`extension/src/PopupApp.tsx` runs this same hook** at
-  `chrome-extension://<id>/popup.html`. An absolute root would move the popup's URL
-  off `popup.html`, which breaks a reload or an "open in tab". `popup.html` contains a
-  dot, so `parseShortLinkId` rejects it and the popup keeps today's relative
-  `#c=` write. Two tests in `useClockConfig.test.tsx` pin this: the popup-path
-  guard is green today and must stay green, and the path-drop test is red until
-  implemented.
+- `persistConfig` **never touches the pathname, ever** — it always does a *relative*
+  `history.replaceState(null, '', \`${HASH_PREFIX}${encoded}\`)`, which rewrites only
+  the `#c=…` fragment and leaves whatever the current path is (`/`, `/popup.html`, or a
+  short-link path like `/abc123`) exactly as it was. **Developer correction (post-merge
+  feedback, tested live):** an earlier version of this plan dropped a short-link-shaped
+  path down to `/` once the config was persisted, on the reasoning that it kept the
+  address bar "clean" for reload and for a hash-fallback re-share. Live testing showed
+  this discards the short-link path the user actually typed or opened, which reads as a
+  bug, not a cleanup — the developer's explicit preference is that the address bar must
+  never change away from what was navigated to. The fix removes the whole
+  `shouldResetPath` special case; every path is now treated identically to how
+  `/popup.html` was already treated.
+  - **What this keeps intact:** reloading still never re-hits the API. `resolveShortLink`
+    is only ever attempted when `parseHashConfig(location.hash)` is null (see "hash beats
+    path" above), and `persistConfig` now always mirrors the resolved (or fallback) config
+    into the hash regardless of the path — so after the first resolution the address bar
+    reads `/abc123#c=…`, and a reload finds the hash and skips the fetch entirely, exactly
+    as it did when the path was reset to `/#c=…`. This holds for a hash link opened at a
+    short-link path, and for a short-link path opened with the env unset, the same as
+    before.
+  - **What this trades off:** the hash-fallback share URL (`location.href`, used when a
+    prefetched short link isn't ready — see decision 2) is no longer guaranteed to be a
+    *clean* `/#c=…` link once the page was loaded at a short-link path — it can read
+    `/abc123#c=…`, carrying both the old short-link id and the current hash payload. This
+    is still fully correct (hash beats path on open, so the recipient sees the current
+    config, not a stale `abc123`), just not the prettiest URL. Accepted, because it's a
+    fallback path, not the primary UX, and it's what "never change the address bar"
+    requires once the config diverges from what `abc123` itself points to.
+  - **`extension/src/PopupApp.tsx` is unaffected**, and needed no special-casing even
+    before this correction: it runs this same hook at `chrome-extension://<id>/popup.html`,
+    and `popup.html` contains a dot, so `parseShortLinkId` already rejected it — the
+    popup's relative `#c=` write was never the thing this decision changed. Two tests in
+    `useClockConfig.test.tsx` pin the current, unified behavior: the popup-path guard, and
+    a short-link-path guard (a hash link opened at `/abc123` keeps `/abc123`, only the hash
+    changes).
 - Returns `isResolvingShortLink` and `shortLinkFailure` along with the existing
   values. **The hook stays logger-free.** Every existing `renderHook` wrapper provides
   only `AnalyticsProvider`, and `useLogger()` throws without its provider. The
@@ -425,10 +442,10 @@ npm run lint && npm run build && NODE_OPTIONS=--no-experimental-webstorage npm t
 | `src/shortLinks/overlapApiConfig.test.ts` | env set, trailing slash stripped, unset or blank → `null` |
 | `src/shortLinks/shortLinkApi.test.ts` | `parseShortLinkId` (nanoid id, slug, trailing slash, root, dotted static files, nested, too long); `buildShortLinkUrl`; `createShortLink` (POST shape and headers, **meetings removed**, 400/5xx/network/timeout/non-JSON/missing-id); `resolveShortLink` (GET URL, encoding, 404/5xx/network/timeout, **invalid config body rejected**, caller abort → `'aborted'`) |
 | `src/shortLinks/useShortLinkPrefetch.test.tsx` | inert when off or when the env is unset; POST once prefetch turns on; `null` while pending; never returns a link for a stale config; one POST per content key; failure logged and not retried |
-| `src/App.test.tsx` — "opening a path-based short link" | loading state → the resolved config renders; persists and rewrites the URL to `/#c=…`; **no persist while resolving**; `shared_config_loaded` with `source: 'short_link'`; 404 → stored config + toast + `warn` + `short_link_load_failed`; network → toast + `error`; invalid body rejected; hash beats path (no fetch); root path never fetches; env unset → path ignored |
+| `src/App.test.tsx` — "opening a path-based short link" | loading state → the resolved config renders; persists and mirrors the config into `#c=…` **without touching the short-link path**; **no persist while resolving**; `shared_config_loaded` with `source: 'short_link'`; 404 → stored config + toast + `warn` + `short_link_load_failed` (path stays, only the hash is rewritten); network → toast + `error`; invalid body rejected; hash beats path (no fetch); root path never fetches; env unset → path ignored |
 | `src/App.test.tsx` — "Share creates a short link" | the menu opening triggers the POST (meetings removed); Share copies `${origin}/<id>` with `link_type: 'short'`; POST failure → hash URL + `logger.error`; **a pending POST never blocks Share**; re-opening the menu reuses the link; env unset → no POST, hash share |
 | `src/vercelConfig.test.ts` | the rewrite rule exists and the `vite` framework preset is kept |
-| `src/hooks/useClockConfig.test.tsx`, "URL mirror path" (added by plan review) | a non-short-link path (`/popup.html`, the extension popup) is kept and only the hash is rewritten. This guard is green today and must stay green. A hash link opened at `/abc123` drops the path to `/`, which is red until implemented. |
+| `src/hooks/useClockConfig.test.tsx`, "URL mirror path" | every path is treated the same: a non-short-link path (`/popup.html`, the extension popup) and a short-link-shaped path (`/abc123`) both keep the path and only the hash is rewritten. Both guards must stay green (see the developer-feedback correction above). |
 | `src/shortLinks/shortLinkApi.live.test.ts` | **Opt-in**, skipped unless `OVERLAP_API_LIVE_URL` is set. Round-trips the real client against a live overlap-api: create → resolve gives back the same config, an unknown id → `not_found`, and a 3-digit hex color → `rejected`. This is the only test that proves the two repos agree on the contract. |
 
 Existing assertions changed by this plan (red until implemented):
@@ -453,7 +470,8 @@ QA runs the Vitest QA Spec above against the branch, and then the steps below.
 2. `VITE_OVERLAP_API_URL=http://localhost:3000 npm run dev`. Open the menu, click
    Share, and paste the clipboard contents. It should be `http://localhost:5173/<10 chars>`.
    Open it in a private window: you should see a brief loading state, then the
-   sender's cities, and the URL should become `/#c=…`.
+   sender's cities, and the address bar should **stay** at `/<10 chars>` with a
+   `#c=…` hash appended — it must not jump to `/`.
 3. Open `http://localhost:5173/doesnotexist` and check for the "wasn't found" toast
    and your own clock. Stop overlap-api and reload a valid short link to check for
    the "Couldn't open" toast and a logged error.
