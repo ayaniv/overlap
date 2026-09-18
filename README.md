@@ -49,6 +49,46 @@ Scheduling meetings is gated behind a Google OAuth Client ID (client-side only, 
 backend). Copy `.env.example` to `.env.local` and fill in `VITE_GOOGLE_CLIENT_ID` to
 enable it; without it, the Schedule panel shows a note instead of the form.
 
+## Short links (optional backend)
+
+Hash links (`#c=…`) always work and need no setup. Setting `VITE_OVERLAP_API_URL`
+additionally turns on path-based short links (`overlapclock.com/abc123`) backed by
+[`overlap-api`](../overlap-api): the Share button uses a short link when one is
+ready and falls back to the hash link otherwise (API down, unreachable, or the
+variable unset), and a short-link-shaped path is resolved against `GET
+/links/:id` on load.
+
+**Local setup:**
+
+1. In `../overlap-api`: start MongoDB, `cp .env.example .env` (make sure
+   `FRONTEND_ORIGIN` includes `http://localhost:5173`), then `npm run dev`.
+2. In this repo: copy `.env.example` to `.env.local` and set
+   `VITE_OVERLAP_API_URL=http://localhost:3000`, then `npm run dev`.
+
+### Enabling short links in production
+
+`VITE_*` values are baked in at build time, so changing the Vercel environment
+variable does nothing until the next build. Complete this checklist, in order,
+before setting `VITE_OVERLAP_API_URL` in Vercel's **Production** environment:
+
+1. overlap-api's `FRONTEND_ORIGIN` lists `https://overlapclock.com` **first**
+   (order matters — `slack.routes.ts` redirects to the first entry after Slack
+   OAuth), plus `https://www.overlapclock.com` if that host serves the app
+   instead of redirecting.
+2. This PR's updated `privacy.html` is live.
+3. Set `VITE_OVERLAP_API_URL` in Vercel Production and **redeploy** — then, on
+   `https://overlapclock.com` with DevTools open: **Share** — open the menu,
+   click Share, and confirm the result is `https://overlapclock.com/<id>`, not
+   a `#c=` link; **Open** — open that link in a private window and confirm the
+   sender's cities appear. Confirm there's no CORS error in either check. A
+   `#c=` link from Share with a `short link create failed: network` error
+   logged almost always means `FRONTEND_ORIGIN` is wrong.
+
+**Rollback warning:** once short links have been handed out, don't unset
+`VITE_OVERLAP_API_URL` or take `overlap-api` down — every recipient would
+silently see their own clock instead of the sender's. Fix forward (keep `GET
+/links/:id` reachable) instead of rolling back.
+
 ## Chrome extension
 
 A Manifest V3 toolbar popup renders the same `WorldClock` at 380×600, with a
@@ -77,5 +117,6 @@ Released under the [MIT License](./LICENSE).
 
 ## Privacy
 
-See the [privacy policy](https://overlapclock.com/privacy.html) for what
-data the app collects (none, server-side) and how the Google Calendar scope is used.
+See the [privacy policy](https://overlapclock.com/privacy.html) for what data the
+app collects (a short-link snapshot of your cities and working hours, if you use
+that feature — see above), and how the Google Calendar scope is used.

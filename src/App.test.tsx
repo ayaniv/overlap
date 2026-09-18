@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider';
 import { createMockAnalyticsService } from './analytics/mockAnalyticsService';
 import { LoggerProvider } from './logger/LoggerProvider';
@@ -8,6 +9,7 @@ import { createMockLoggerService } from './logger/mockLoggerService';
 import App from './App';
 import * as googleCalendar from './clock/googleCalendar';
 import { SCRUB_HINT_SEEN_STORAGE_KEY } from './clock/scrubHint';
+import { encodeConfig } from './clock/shareCodec';
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from './hooks/useClockConfig';
 import { DEFAULT_IDLE_TIMEOUT_MS } from './hooks/useIsIdle';
 import type { ClockConfig } from './clock/types';
@@ -151,7 +153,7 @@ describe('App — sharing fires an analytics event with the outcome', () => {
     await openClusterMenu(user);
     await user.click(screen.getByTestId('control-share-button'));
 
-    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' }));
   });
 });
 
@@ -1196,5 +1198,275 @@ describe('App — Find Time: a city is disabled only by the cities selected righ
     // Tel Aviv + Sydney out of the five cities on the clock
     expect(screen.getByTestId('clock-status-text').textContent).toMatch(/^2\/5 teams available/);
     expect(analyticsService.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', { remaining_count: 1 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Short links (overlap-api's POST /links + GET /links/:id). fetch is stubbed
+// globally; VITE_OVERLAP_API_URL is stubbed per test so the "not configured"
+// path (short links fully off, hash-only sharing) is exercised too.
+// ---------------------------------------------------------------------------
+
+const OVERLAP_API_URL = 'http://api.test';
+
+const SHORT_LINK_CONFIG: ClockConfig = {
+  home: { id: 'lisbon', label: 'Lisbon', timezoneId: 'Europe/Lisbon', color: '#38BDF8', workStart: 9, workEnd: 18 },
+  rings: [{ id: 'tokyo', label: 'Tokyo', timezoneId: 'Asia/Tokyo', color: '#FB7185', workStart: 9, workEnd: 18 }],
+  meetings: [],
+};
+
+const STORED_CONFIG: ClockConfig = {
+  home: { id: 'tel-aviv', label: 'Tel Aviv', timezoneId: 'Asia/Jerusalem', color: '#38BDF8', workStart: 9, workEnd: 18 },
+  rings: [{ id: 'san-francisco', label: 'San Francisco', timezoneId: 'America/Los_Angeles', color: '#FB7185', workStart: 9, workEnd: 18 }],
+  meetings: [{ id: 'm1', startISO: '2026-09-18T15:00:00.000Z', title: 'Tel Aviv / San Francisco', googleEventId: 'google-event-1' }],
+};
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+describe('App — opening a path-based short link (GET /links/:id)', () => {
+  let fetchMock: Mock<typeof fetch>;
+
+  beforeEach(() => {
+    vi.stubEnv('VITE_OVERLAP_API_URL', OVERLAP_API_URL);
+    fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(STORED_CONFIG));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('shows a loading state, resolves the id against overlap-api, then renders the shared config', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, SHORT_LINK_CONFIG));
+    window.history.replaceState(null, '', '/abc123XYZ_');
+
+    renderApp();
+
+    expect(screen.getByTestId('short-link-loading')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(`${OVERLAP_API_URL}/links/abc123XYZ_`, expect.anything());
+    await waitFor(() => expect(screen.getByTestId('ring-label-tokyo')).toBeTruthy());
+    expect(screen.queryByTestId('short-link-loading')).toBeNull();
+    expect(screen.queryByTestId('ring-label-san-francisco')).toBeNull();
+  });
+
+  // the developer's stated preference: the address bar must never change away
+  // from the short-link path actually typed/opened — only the hash is
+  // mirrored alongside it. A reload still avoids re-hitting the API, because
+  // the mirrored hash wins over the path on the next load (see "hash beats
+  // path" above), regardless of what the pathname is.
+  it('persists the resolved config and mirrors it into the hash, without touching the short-link path', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, SHORT_LINK_CONFIG));
+    window.history.replaceState(null, '', '/abc123');
+
+    renderApp();
+
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) ?? 'null')).toEqual(SHORT_LINK_CONFIG));
+    expect(window.location.pathname).toBe('/abc123');
+    expect(window.location.hash).toBe(`#c=${encodeConfig(SHORT_LINK_CONFIG)}`);
+  });
+
+  it('does not overwrite the stored config or the URL while the short link is still resolving', () => {
+    fetchMock.mockReturnValue(new Promise<Response>(() => {}));
+    window.history.replaceState(null, '', '/abc123');
+
+    renderApp();
+
+    expect(window.location.pathname).toBe('/abc123');
+    expect(JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) ?? 'null')).toEqual(STORED_CONFIG);
+  });
+
+  it('tracks shared_config_loaded with source short_link for a first-time visitor', async () => {
+    window.localStorage.removeItem(CONFIG_STORAGE_KEY);
+    fetchMock.mockResolvedValue(jsonResponse(200, SHORT_LINK_CONFIG));
+    window.history.replaceState(null, '', '/abc123');
+
+    const { analytics } = renderApp();
+
+    await waitFor(() =>
+      expect(analytics.trackEvent).toHaveBeenCalledWith('shared_config_loaded', {
+        location_count: 2,
+        has_meetings: false,
+        source: 'short_link',
+      }),
+    );
+  });
+
+  it('dead/nonexistent link (404): falls back to the stored config, toasts, warns, and tracks the failure', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(404, { error: 'link not found' }));
+    window.history.replaceState(null, '', '/gone123');
+
+    const { analytics, logger } = renderApp();
+
+    await waitFor(() => expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy());
+    // the toast lands one commit after the ring (App's own failure-reaction
+    // effect, keyed on shortLinkFailure, runs after that render's commit) —
+    // findByTestId (async, retrying), not a bare getByTestId, same as this
+    // file's other effect-driven toast assertions (e.g. quick-schedule)
+    expect(await screen.findByTestId('toast-message')).toBeTruthy();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'not_found' });
+    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+    // the address bar stays at the path the user opened even on failure —
+    // only the hash is rewritten, to mirror the fallback config
+    expect(window.location.pathname).toBe('/gone123');
+    expect(JSON.parse(window.localStorage.getItem(CONFIG_STORAGE_KEY) ?? 'null')).toEqual(STORED_CONFIG);
+  });
+
+  it('API unreachable: falls back to the stored config, toasts, and logs an error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    window.history.replaceState(null, '', '/abc123');
+
+    const { analytics, logger } = renderApp();
+
+    await waitFor(() => expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy());
+    // see the 404 test above for why this is findByTestId, not getByTestId
+    expect(await screen.findByTestId('toast-message')).toBeTruthy();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'network' });
+    expect(logger.error).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('short link'));
+  });
+
+  it('a server response that is not a valid ClockConfig is rejected, not rendered', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { home: 'nope' }));
+    window.history.replaceState(null, '', '/abc123');
+
+    const { analytics } = renderApp();
+
+    await waitFor(() => expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy());
+    expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'invalid_response' });
+  });
+
+  it('a #c= hash still wins over the path — no fetch, the hash config renders immediately', () => {
+    window.history.replaceState(null, '', `/abc123#c=${encodeConfig(SHORT_LINK_CONFIG)}`);
+
+    renderApp();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('short-link-loading')).toBeNull();
+    expect(screen.getByTestId('ring-label-tokyo')).toBeTruthy();
+  });
+
+  it('the root path never calls the API', () => {
+    renderApp();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('short-link-loading')).toBeNull();
+  });
+
+  it('with VITE_OVERLAP_API_URL unset, a short-link path is ignored — no fetch, no loading state, stored config renders', () => {
+    vi.stubEnv('VITE_OVERLAP_API_URL', '');
+    window.history.replaceState(null, '', '/abc123');
+
+    renderApp();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('short-link-loading')).toBeNull();
+    expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy();
+  });
+});
+
+describe('App — Share creates a short link (POST /links) with a hash-link fallback', () => {
+  let fetchMock: Mock<typeof fetch>;
+  let writeText: Mock;
+
+  beforeEach(() => {
+    vi.stubEnv('VITE_OVERLAP_API_URL', OVERLAP_API_URL);
+    fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+    // clipboard only (no navigator.share) forces the deterministic "copied" path
+    writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(STORED_CONFIG));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('opening the menu pre-creates the short link, without the meetings (Google user data never leaves the browser)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 'short123' }));
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    await openClusterMenu(user);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${OVERLAP_API_URL}/links`);
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({ ...STORED_CONFIG, meetings: [] });
+  });
+
+  // fireEvent (not userEvent) for the menu-open and Share clicks here: same
+  // reason as PopupApp.test.tsx's share describe block — userEvent.setup()
+  // unconditionally replaces navigator.clipboard with its own internal stub
+  // (@testing-library/user-event's Clipboard.attachClipboardStubToView),
+  // which would silently displace the writeText spy this block asserts on.
+  it('Share copies the path-based short URL once it is ready, and tracks link_type short', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 'short123' }));
+    const { analytics } = renderApp();
+
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    // let the POST's promise chain settle before clicking
+    await act(async () => {});
+    fireEvent.click(screen.getByTestId('control-share-button'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/short123`));
+    expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'short' });
+  });
+
+  it('Share falls back to the hash URL, and logs, when creating the short link failed', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(500, { error: 'internal server error' }));
+    const { analytics, logger } = renderApp();
+
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    await waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('short link')));
+    fireEvent.click(screen.getByTestId('control-share-button'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
+    expect(window.location.href).toContain('#c=');
+    expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' });
+  });
+
+  it('Share never waits on the network: while the POST is still pending it shares the hash URL immediately', async () => {
+    fetchMock.mockReturnValue(new Promise<Response>(() => {}));
+    const { analytics } = renderApp();
+
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
+    expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' });
+  });
+
+  it('re-opening the menu with an unchanged config reuses the same short link (one POST)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 'short123' }));
+    const user = userEvent.setup();
+    renderApp();
+
+    await openClusterMenu(user);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    await user.click(screen.getByTestId('control-menu-toggle'));
+    await openClusterMenu(user);
+    await act(async () => {});
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('with VITE_OVERLAP_API_URL unset, no POST is made and Share uses the hash URL exactly as before', async () => {
+    vi.stubEnv('VITE_OVERLAP_API_URL', '');
+    const { analytics } = renderApp();
+
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' });
   });
 });

@@ -1,416 +1,526 @@
-# Tech design — Overlap Clock Chrome extension
+# Tech design — Wire overlap to overlap-api's short-link service
 
 ## Summary
 
-Ship a Manifest V3 Chrome extension whose toolbar popup renders the **existing**
-`WorldClock` at 380×600, backed by the existing `useClockConfig` persistence, with
-a **Share** action that copies an `overlapclock.com` link and an **Open in Overlap**
-action that hands the current config off to the full web app in a new tab.
+Short links are an addition to the hash links, not a replacement. The existing Share
+button produces a path-based short URL (`https://overlapclock.com/abc123`) when it can,
+and the current `#c=` hash URL when it can't. On load, the app calls `overlap-api`'s
+`GET /links/:id` for a short-link path and falls back to the stored config, with a
+toast, if the link is dead or the API is unreachable. `VITE_OVERLAP_API_URL` switches
+the whole feature on. If it isn't set, the app behaves exactly as it does today. That
+makes the change safe to merge before `overlap-api` is deployed. The short link is
+created in the background as soon as the menu opens, so the uploaded snapshot never
+includes meetings, and the privacy page changes in the same PR to say what is stored
+and when. Turning the feature on in production is a separate, manual step with its own
+checklist: the API's allowed origins must include `https://overlapclock.com`.
 
-The popup deliberately does *not* carry Google Calendar scheduling, time-scrubbing,
-or Find overlap. Those aren't cut for effort — MV3's `script-src 'self'` blocks the
-remote Google Identity Services script the scheduling flow depends on, and scrubbing
-is that flow's only entry point. Handing off to the web app is how the popup covers
-them honestly.
+## Decisions a reviewer should look at first
+
+1. **Supplement, not replace — and no second button.** Hash links stay valid forever:
+   links already sent out can't break, and they are the fallback whenever the API
+   isn't available. We don't add a separate "short link" button. The single Share
+   button uses a short link when one is ready and the hash link otherwise. Users don't
+   want to choose between two kinds of link. The hash link is still there as a
+   fallback, and anyone who opens a short link ends up on a hash URL (see "Resolving").
+   *Plan review verified the fallback triggers on every failure, not just "feature
+   off".* These all end in `ok: false`, so Share returns the hash URL:
+   - the variable is unset or blank: no request is made at all;
+   - the variable is set, but the API is down, the host is unreachable, the URL is
+     malformed, or CORS refuses the origin: the `fetch` rejects, giving `'network'`;
+   - the API is slow: the call is still pending, or hits `'timeout'`;
+   - the API returns a 4xx or 5xx, or a body that isn't valid.
+   None of these touch the hash code path. Share reads `window.location.href` exactly
+   as it does today.
+2. **Share never waits on the network. The short link is created when the menu
+   opens.** Share lives behind the hamburger menu (`ControlCluster`), so the POST
+   fires when the menu is expanded in view mode. By the time Share is clicked, the
+   short link is usually ready. If it isn't, Share uses the hash URL straight away.
+   The reason: `navigator.share()` and `navigator.clipboard.writeText()` need
+   *transient user activation*. Awaiting a `fetch` inside the click handler can use
+   up that activation on Safari/iOS, and then the share sheet or clipboard write
+   silently fails. Making the POST before the click avoids the problem instead of
+   depending on each browser's activation-timeout rules. The cost is an orphaned
+   `links` document when someone opens the menu and doesn't share. It's small, and a
+   per-config cache makes it smaller (see "Creating").
+3. **Meetings are removed before the POST.** A `Meeting` carries `googleEventId`,
+   which is Google user data. `public/privacy.html` and the Google OAuth verification
+   answers (`docs/GOOGLE_VERIFICATION.md`, `docs/GOOGLE_OAUTH_REPLY_DRAFT*.md`) promise
+   that no Google user data reaches a developer-operated server. Short links therefore
+   always send `meetings: []`. The cost is small: `App.tsx` already hides meetings
+   from viewers of a shared link who haven't connected Google Calendar. Hash links
+   keep today's behavior and still carry meetings, but only inside the URL.
+   *Plan review confirmed this is deliberate, not an accidental loss.* A `Meeting` is
+   `{ id, startISO, title, googleEventId? }`. The title and start time are the event
+   details the privacy page lists as the Google user data the app handles. Uploading
+   them would break the promise in decision 4's untouched Google sections. What a
+   sender loses by switching from a hash link to a short link: a recipient who has
+   connected Google Calendar no longer sees the sender's meeting dots. Cities, colors
+   and working hours, which are what a share is for, arrive unchanged. Opening a short
+   link replaces the recipient's own saved config, including their meetings, exactly
+   as opening a hash link does today. That is not new behavior.
+4. **The privacy copy must change in this PR.** `public/privacy.html` currently says
+   "Nothing is collected or stored by the developer" and "There is no server that
+   overlap's developer operates". `index.html` says "no backend". With short links
+   on, a snapshot of the city list and working hours *is* stored on a server the
+   developer runs. The dev stage updates both files (exact scope under "Changes").
+   Pushing the new privacy text before the feature is switched on in production is
+   fine. Switching the feature on while the old text says "no server" is not. **This
+   is the one product call a reviewer should confirm explicitly.**
+   *Plan review correction:* the upload happens **when the menu opens in view mode**,
+   not when Share is clicked (decision 2). The privacy copy must say that. Copy that
+   says "when you share" would under-state what is sent, because a user who opens the
+   menu for any other action has already uploaded a snapshot. The copy must also cover
+   retention: overlap-api has no TTL and no delete endpoint, so snapshots are kept
+   indefinitely and the only way to remove one is to contact the developer.
+5. **Deployment note (flagged, not blocking).** You've said `overlap-api` will go on
+   Vercel. `overlap-api`'s own architecture doc argues against that for two reasons:
+   serverless MongoDB connections need careful reuse across invocations, and there's
+   cold-start latency. Neither blocks this task. The frontend only needs a base URL.
+   Cold starts do hurt here, though: they lengthen the "Loading shared clock…" state
+   and make it more likely that the menu-open POST hasn't finished when Share is
+   clicked. `SHORT_LINK_REQUEST_TIMEOUT_MS` (below) limits the damage.
+6. **CORS origins to set at deploy time (outside this repo).** The site's real
+   production origin is `https://overlapclock.com` (`WEB_APP_ORIGIN` in
+   `src/clock/webAppUrl.ts`, `index.html`'s canonical URL), but `overlap-api`'s
+   `.env.example` lists only `http://localhost:5173` and `https://overlap.vercel.app`. Its deployed
+   `FRONTEND_ORIGIN` must include `https://overlapclock.com`, plus
+   `https://www.overlapclock.com` if that host serves the app instead of redirecting.
+   Otherwise every short-link call from production is refused by CORS and shows up
+   as `reason: 'network'`.
+   *Plan review: this is now a required, written step, not just a note.* The code
+   can't detect a wrong origin list. A CORS refusal is indistinguishable from "API
+   down", and both fall back to hash links, so a misconfiguration would look like a
+   working feature that never produces a short link. The dev stage therefore adds an
+   **"Enabling short links in production" checklist** to `README.md` (see "Changes").
+   Setting `VITE_OVERLAP_API_URL` in Vercel's Production environment is the switch,
+   and the checklist must be completed before flipping it:
+   - overlap-api's `FRONTEND_ORIGIN` lists `https://overlapclock.com` **first**. Order
+     matters: `slack.routes.ts` redirects to the *first* entry after Slack OAuth, and
+     `.env.example`'s order puts `http://localhost:5173` first. Add
+     `https://www.overlapclock.com` if that host serves the app.
+   - The updated `privacy.html` from this PR is live.
+   - One real share and one real open from `https://overlapclock.com` succeed (the
+     "Share" and "Open" smoke checks in Manual QA), and the browser console shows no
+     CORS error.
+   Vercel **preview** deployments have per-deploy origins that won't be in
+   `FRONTEND_ORIGIN`. On a preview with the variable set, short links fall back to
+   hash links, which is expected. No test in this plan hard-codes a production
+   origin. The short URL is built from `window.location.origin`, and the tests assert
+   against jsdom's origin, so they pass whatever the deployed origin is.
 
 ## Exploration findings (what this plan is built on)
 
-Verified against `claude/overlap-chrome-extension` at `3a21480`.
+Verified against `origin/main` at `e7a0e58` (overlap) and `5219877` (overlap-api).
 
-**What is reusable as-is.** `WorldClock.tsx` is fully props-driven, renders pure SVG
-from a 1000×1000 viewBox, and takes `now` from its parent. Everything it leans on is
-pure and DOM-free: `geometry.ts`, `cityTime.ts`, `configOps.ts`, `configValidation.ts`,
-`shareCodec.ts`, `defaultCities.ts`, `cityCatalog.ts`. `useClockConfig`, `useNow`,
-`useIsPortrait`, `useToast`, `AddLocationForm`, `ManageLocationsList`,
-`MobileConfigView` and `ControlCluster` all work unchanged in an extension page.
+**How sharing works today.** The flow is entirely client-side:
+- `useClockConfig` (`src/hooks/useClockConfig.ts`) resolves the initial config in this
+  order: `#c=` hash, then `localStorage` (`overlap:config:v1`), then `DEFAULT_CONFIG`.
+  That's `resolveInitialConfig`. Every config change runs `persistConfig`, which writes
+  localStorage and `history.replaceState(null, '', '#c=…')`. The URL is relative, so
+  **the current pathname is kept**. After this change that matters: a page loaded at
+  `/abc123` would keep `/abc123` in the URL for the whole session. See "Resolving"
+  for how that's handled.
+- `shareCodec.ts` handles `lz-string` encoding and decoding of the hash payload, plus
+  `HASH_PREFIX = '#c='`.
+- `App.tsx`: `getShareUrl = () => window.location.href` is passed to `useShareHandler`,
+  which calls `shareLink()` (native share sheet, falling back to the clipboard), shows
+  the toast from `SHARE_TOAST_MESSAGE`, and sends `analytics.trackEvent('clock_shared', { outcome })`.
+- `extension/src/PopupApp.tsx` is the second caller of `useShareHandler`. Its share URL
+  is `buildWebAppUrl(config)`, which is always a hash URL.
+- `shared_config_loaded` fires only when the hash decoded **and** no valid stored config
+  exists, meaning a first-time visitor.
 
-**Why 380×600, and why that's the whole layout story.** `.clockContainer` is
-`width: min(86vmin, 700px)`, and every panel branch keys off
-`matchMedia('(orientation: portrait)')` via `useIsPortrait`. A 380×600 popup *is*
-portrait, so the popup automatically gets the phone layout the repo already ships
-and already tests — `MobileConfigView` instead of the desktop `ConfigPanel`,
-`AddLocationForm`'s immediate-add-on-pick, the portrait `ControlCluster` rules — and
-a ~327px dial. **No new responsive CSS is needed**, only an explicit
-`width`/`height` on the popup's `html`/`body`, because a popup window auto-sizes to
-content and `index.css`'s `height: 100dvh` has nothing to resolve against.
+**overlap has no backend integration today.** There is no `fetch` anywhere in `src/`,
+no API client, and no routing. `vercel.json` is `{ framework: "vite" }` with no
+rewrites. `import.meta.env.VITE_*` is already the config pattern
+(`VITE_GOOGLE_CLIENT_ID`, `VITE_POSTHOG_*`), documented in `.env.example`.
 
-**Why the popup can't just render `<App />`.** Three concrete blockers, each of
-which is a design constraint rather than a preference:
+**overlap-api's contract** (`src/links/links.routes.ts`, `src/app.ts`):
+- `POST /links` takes a ClockConfig as the JSON body. It returns `200 { id }`, where
+  `id` is `nanoid(10)` using the `[A-Za-z0-9_-]` alphabet. A body that fails validation
+  gets `400 { error }`. A database error gets `500`. The validator is stricter than
+  overlap's own `isValidClockConfig`: it requires 6-digit hex colors, integer
+  `workStart` in [0,23], integer `workEnd` in [1,24], and `workStart < workEnd`.
+  Configs overlap produces itself always pass. A 400 from the live API would point to
+  drift between the two validators, and that is logged.
+- `GET /links/:id` returns `200` with the config JSON directly (not wrapped), or `404`.
+  Links never expire (the short-link spec puts TTL out of scope), so "dead/expired"
+  always means `404`.
+- CORS: the allowed origin list is `FRONTEND_ORIGIN`, comma-separated, read on every
+  request. A disallowed origin gets no CORS headers, and the browser reports that as
+  a `fetch` `TypeError`.
 
-1. `googleCalendar.ts` injects `<script src="https://accounts.google.com/gsi/client">`.
-   MV3 hard-blocks remotely hosted code; the load rejects and `handleQuickSchedule`
-   ends in an error toast every time. `App` wires `onQuickSchedule` unconditionally,
-   so the button is present and always broken.
-2. `WorldClock`'s footer links to `href="/privacy.html"`, which resolves to
-   `chrome-extension://<id>/privacy.html` — a 404. The Chrome Web Store requires a
-   working privacy-policy link.
-3. `shareLink` copies `window.location.href`. In the popup that's a
-   `chrome-extension://` URL, which is useless to whoever receives it.
+**Test infrastructure.** Vitest 4 with jsdom and @testing-library/react. There's **no
+e2e/browser framework** (no Playwright or Cypress in `package.json`), and this plan
+doesn't add one. The baseline `NODE_OPTIONS=--no-experimental-webstorage npm test`
+passes 40 files / 523 tests at `e7a0e58` (Node 26 needs that flag so jsdom's
+`localStorage` isn't shadowed, as in the previous task's VERIFY).
 
-`PopupApp` is therefore a *different composition* of the same parts, not a fork of
-`App` — it reuses `useClockConfig`, `useNow`, `useToast`, `shareLink` and
-`WorldClock` directly, and holds no logic copied from `App.tsx`.
-
-**Analytics/logging — confirmed, and the one genuinely open question resolved.**
-The `useAnalytics()` / `useLogger()` abstractions from PR #17 are present and are
-plain React contexts whose providers already accept an injected `service` — exactly
-the seam an extension needs, so the *runtime* wiring works in a popup untouched
-(one bundling caveat below). What does
-*not* survive the move is the default implementation: `posthog-js` lazy-loads its
-feature bundles (recorder, surveys, exception autocapture) as remote `<script>` tags
-from `api_host`, which MV3 blocks. So the extension keeps the abstraction and swaps
-the transport — a small `fetch`-based PostHog capture adapter implementing both
-`AnalyticsService` and `LoggerService`. No new abstraction is introduced.
-
-**Injecting a service is not, by itself, enough to keep `posthog-js` out of the
-popup bundle — measured, not assumed.** `AnalyticsProvider.tsx` and
-`LoggerProvider.tsx` each hold their fallback in a *static* import
-(`service = analytics`, `service = logger`), and `useClockConfig` imports
-`useAnalytics` from that same module — so the whole
-`analytics → postHogAdapter → posthog-js` chain is reachable from the popup
-entry no matter what `popup.tsx` passes in. A probe `vite build` of a minimal
-entry that renders both providers *with* injected services came out at **402 kB
-with `posthog` still in the emitted chunk**. Nothing breaks at runtime
-(`posthog-js` ships no `eval`/`new Function` — grepped — and is never `init`ed
-here, so no remote `<script>` is ever created), but ~250 kB of dead vendor SDK
-would ride inside the very bundle whose whole premise is that this SDK cannot
-run there. The fix is one line per provider: drop the default and make `service`
-required. See Changed below.
-
-**Test framework: Vitest, not Playwright.** There is no Playwright, no `e2e/`
-directory and no browser-driver dependency anywhere in the repo (`docs/plan.md`
-mentions Playwright only as *scratchpad* scripts an earlier agent ran ad hoc). The
-only CI workflow is `update-changelog.yml`; it runs no tests. Adding a browser
-driver to exercise one popup would be a larger change than the feature. Tests below
-use the repo's real framework — Vitest + Testing Library — at integration level
-(real `PopupApp`, real `useClockConfig`, real `WorldClock`, fakes only at the
-`chrome.*`/`fetch`/`clipboard` boundary), plus a static contract test over
-`manifest.json`/`popup.html` for the class of MV3 failures no render test can reach.
+**Vite dev and preview already serve `index.html` for any path** (`appType: 'spa'`
+history fallback, used for dot-free paths), so `http://localhost:5173/abc123` works
+locally with no config change.
 
 ## Scope: one flat task, no milestones
 
-The work is one PR's worth: build plumbing, one new component, one adapter, three
-small shared-code edits. A split would have to be M0 "plumbing + read-only popup" →
-M1 "config + share + handoff" → M2 "analytics" — but M1 and M2 both edit the same
-`popup.tsx`/`PopupApp.tsx` surface M0 creates, so the split would buy serialization
-and merge conflicts rather than independent progress. Flat.
-
-Deliberately no `## Milestones` section, therefore no `needs:` graph to resolve or
-check for cycles: `parseMilestonesContent` in `taskParser.ts` returns an empty
-declaration list when that heading is absent, which is exactly how a flat task is
-represented. The flat-task equivalent of a milestone's `spec:` — the standalone
-`**QA Spec:**` line `parseQaSpecFile` looks for — is under Tests below.
+The rewrite rule, API client, load-time resolution, Share wiring and privacy copy
+all ship in one PR. None of them delivers anything useful on its own. Short links
+without the rewrite rule return a 404 in production. Resolution without creation has
+nothing to resolve. The environment-variable gate already covers what milestones
+would give us here: the PR can merge before the API exists, and the feature turns on
+later without a code change. The expected diff is about 5 new source files and small
+edits to 6 existing ones.
 
 ## Changes
 
-### New — `extension/`
+### New — `src/shortLinks/`
 
 | File | Purpose |
 | --- | --- |
-| `public/manifest.json` | MV3 manifest — **moved here from `extension/manifest.json`**; see "Why the manifest has to live in `public/`" below |
-| `popup.html` | Vite entry (already committed with this plan; still needs its font `<link>`s — see Fonts) |
-| `public/icons/icon{16,48,128}.png` | Toolbar/Web Store icons |
-| `src/popup.tsx` | Mounts `PopupApp` inside `AnalyticsProvider`/`LoggerProvider` with the HTTP service |
-| `src/PopupApp.tsx` | The popup composition |
-| `src/popup.css` | Fixed 380×600 popup box |
-| `src/httpPostHogService.ts` | MV3-safe `AnalyticsService & LoggerService` over `fetch` |
-| `src/openWebApp.ts` | `chrome.tabs.create` wrapper that logs failures |
+| `overlapApiConfig.ts` | `getOverlapApiBaseUrl(): string \| null`. The **only** code that reads `import.meta.env.VITE_OVERLAP_API_URL`. It trims the value, strips a trailing `/`, and returns `null` for an empty value, which means short links are off. |
+| `shortLinkApi.ts` | A pure API client. It takes `fetch` as an injected parameter and has no React or logger dependency. Contents listed below. |
+| `useShortLinkPrefetch.ts` | `useShortLinkPrefetch(config, shouldPrefetch): () => string \| null`. Described under "Creating". |
 
-### Why the manifest has to live in `public/`
-
-Verified by probe build, because getting this wrong ships a directory Chrome
-refuses to load at all. With `root: 'extension'`, `vite build` emits exactly
-three things into `dist-extension/`: the HTML entry, the chunks it pulls in
-under `assets/`, and a verbatim copy of everything in `publicDir`. A file
-sitting at `<root>/manifest.json` is none of those, so the original
-`extension/manifest.json` would simply never reach the build output — the
-extension would build "successfully" and then fail to load with *Manifest file
-is missing or unreadable*.
-
-So `manifest.json` moves to `extension/public/manifest.json`. That also makes
-the icon paths inside it (`icons/icon16.png` …) resolve consistently: the probe
-confirmed `extension/public/icons/icon16.png` lands at `dist-extension/icons/icon16.png`,
-i.e. right next to the manifest at the bundle root, which is exactly what those
-relative paths mean to Chrome. A copy plugin would work too, but `publicDir` is
-already "files copied verbatim to the bundle root" — the manifest is precisely
-that, and using it keeps the extension build config to plain Vite options.
-
-One consequence for the committed contract test: `extension/manifest.test.ts`
-must read `resolve(extensionDir, 'public', 'manifest.json')`, and its icon
-assertion — already `resolve(extensionDir, 'public', icons[size])` — then
-resolves against the same directory rather than straddling two.
-
-### Changed — shared app code (small, all driven by a real second call site)
-
-- **`src/clock/webAppUrl.ts` (new).** `WEB_APP_ORIGIN`, `WEB_APP_PRIVACY_URL`, and
-  `buildWebAppUrl(config)` = `${WEB_APP_ORIGIN}/#c=${encodeConfig(config)}`. One
-  source of truth for the two places the popup needs a web-app URL (Share, Open in
-  Overlap).
-- **`src/clock/shareCodec.ts`.** Export the `#c=` prefix as `HASH_PREFIX`; it is
-  currently a private constant in `useClockConfig.ts`, and `buildWebAppUrl` would be
-  a second copy. `useClockConfig` imports it instead of declaring its own.
-- **`src/clock/share.ts`.** Move `SHARE_TOAST_MESSAGE` here from `App.tsx` — the
-  popup is the second call site, and the outcome→copy mapping must not fork.
-- **`src/analytics/AnalyticsProvider.tsx` and `src/logger/LoggerProvider.tsx`.**
-  `service` becomes a **required** prop: delete the `= analytics` / `= logger`
-  defaults and the `import { analytics } from './analytics'` /
-  `import { logger } from './logger'` lines with them. That static import is the
-  only thing welding `posthog-js` to every consumer of these modules (including
-  `useClockConfig`, which imports `useAnalytics` from one of them), and it is
-  what puts the SDK in the popup bundle — see the probe measurement above.
-  Making the prop required also matches what these modules' own comments
-  already claim to want: a tree that forgets to wrap should "fail loudly instead
-  of silently falling through to the real, unmocked posthog-js singleton".
-  Driven by a real second call site, same rule as every other shared-code edit
-  here.
-- **`src/main.tsx`.** Pass the services the providers no longer default to:
-  `<AnalyticsProvider service={analytics}>` / `<LoggerProvider service={logger}>`,
-  imported from `./analytics/analytics` and `./logger/logger`. Web-app behavior
-  is unchanged; the vendor choice just moves to the composition root, which is
-  the only place that should name one.
-- **`src/analytics/AnalyticsProvider.test.tsx` / `src/logger/LoggerProvider.test.tsx`.**
-  Drop the one case in each that asserts the removed default ("returns the real
-  singleton by default when … has no service prop"). The other two cases in each
-  file — throws without a provider, returns an injected service — still describe
-  real behavior and stay.
-- **`src/logger/consoleLogParts.ts` (new).** The `debug`/`info`/`warn` console trio
-  currently inline in `postHogLogger.ts`, extracted so `postHogLogger` and
-  `httpPostHogService` share one implementation. `postHogLogger` spreads it.
-- **`src/clock/WorldClock.tsx`.** Three additions, all following the component's
-  existing "an absent callback hides the control" convention (`onFindTime`):
-  - `privacyHref?: string` (default `'/privacy.html'`) on the footer link, plus
-    `data-testid="privacy-link"`.
-  - `onOpenInWebApp?: () => void` — when present, renders an "Open in Overlap ↗"
-    button in the existing `bottomLinks` row with `data-testid="open-in-web-app"`.
-  - `data-testid={`ring-label-${id}`}` on each ring's label `<g>`, and
-    `data-testid="center-local-label"` on the centre home-city label. Both are
-    needed because the tests must not select by visible copy.
-- **`package.json`.** Add `"build:extension": "tsc -b && vite build --config vite.config.extension.ts"` and devDependency `@types/chrome` (`0.2.7` on the registry).
-- **`tsconfig.app.json`.** `include: ["src", "extension"]` and
-  `types: ["vite/client", "chrome", "node"]`, so the existing `npm run build`
-  typechecks extension code too. **`"node"` is not optional** — verified by
-  running `tsc` against exactly this config: without it,
-  `extension/manifest.test.ts` fails with three `TS2591: Cannot find name
-  'node:fs' / 'node:url' / 'node:path'` errors, because a `types` array
-  suppresses the automatic inclusion of `@types/node` (already a devDependency).
-- **`vite.config.extension.ts` (new).** `root: 'extension'`,
-  `publicDir: 'public'`, `build.outDir: '../dist-extension'`,
-  `emptyOutDir: true`, react plugin, and — **required** —
-  `build.rollupOptions.input: resolve(__dirname, 'extension/popup.html')`.
-  Verified by probe build: Vite's default entry is `<root>/index.html`, which
-  does not exist here, so without an explicit `input` the build dies on an
-  unresolved entry rather than picking up `popup.html`. It also needs
-  **`envDir: resolve(__dirname)`** — Vite's `envDir` defaults to `root`, so with
-  `root: 'extension'` it would look for `.env` in `extension/` and silently miss
-  the repo-root `.env` the web app uses. Without this the extension builds
-  cleanly and then behaves as permanently unconfigured: `httpPostHogService`
-  warns once and no-ops every capture, with nothing failing to point at why.
-- **`.gitignore`.** `dist-extension`.
-- **`README.md`.** A "Chrome extension" section: `npm run build:extension`, then load `dist-extension/` unpacked via `chrome://extensions`.
-
-### `PopupApp` wiring
-
-```
-config, addLocation, removeLocation, updateLocation, setHome, reorder  ← useClockConfig()
-now                                                                     ← useNow()
-mode, isMenuExpanded                                                    ← useState
-isPortrait                                                              ← useIsPortrait()
-toastMessage, showToast                                                 ← useToast()
-
-onShare          → shareLink(navigator, navigator.clipboard, buildWebAppUrl(config))
-                   → SHARE_TOAST_MESSAGE[outcome] toast
-                   → analytics.trackEvent('clock_shared', { outcome })
-onOpenInWebApp   → analytics.trackEvent('extension_open_web_app_clicked')
-                   → openWebApp(config, logger)
-privacyHref      → WEB_APP_PRIVACY_URL
-modePanelContent → <AddLocationForm …/>  (same props as App's)
-```
-
-Not passed, and therefore not rendered: `scrubBind`, `onQuickSchedule`,
-`onBackToNow`, `onFindTime`, `isGoogleCalendarConnected`, the scrub-hint props,
-`isIdle`.
-
-### `httpPostHogService`
+`shortLinkApi.ts`:
 
 ```ts
-export const EXTENSION_DISTINCT_ID_STORAGE_KEY = 'overlap:extension-distinct-id:v1';
-export const CAPTURE_PATH = '/i/v0/e/';
-export function createHttpPostHogService(fetchImpl?: typeof fetch): AnalyticsService & LoggerService;
+export const SHORT_LINK_REQUEST_TIMEOUT_MS = 5000;
+// single path segment, overlap-api's nanoid alphabet, no dots (so /privacy.html,
+// /robots.txt etc. are never mistaken for ids); 64 max leaves room for the
+// architecture doc's human-chosen `/my-name` slugs, not just nanoid(10)
+const SHORT_LINK_PATH_PATTERN = /^\/([A-Za-z0-9_-]{1,64})\/?$/;
+
+export type ShortLinkFailureReason =
+  | 'not_found' | 'rejected' | 'server_error' | 'network' | 'timeout' | 'invalid_response' | 'aborted';
+export type CreateShortLinkResult = { ok: true; id: string } | { ok: false; reason: ShortLinkFailureReason };
+export type ResolveShortLinkResult = { ok: true; config: ClockConfig } | { ok: false; reason: ShortLinkFailureReason };
+
+export function parseShortLinkId(pathname: string): string | null;
+export function buildShortLinkUrl(origin: string, id: string): string;        // `${origin}/${id}`
+export function createShortLink(baseUrl, config, fetchImpl = fetch, signal?): Promise<CreateShortLinkResult>;
+export function resolveShortLink(baseUrl, id, fetchImpl = fetch, signal?): Promise<ResolveShortLinkResult>;
 ```
 
-- Reads `VITE_POSTHOG_PROJECT_TOKEN` / `VITE_POSTHOG_HOST` **at call time**, mirroring
-  `posthogClient.ts`'s `getPostHogConfig()`; when either is blank it warns once and
-  every capture no-ops — same contract the web app already has.
-- `trackEvent(name, properties)` POSTs `{ api_key, event, distinct_id, properties }`.
-- `error(err, context)` POSTs an `$exception` event carrying `context` and the error's
-  message/type, matching `postHogLogger.error`'s shape.
-- `debug`/`info`/`warn` come from `consoleLogParts` — never the network.
-- `distinct_id` is a `crypto.randomUUID()` persisted under the key above.
-- Every request is sent with `keepalive: true`. `openWebApp` calls
-  `chrome.tabs.create`, which focuses the new tab and tears the popup page down
-  immediately — without `keepalive` the `extension_open_web_app_clicked` capture
-  is cancelled mid-flight and that event effectively never arrives. The
-  committed transport test asserts only `url`/`method`/`body`, so this is
-  additive.
-- Every capture is fire-and-forget with a `.catch` and a non-`ok` check, both logging
-  to `console.error`. `console` is the floor here on purpose: this module *is* the
-  logger's transport, so routing its own failures back through `useLogger()` would
-  recurse.
+- Both requests use `AbortSignal.any([AbortSignal.timeout(SHORT_LINK_REQUEST_TIMEOUT_MS), signal])`,
+  leaving out `signal` when it isn't given. Build the signal **inside** the same
+  `try` as the `fetch`. `AbortSignal.any` needs Safari 17.4+ or Chrome 116+. On an
+  older browser it throws a `TypeError`, which then maps to `'network'` (logged,
+  hash fallback) instead of crashing the Share path or the loading state. A `TimeoutError` DOMException maps to
+  `'timeout'`. An `AbortError`, which only happens when the caller cancels, maps to
+  `'aborted'`. Any other rejection maps to `'network'`: offline, API down, or CORS
+  refused. The browser deliberately makes those three indistinguishable.
+- Status mapping: `404` → `not_found`, `400` → `rejected`, other non-2xx →
+  `server_error`. For a 2xx, a JSON parse failure, a missing string `id`, or a body
+  that fails **`isValidClockConfig`** gives `invalid_response`. The server's JSON is
+  untrusted input, just like a hash payload.
+- `createShortLink` sends `{ home, rings, meetings: [] }` (decision 3).
+- `resolveShortLink` encodes the id with `encodeURIComponent`.
+- One pitfall: call `fetchImpl(url, init)` as a plain function. Never store it on an
+  object and call it as `obj.fetchImpl(...)`, because browsers throw "Illegal
+  invocation" when `fetch` runs with a non-window `this`.
+- A `shared/` helper isn't needed. The two request functions share only
+  `requestJson(fetchImpl, url, init, signal) → {ok, status, body} | {ok:false, reason}`.
+  Extract that as a module-private function so the timeout/abort/network mapping lives
+  in one place.
 
-### Config storage: `localStorage`, unchanged
+### Changed — `vercel.json`
 
-`useClockConfig` is used exactly as-is. In an extension page `localStorage` is
-per-extension and persists across popup opens, so the popup keeps its config with
-zero new code. Its `history.replaceState('#c=…')` mirror is harmless — it writes to
-the popup's own throwaway URL.
-
-**Explicit non-goals for v1**, each of which is a real cost, not an oversight:
-- *Reading the web app's config.* `overlapclock.com`'s `localStorage` is a different
-  origin; reaching it needs a content script plus a host permission on the site.
-- *`chrome.storage.sync`.* Cross-device config would be genuinely nice, but its API
-  is async while `useClockConfig` is synchronous throughout — it needs a parallel
-  hook or a storage-adapter refactor of app code.
-- *Seeding from the active tab* (`activeTab` + reading `tab.url` when it is an
-  `overlapclock.com` `#c=` link). The cheapest of the three, and the recommended
-  first follow-up, but it adds a permission and a subtle "only when nothing is
-  stored yet" rule.
-
-Consequence to be honest about: config flows **outward** (popup → web app, via Share
-and Open in Overlap) but not inward. A first popup open shows the same
-`DEFAULT_CONFIG` the web app shows to a first-time visitor.
-
-### Fonts
-
-`popup.html` must carry the same three font `<link>`s `index.html` has. They are
-**not** in the committed `popup.html` yet, so this is a real edit, not a
-description of the status quo:
-
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
 ```
 
-MV3's default CSP restricts `script-src`/`object-src` only, so a remote stylesheet
-and its font files load fine, and the popup matches the web app exactly. The
-committed `manifest.test.ts` constrains `<script>` sources only, so adding these
-keeps it green. Offline, it falls back through
-the existing `'Space Grotesk', -apple-system, sans-serif` stack. Self-hosting the two
-woff2 files is a follow-up, not a blocker.
+This is the rule the architecture doc prescribes. Vercel checks the filesystem before
+applying `rewrites`, so `/privacy.html`, `/robots.txt`, `/sitemap.xml`,
+`/assets/*.js`, `/og-image.jpg` and the Google verification HTML are still served as
+files. **Check this on the PR's Vercel preview deploy** (see Manual QA), because no
+unit test can confirm it.
+
+### Changed — `src/hooks/useClockConfig.ts` (resolving a short link on load)
+
+The initial state now has three sources: hash, then a short-link path, then
+storage/defaults.
+
+- Compute `hashConfig = parseHashConfig(location.hash)` once. If it's set, the
+  behavior is exactly today's: **the hash beats the path**, and no fetch happens.
+- Otherwise, compute `pendingShortLinkId = getOverlapApiBaseUrl() ? parseShortLinkId(location.pathname) : null`.
+  With the API off, a short-looking path is ignored and the app loads normally
+  (logged with `console.warn`, following this hook's existing `console.*` style, since
+  this hook has no logger; see below). There is no toast, because that config is the
+  current production reality.
+- The initial `config` is still `resolveInitialConfig(...)` (stored/default). It's
+  only a placeholder while resolving, and it's never persisted.
+- New state: `shortLinkStatus: 'idle' | 'resolving' | 'failed'`, starting at
+  `'resolving'` when `pendingShortLinkId` is set, and `shortLinkFailure: ShortLinkFailureReason | null`.
+  A resolved link goes back to `'idle'`. A typed union is used instead of a boolean
+  pair, per the no-ambiguous-booleans rule.
+- A `useEffect` runs `resolveShortLink(baseUrl, id, fetch, controller.signal)` and
+  returns `() => controller.abort()` as its cleanup. That makes it StrictMode-safe:
+  the first mount's request is aborted, and an `'aborted'` result is **ignored**, not
+  reported. On success: `setConfig(resolved)`, status `'idle'`, and analytics (next
+  bullet). On failure: status `'failed'` and `shortLinkFailure = reason`. The config
+  stays stored/default.
+- The `shared_config_loaded` rule ("the shared config loaded and no valid stored
+  config existed") is pulled into one helper that both sources use. The payload gets
+  a `source: 'hash' | 'short_link'` property, which is why the existing hash test
+  assertion in `useClockConfig.test.tsx` changes in this plan.
+- `persistConfig` is **skipped while `shortLinkStatus === 'resolving'`**. Otherwise
+  the placeholder would overwrite the stored config's URL mirror and wipe out the
+  `/abc123` path before the response arrives.
+- `persistConfig` **never touches the pathname, ever** — it always does a *relative*
+  `history.replaceState(null, '', \`${HASH_PREFIX}${encoded}\`)`, which rewrites only
+  the `#c=…` fragment and leaves whatever the current path is (`/`, `/popup.html`, or a
+  short-link path like `/abc123`) exactly as it was. **Developer correction (post-merge
+  feedback, tested live):** an earlier version of this plan dropped a short-link-shaped
+  path down to `/` once the config was persisted, on the reasoning that it kept the
+  address bar "clean" for reload and for a hash-fallback re-share. Live testing showed
+  this discards the short-link path the user actually typed or opened, which reads as a
+  bug, not a cleanup — the developer's explicit preference is that the address bar must
+  never change away from what was navigated to. The fix removes the whole
+  `shouldResetPath` special case; every path is now treated identically to how
+  `/popup.html` was already treated.
+  - **What this keeps intact:** reloading still never re-hits the API. `resolveShortLink`
+    is only ever attempted when `parseHashConfig(location.hash)` is null (see "hash beats
+    path" above), and `persistConfig` now always mirrors the resolved (or fallback) config
+    into the hash regardless of the path — so after the first resolution the address bar
+    reads `/abc123#c=…`, and a reload finds the hash and skips the fetch entirely, exactly
+    as it did when the path was reset to `/#c=…`. This holds for a hash link opened at a
+    short-link path, and for a short-link path opened with the env unset, the same as
+    before.
+  - **What this trades off:** the hash-fallback share URL (`location.href`, used when a
+    prefetched short link isn't ready — see decision 2) is no longer guaranteed to be a
+    *clean* `/#c=…` link once the page was loaded at a short-link path — it can read
+    `/abc123#c=…`, carrying both the old short-link id and the current hash payload. This
+    is still fully correct (hash beats path on open, so the recipient sees the current
+    config, not a stale `abc123`), just not the prettiest URL. Accepted, because it's a
+    fallback path, not the primary UX, and it's what "never change the address bar"
+    requires once the config diverges from what `abc123` itself points to.
+  - **`extension/src/PopupApp.tsx` is unaffected**, and needed no special-casing even
+    before this correction: it runs this same hook at `chrome-extension://<id>/popup.html`,
+    and `popup.html` contains a dot, so `parseShortLinkId` already rejected it — the
+    popup's relative `#c=` write was never the thing this decision changed. Two tests in
+    `useClockConfig.test.tsx` pin the current, unified behavior: the popup-path guard, and
+    a short-link-path guard (a hash link opened at `/abc123` keeps `/abc123`, only the hash
+    changes).
+- Returns `isResolvingShortLink` and `shortLinkFailure` along with the existing
+  values. **The hook stays logger-free.** Every existing `renderHook` wrapper provides
+  only `AnalyticsProvider`, and `useLogger()` throws without its provider. The
+  user-facing reaction (toast, logger, failure analytics) lives in `App`, which
+  already owns `useToast` and `useLogger`.
+
+### Changed — `src/App.tsx`
+
+- **Loading state.** When `isResolvingShortLink` is true, return
+  `<div data-testid="short-link-loading" …>Loading shared clock…</div>` *after* all
+  hooks run (hooks can't be conditional), instead of `<WorldClock>`. This avoids a
+  flash of the viewer's own clock before the sender's config replaces it. Style it
+  with a small `ShortLinkLoading.module.css`, or reuse the existing typography/color
+  tokens in `index.css`. It should be quiet: centered, muted, no spinner needed. The
+  worst case is `SHORT_LINK_REQUEST_TIMEOUT_MS` (5 s).
+- **Failure reaction.** A `useEffect` keyed on `shortLinkFailure`:
+  - `showToast(SHORT_LINK_FAILURE_TOAST[reason])`. The map lives in a shared constant
+    next to `SHARE_TOAST_MESSAGE`'s style: `not_found` → "That shared link wasn't
+    found", and anything else → "Couldn't open that shared link".
+  - `analytics.trackEvent('short_link_load_failed', { reason })`.
+  - `not_found` → `logger.warn(...)`. It's an expected outcome (a mistyped or stale
+    URL), not a bug. Every other reason → `logger.error(new Error(\`short link resolve failed: ${reason}\`), 'failed to resolve short link from the URL path')`.
+    `LoggerService.error` requires the context string.
+- **Share.** `const getReadyShortUrl = useShortLinkPrefetch(config, isMenuExpanded && mode === 'view')`.
+  Then `getShareTarget = useCallback(() => { const shortUrl = getReadyShortUrl(); return shortUrl ? { url: shortUrl, linkType: 'short' } : { url: window.location.href, linkType: 'hash' }; }, [getReadyShortUrl])`.
+  Prefetching only runs in `view` mode so that every city edit in the Config panel
+  doesn't send a POST. Clicking Done returns to view with the menu still open, which
+  triggers one POST for the final config.
+
+### Creating — `src/shortLinks/useShortLinkPrefetch.ts`
+
+- The cache key is `encodeConfig(shareableConfig)`, where `shareableConfig` is the
+  config with meetings removed. `encodeConfig` is the existing codec, so the key is
+  based on content, not object identity. Changing only meetings doesn't create a new
+  link, which is correct because the POST body doesn't change either.
+- The cache is a `useRef<Map<string, { status: 'pending' } | { status: 'ready'; url } | { status: 'failed' }>>`.
+  It's a ref, not state, because Share reads it at click time and nothing needs to
+  re-render when it changes.
+- An effect on `[cacheKey, shouldPrefetch, baseUrl]`: if prefetch is on, the base
+  URL is set, and the key isn't cached yet, it stores `pending`, calls
+  `createShortLink`, and records the result as `ready` or `failed`. On `failed` it
+  calls `logger.error(new Error(\`short link create failed: ${reason}\`), 'failed to create short link for Share')`.
+  **A failed key isn't retried** while that key stays the same, so a down API isn't
+  hit on every menu open. A new config, or a reload, gets a fresh attempt.
+- The returned getter is `useCallback`'d on `cacheKey`. It returns the `ready` URL for
+  the **current** key only, so Share can never hand out a link for an older config.
+  The URL is `buildShortLinkUrl(window.location.origin, id)`, which works unchanged on
+  localhost, preview, and production origins.
+- There is no abort on unmount or key change. A late response still fills the cache
+  for its own key, which is harmless and saves a POST if the user returns to that
+  config.
+
+### Changed — `src/clock/useShareHandler.ts` and `share.ts`
+
+- `useShareHandler(getShareTarget: () => ShareTarget, showToast)`, where
+  `ShareTarget = { url: string; linkType: ShareLinkType }` and `ShareLinkType = 'short' | 'hash'`
+  are exported from `share.ts`. The handler calls `shareLink(..., target.url)` and
+  tracks `clock_shared` with `{ outcome, link_type: target.linkType }`.
+- `extension/src/PopupApp.tsx`: `getShareTarget = useCallback(() => ({ url: buildWebAppUrl(config), linkType: 'hash' }), [config])`.
+  The popup keeps hash links for now (see Out of scope). Two existing assertions in
+  `PopupApp.test.tsx` gain `link_type: 'hash'`, and those edits are committed with
+  this plan.
+
+### Changed — config and docs
+
+- `.env.example`: add `VITE_OVERLAP_API_URL=` with a comment explaining it: it's the
+  overlap-api base URL, `http://localhost:3000` for a local `npm run dev` in
+  `../overlap-api`, and unset disables short links. Also note that overlap-api's
+  `FRONTEND_ORIGIN` must include this app's origin.
+- `README.md`: a short "Short links (optional backend)" section covering local setup
+  (Mongo, overlap-api `.env`, `npm run dev` in both repos, `VITE_OVERLAP_API_URL`).
+  It also includes the **"Enabling short links in production" checklist** from
+  decision 6: `FRONTEND_ORIGIN` with `https://overlapclock.com` first, the new
+  `privacy.html` live, and then setting `VITE_OVERLAP_API_URL` in Vercel Production
+  and **redeploying**. `VITE_*` values are baked in at build time, so changing the
+  variable does nothing until the next build. Finish with the two smoke checks. It
+  also includes a one-line **rollback warning** (see Risks): once short links have
+  been handed out, don't unset the variable or take the API down.
+- `public/privacy.html`: bump "Last updated". The sentences below become false and
+  must change. Every other sentence stays as written:
+  - Intro: "a static, backend-free world clock… There is no server that overlap's
+    developer operates or controls". Change this to say the app runs in your browser,
+    and that overlap's own server is used for one thing only: storing short-link
+    snapshots.
+  - "What the app collects": "Nothing is collected or stored by the developer", and
+    the Share bullet "it is never uploaded anywhere". Replace them with a "Short links"
+    bullet stating: **when you open the menu**, the app uploads a snapshot of your
+    city names/labels, time zones, colors and working hours, never meetings and never
+    any Google data, to overlap's server, so Share can hand out a short link. Anyone
+    with the link can open that snapshot. The old `#c=` links still carry the
+    configuration inside the URL, and that includes meetings. Location labels are
+    free text, so the copy says "names/labels", not just "cities".
+  - "Data Transfer": "since the app has no backend of its own". Scope it: no **Google**
+    user data ever reaches overlap's server.
+  - "Data Retention & Deletion": "Since nothing is stored outside your own browser".
+    Add that short-link snapshots are kept on overlap's server with no expiry, and
+    that deleting one means contacting the developer (the existing Contact section).
+    overlap-api has no TTL and no delete route, so the copy must not promise
+    otherwise.
+  - The Google sections ("Data Access/Use/Protection", including "no backend in the
+    request path") stay **true as written**, because decision 3 keeps them true.
+    That sentence describes the Google flow, not the whole app, so leave it alone.
+  - Out of scope, flagged for the user: the existing "No analytics, tracking scripts,
+    or cookies are used" bullet looks inaccurate already, because the app ships
+    `posthog-js` behind `VITE_POSTHOG_*`. It predates this task, so don't fix it
+    here. Raise it as a separate follow-up.
+- `index.html`: in the meta description, `#seo-fallback`, and `<noscript>` copy, the
+  "no backend" claim becomes "no signup / no account". Keep the edit minimal.
 
 ## Verifier
 
 ```
-npm run lint && npm run build && NODE_OPTIONS=--no-experimental-webstorage npm test && npm run build:extension
+npm run lint && npm run build && NODE_OPTIONS=--no-experimental-webstorage npm test
 ```
 
-Re-confirmed by actually running it on this branch at `6bf1775` (the plan commit,
-whose parent is `3a21480`): `lint` passes (2 pre-existing `only-export-components`
-warnings, no errors), `build` passes, and `test` runs 40 files / 506 tests —
-**498 of them the 37 pre-existing files, all green**. The remaining 8 belong to this
-task's own deliberately red tests (see below). `build:extension` is the one segment
-that does not exist yet; it is added by this task's own diff and placed last so a
-failure there is unambiguous.
-
-Note the ordering constraint this implies: `npm run build` runs `tsc -b`, and
-`tsconfig.app.json` grows to include `extension`, so **the whole plan's TypeScript
-has to compile before the test segment is ever reached**. A half-written
-`PopupApp.tsx` fails the verifier at `build`, not at `test`.
-
-**Flagged, pre-existing, and deliberately not fixed here.** Without
-`NODE_OPTIONS=--no-experimental-webstorage`, `npm test` fails **110 tests across 7
-files** on this machine with `Cannot read properties of undefined (reading 'getItem')`.
-Cause: the repo pins Node `24.18.0` (`.nvmrc`, `engines`) but the machine runs
-`v26.5.0`, whose global `localStorage` shadows the one jsdom installs. It is not a
-repo defect and it is unrelated to this feature, so it stays out of the diff. The
-clean repo-side fix, if the owner wants one, is a three-line Vitest `setupFiles` that
-re-points `globalThis.localStorage` at `window.localStorage`; that should land as its
-own change.
+- `npm run build` runs `tsc -b`, which type-checks the new modules and the changed
+  `useShareHandler` signature across both callers.
+- `NODE_OPTIONS=--no-experimental-webstorage` is a real requirement of the local
+  toolchain, not a way of hiding a bug. Plan review checked it: local Node is v26
+  (`package.json` `engines` says 24.x). Node 25+ ships its own global `localStorage`,
+  which is `undefined` without `--localstorage-file`, and it shadows jsdom's. Without
+  the flag, `useClockConfig.test.tsx` fails with `Cannot read properties of undefined
+  (reading 'getItem')`. The flag is accepted on Node 24 as well, so it is harmless
+  there.
+- `npm run build:extension` isn't needed. The popup is covered by `tsc -b` plus
+  `PopupApp.test.tsx`, and its bundle doesn't change in any way that test would miss.
+- The opt-in live contract test is *not* part of VERIFY, because it needs MongoDB and
+  a running overlap-api. QA runs it (see Manual QA).
 
 ## Tests (committed with this plan, currently red)
 
-`extension/src/PopupApp.test.tsx` — integration, real component tree:
-1. First open with no stored config renders `DEFAULT_CONFIG` (home + all four rings).
-2. A stored config renders instead of the defaults.
-3. Removing a city persists: after unmount + remount (what re-opening the popup
-   actually does), the city is gone and the others remain.
-4. Share copies exactly `https://overlapclock.com/#c=<encodeConfig(config)>` — asserted
-   against the real codec, and asserted *not* to be a `chrome-extension://` URL —
-   plus the `clock_shared`/`copied` event and a toast.
-5. **Failure path:** a rejecting `clipboard.writeText` yields a toast and
-   `clock_shared`/`failed`.
-6. Open in Overlap calls `chrome.tabs.create` with `buildWebAppUrl(config)` and tracks
-   `extension_open_web_app_clicked`.
-7. **Failure path:** a rejecting `chrome.tabs.create` reaches `logger.error` with a
-   context string.
-8. The privacy link points at `WEB_APP_PRIVACY_URL`, not a relative path.
-9. No scrub slider, no schedule button, no remove-meeting button.
-10. No Find overlap button.
+**QA Spec:** `src/shortLinks/shortLinkApi.test.ts`, `src/shortLinks/overlapApiConfig.test.ts`, `src/shortLinks/useShortLinkPrefetch.test.tsx`, `src/App.test.tsx` (the two new `App — … short link …` describe blocks), `src/vercelConfig.test.ts`, `src/hooks/useClockConfig.test.tsx` (the "URL mirror path" block) and `src/shortLinks/shortLinkApi.live.test.ts` (opt-in)
 
-`extension/src/httpPostHogService.test.ts` — transport, happy and failure:
-1. `trackEvent` POSTs to `${host}/i/v0/e/` with the token, event name, properties and
-   a non-empty `distinct_id`.
-2. The `distinct_id` is generated once and reused across events *and* across service
-   instances, persisted under the documented key.
-3. `error()` captures `$exception` carrying the context and the error message.
-4. `warn()` goes to the console, never the network.
-5. **Failure path:** unconfigured env → no `fetch` at all, exactly one warning.
-6. **Failure path:** a rejected `fetch` is logged and never throws at the call site.
-7. **Failure path:** a non-`ok` response (429) is logged.
+| File | Covers |
+| --- | --- |
+| `src/shortLinks/overlapApiConfig.test.ts` | env set, trailing slash stripped, unset or blank → `null` |
+| `src/shortLinks/shortLinkApi.test.ts` | `parseShortLinkId` (nanoid id, slug, trailing slash, root, dotted static files, nested, too long); `buildShortLinkUrl`; `createShortLink` (POST shape and headers, **meetings removed**, 400/5xx/network/timeout/non-JSON/missing-id); `resolveShortLink` (GET URL, encoding, 404/5xx/network/timeout, **invalid config body rejected**, caller abort → `'aborted'`) |
+| `src/shortLinks/useShortLinkPrefetch.test.tsx` | inert when off or when the env is unset; POST once prefetch turns on; `null` while pending; never returns a link for a stale config; one POST per content key; failure logged and not retried |
+| `src/App.test.tsx` — "opening a path-based short link" | loading state → the resolved config renders; persists and mirrors the config into `#c=…` **without touching the short-link path**; **no persist while resolving**; `shared_config_loaded` with `source: 'short_link'`; 404 → stored config + toast + `warn` + `short_link_load_failed` (path stays, only the hash is rewritten); network → toast + `error`; invalid body rejected; hash beats path (no fetch); root path never fetches; env unset → path ignored |
+| `src/App.test.tsx` — "Share creates a short link" | the menu opening triggers the POST (meetings removed); Share copies `${origin}/<id>` with `link_type: 'short'`; POST failure → hash URL + `logger.error`; **a pending POST never blocks Share**; re-opening the menu reuses the link; env unset → no POST, hash share |
+| `src/vercelConfig.test.ts` | the rewrite rule exists and the `vite` framework preset is kept |
+| `src/hooks/useClockConfig.test.tsx`, "URL mirror path" | every path is treated the same: a non-short-link path (`/popup.html`, the extension popup) and a short-link-shaped path (`/abc123`) both keep the path and only the hash is rewritten. Both guards must stay green (see the developer-feedback correction above). |
+| `src/shortLinks/shortLinkApi.live.test.ts` | **Opt-in**, skipped unless `OVERLAP_API_LIVE_URL` is set. Round-trips the real client against a live overlap-api: create → resolve gives back the same config, an unknown id → `not_found`, and a 3-digit hex color → `rejected`. This is the only test that proves the two repos agree on the contract. |
 
-`extension/manifest.test.ts` — MV3 contract, the failures jsdom cannot see:
-1. Manifest V3 with name, semver-ish version, description.
-2. The toolbar action opens `popup.html` and has a default icon.
-3. `icons` declares 16/48/128 **and each file exists** under `extension/public/`.
-4. No `tabs`, `<all_urls>` or `storage` permission.
-5. `host_permissions` are HTTPS-only and scoped to PostHog ingestion.
-6. If an `extension_pages` CSP is declared it keeps `script-src 'self'` and admits
-   neither `unsafe-eval`, `unsafe-inline`, nor a remote script origin.
-7. `popup.html` loads only same-origin scripts.
-8. `popup.html` has no inline script.
+Existing assertions changed by this plan (red until implemented):
+`App.test.tsx` and `PopupApp.test.tsx` `clock_shared` now include `link_type: 'hash'`,
+and `useClockConfig.test.tsx` `shared_config_loaded` now includes `source: 'hash'`.
 
-Currently, measured rather than assumed — `NODE_OPTIONS=--no-experimental-webstorage npx vitest run`
-reports `3 failed | 37 passed (40)` files and `1 failed | 505 passed (506)` tests:
-`manifest.test.ts` passes 7/8 (red only on the missing icon files), while
-`PopupApp.test.tsx` and `httpPostHogService.test.ts` fail at *collection* — they
-cannot resolve `./PopupApp`, `./httpPostHogService` or `src/clock/webAppUrl`, so
-their cases are not counted at all yet. That is the intended red starting state.
+Red at commit time: 8 files fail (4 of them at import time) and 18 tests fail. That
+is the 17 from planning plus plan review's path-drop test. They fail for the expected
+reasons: missing modules, missing `rewrites`, missing loading test id, analytics
+payloads, and the path not being reset. Plan review re-ran the suite and confirmed
+these numbers. The regression guards (hash beats path, root path, env-unset path, no
+persist while resolving, popup path kept) pass today and must stay green. The live file fails only on its import
+until `shortLinkApi.ts` exists, and after that it's skipped by default.
 
-**QA Spec:** `extension/src/PopupApp.test.tsx`, `extension/src/httpPostHogService.test.ts` and `extension/manifest.test.ts`
+## Manual QA (needs a real browser and a real overlap-api)
 
-Icons are producible with tooling already on the machine (verified — the source
-`public/apple-touch-icon.png` is 180×180, so all three sizes are downscales).
-`sips` will not create the destination directory, so the `mkdir` is part of the
-command, not an aside:
-
-```
-mkdir -p extension/public/icons
-for s in 16 48 128; do sips -z $s $s public/apple-touch-icon.png --out extension/public/icons/icon$s.png; done
-```
-
-## Manual QA (not automatable without a browser driver)
-
-**Note for the `cockpit-qa` stage.** There is no browser driver and no dev
-server to point at, so this task produces no `DEV_URL`. QA's automated half is
-`NODE_OPTIONS=--no-experimental-webstorage npm test -- extension` (the three
-files named under QA Spec above), run against the built branch; its manual half
-is the checklist below, against `npm run build:extension`'s output. Skipping the
-DEV_URL precondition is deliberate for this task, not an omission.
-
-Load `dist-extension/` unpacked at `chrome://extensions` and confirm: the popup opens
-at 380×600 with the dial legible and no scrollbars; the config sheet is
-`MobileConfigView`, and adding a city adds it on pick; **the DevTools console for the
-popup shows no CSP violation** (the single check that would catch a regression back to
-`posthog-js`); Share pastes an `overlapclock.com` link that reproduces the popup's
-cities; Open in Overlap lands on the web app with the same view; the Privacy link
-opens the hosted policy.
+QA runs the Vitest QA Spec above against the branch, and then the steps below.
+1. Start MongoDB and overlap-api locally: in `../overlap-api`, `cp .env.example .env`,
+   make sure `FRONTEND_ORIGIN` includes `http://localhost:5173`, then `npm run dev`.
+   Run `OVERLAP_API_LIVE_URL=http://localhost:3000 npx vitest run src/shortLinks/shortLinkApi.live.test.ts`,
+   which should pass 3 tests.
+2. `VITE_OVERLAP_API_URL=http://localhost:3000 npm run dev`. Open the menu, click
+   Share, and paste the clipboard contents. It should be `http://localhost:5173/<10 chars>`.
+   Open it in a private window: you should see a brief loading state, then the
+   sender's cities, and the address bar should **stay** at `/<10 chars>` with a
+   `#c=…` hash appended — it must not jump to `/`.
+3. Open `http://localhost:5173/doesnotexist` and check for the "wasn't found" toast
+   and your own clock. Stop overlap-api and reload a valid short link to check for
+   the "Couldn't open" toast and a logged error.
+4. With overlap-api stopped, open the menu and click Share. You should get a hash
+   link with no delay.
+5. On the PR's **Vercel preview deploy**: `/<any-id>` serves the app (not a Vercel
+   404), and `/privacy.html`, `/robots.txt`, `/sitemap.xml` and `/og-image.jpg` still
+   serve their files. Unless the preview has `VITE_OVERLAP_API_URL` pointed at a
+   reachable API, the app on the preview ignores the path, which is expected.
+6. **Enabling in production (later, when overlap-api is deployed; not part of this
+   PR's QA).** Work through the README checklist. Then, on `https://overlapclock.com`:
+   the **Share** check is to open the menu, click Share, and confirm the result is
+   `https://overlapclock.com/<id>`, not a `#c=` link. The **Open** check is to open
+   that link in a private window and confirm the sender's cities appear. Keep DevTools
+   open for both and confirm there is no CORS error. A `#c=` link from Share with a
+   `short link create failed: network` error logged almost always means
+   `FRONTEND_ORIGIN` is wrong.
 
 ## Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| `posthog-js` reaches the popup bundle | Injecting a service does **not** prevent this — measured at 402 kB with `posthog` in the chunk. What prevents it is making `service` a required prop on both providers, so no static import of `analytics`/`logger` remains for the popup entry to reach. The manifest/CSP contract test and the manual console check stay as the backstop for the runtime half |
-| A future change re-introduces a remote `<script>` under MV3's `script-src 'self'` | The CSP contract test in `manifest.test.ts` plus the manual "no CSP violation in the popup's DevTools console" check |
-| `VITE_POSTHOG_HOST` is set to a self-hosted origin the manifest's `https://*.i.posthog.com/*` doesn't cover | Capture fails, `console.error` fires — observable, not silent; documented in the README section |
-| Popup sizing drifts from portrait and silently swaps in the desktop `ConfigPanel` | `popup.css` pins 380×600; the tests pin `matchMedia` to portrait and assert the mobile surface |
-| Users expect their web-app cities in the popup | Stated non-goal above; Open in Overlap covers the outward direction, and active-tab seeding is the named follow-up |
+- **Orphaned links.** Each menu-open with a new config writes one Mongo document,
+  whether or not the user shares. The cache and the view-mode gate keep this small.
+  If it matters later, the fix is on the API side (a TTL index, or a `sharedAt`
+  timestamp set on the first GET). Not in scope here.
+- **Validator drift between the repos.** overlap-api is stricter (see Exploration). A
+  config overlap accepts but the API rejects falls back to a hash link and is logged
+  as `'rejected'`, so users never see a failure. The live contract test catches
+  deliberate drift.
+- **The rewrite makes every unknown path an app page.** With the API configured, a
+  typo'd path shows the "wasn't found" toast. Without it, the path is ignored. Nothing
+  returns a real 404 any more. That's acceptable for a single-page app, and it's what
+  the architecture doc prescribes.
+- **Turning the feature off strands short links that were already sent.** With
+  `VITE_OVERLAP_API_URL` unset, a short-link path is deliberately ignored, with no
+  toast (see "Resolving"). That is right today, because no short links exist yet.
+  After launch, though, unsetting the variable or retiring the API would quietly
+  show every recipient their own clock instead. So after launch, a rollback means
+  keeping `GET /links/:id` reachable and fixing forward, not unsetting the variable.
+  The README checklist says so. If a real kill switch is ever needed, it's a
+  follow-up: a "resolve-only" mode that stops creating links but still resolves
+  them.
+- **Link previews** (Slack/WhatsApp) show the generic app shell for short links. The
+  architecture doc already accepts this ("What this doesn't solve").
+
+## Out of scope
+
+- The Chrome extension's Share button (it stays a hash link to `overlapclock.com`).
+  It's a simple follow-up once the API is deployed: reuse `createShortLink` in the popup.
+- Any change to overlap-api: TTL, rate limiting, and its own deploy target and
+  `FRONTEND_ORIGIN` values (decisions 5 and 6).
+- Auth/config sync (`/auth`, `/me/config`), geo, and Slack. overlap-api has them
+  built, but this task is about links only.

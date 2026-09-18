@@ -12,6 +12,7 @@ import { findBestMeetingOffset } from './clock/findMeetingTime';
 import type { FindMeetingTimeResult } from './clock/findMeetingTime';
 import { buildMeeting, buildOverlapMeetingTitle, findMeetingAtInstant } from './clock/meetingForm';
 import { hasSeenScrubHint, markScrubHintSeen } from './clock/scrubHint';
+import styles from './clock/ShortLinkLoading.module.css';
 import { useFindMeetingTimeSweep } from './clock/useFindMeetingTimeSweep';
 import { useRingScrub } from './clock/useRingScrub';
 import { useScrubHintDemo } from './clock/useScrubHintDemo';
@@ -25,6 +26,8 @@ import { useIsIdle } from './hooks/useIsIdle';
 import { useIsPortrait } from './hooks/useIsPortrait';
 import { useNow } from './hooks/useNow';
 import { useToast } from './hooks/useToast';
+import { SHORT_LINK_FAILURE_TOAST } from './shortLinks/shortLinkFailureToast';
+import { useShortLinkPrefetch } from './shortLinks/useShortLinkPrefetch';
 
 // how close the scrub preview needs to land to an existing meeting's instant to
 // surface it (as ControlCluster's extra "Remove Meeting" button) — a window,
@@ -36,7 +39,18 @@ function App() {
   const analytics = useAnalytics();
   const logger = useLogger();
   const now = useNow();
-  const { config, addLocation, removeLocation, updateLocation, setHome, addMeeting, removeMeeting, reorder } = useClockConfig();
+  const {
+    config,
+    addLocation,
+    removeLocation,
+    updateLocation,
+    setHome,
+    addMeeting,
+    removeMeeting,
+    reorder,
+    isResolvingShortLink,
+    shortLinkFailure,
+  } = useClockConfig();
   const [mode, setMode] = useState<Mode>('view');
   const { message: toastMessage, showToast } = useToast();
   const {
@@ -339,10 +353,32 @@ function App() {
     [excludedRingIds, config.rings, runFindMeetingTime, autoExcludeUnfitRings, analytics],
   );
 
-  // stable identity: window.location.href is read fresh at call time inside
-  // useShareHandler, so the getter itself never needs to change
-  const getShareUrl = useCallback(() => window.location.href, []);
-  const handleShare = useShareHandler(getShareUrl, showToast);
+  // Share never waits on the network (see tech-design.md decision 2): the
+  // short link is created in the background as soon as the menu is expanded
+  // in view mode, so it's usually ready by the time Share is clicked. Gated
+  // to view mode only, so every city edit in the Config panel doesn't send a
+  // POST — clicking Done returns to view with the menu still open, which
+  // triggers one POST for the final config.
+  const getReadyShortUrl = useShortLinkPrefetch(config, isMenuExpanded && mode === 'view');
+  const getShareTarget = useCallback(() => {
+    const shortUrl = getReadyShortUrl();
+    return shortUrl ? { url: shortUrl, linkType: 'short' as const } : { url: window.location.href, linkType: 'hash' as const };
+  }, [getReadyShortUrl]);
+  const handleShare = useShareHandler(getShareTarget, showToast);
+
+  // reacts to a failed path-based short-link resolution (App.tsx's own
+  // load-time effect lives in useClockConfig, which stays logger-free — see
+  // tech-design.md's "Changed — src/hooks/useClockConfig.ts")
+  useEffect(() => {
+    if (!shortLinkFailure) return;
+    showToast(SHORT_LINK_FAILURE_TOAST[shortLinkFailure]);
+    analytics.trackEvent('short_link_load_failed', { reason: shortLinkFailure });
+    if (shortLinkFailure === 'not_found') {
+      logger.warn(`short link resolve failed: ${shortLinkFailure}`);
+    } else {
+      logger.error(new Error(`short link resolve failed: ${shortLinkFailure}`), 'failed to resolve short link from the URL path');
+    }
+  }, [shortLinkFailure, showToast, analytics, logger]);
 
   // memoized (mirrors WorldClock's effectiveNow) so matchedMeeting below only
   // recomputes when the previewed instant actually moves, not on every render —
@@ -430,6 +466,17 @@ function App() {
     mode === 'edit' ? (
       <AddLocationModePanel config={config} onAdd={addLocation} onDone={() => setMode('view')} isPortrait={panelIsPortrait} />
     ) : undefined;
+
+  // after every hook has run (hooks can't be conditional) — avoids a flash of
+  // the viewer's own clock before the sender's config replaces it. Worst case
+  // is SHORT_LINK_REQUEST_TIMEOUT_MS (5s).
+  if (isResolvingShortLink) {
+    return (
+      <div data-testid="short-link-loading" className={styles.loading}>
+        Loading shared clock…
+      </div>
+    );
+  }
 
   return (
     <WorldClock

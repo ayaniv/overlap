@@ -67,19 +67,19 @@
     <main>
       <a class="back" href="/">&larr; Back to overlap</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: 2026-07-22</p>
+      <p class="updated">Last updated: 2026-09-18</p>
 
       <p>
-        <strong>overlap</strong> ("the app") is a static, backend-free world clock and
-        meeting-scheduling tool. There is no server that overlap's developer operates or
-        controls, and no account system. This page explains what data the app touches and
+        <strong>overlap</strong> ("the app") is a world clock and meeting-scheduling tool
+        that runs entirely in your browser, with no account system. overlap's developer
+        does operate one server, used for exactly one thing: storing the short-link
+        snapshots described below. This page explains what data the app touches and
         where it goes.
       </p>
 
       <h2>What the app collects</h2>
       <p>
-        Nothing is collected or stored by the developer. The app runs entirely in your
-        browser:
+        The app runs entirely in your browser:
       </p>
       <ul>
         <li>
@@ -90,7 +90,17 @@
         <li>
           When you use the "Share" button, that same configuration is encoded into the
           URL itself (after the <code>#</code>) so the link works for whoever you send it
-          to — it is never uploaded anywhere.
+          to — it is never uploaded anywhere. These <code>#c=</code> links carry your full
+          configuration in the URL, including any scheduled meetings.
+        </li>
+        <li>
+          <strong>Short links.</strong> When you open the menu, the app uploads a
+          snapshot of your city names/labels, time zones, colors and working hours — never
+          scheduled meetings, and never any Google data — to a server overlap's developer
+          operates, so the "Share" button can hand out a short link
+          (<code>overlapclock.com/&lt;id&gt;</code>) instead of a long <code>#c=</code>
+          one. Anyone who has that link can open that snapshot. This upload happens as
+          soon as the menu is opened, not only when you click Share.
         </li>
         <li>No analytics, tracking scripts, or cookies are used.</li>
       </ul>
@@ -152,16 +162,20 @@
         Services for sign-in, and the Google Calendar API), and only when you explicitly
         choose to schedule or remove a meeting. No Google user data is sold, shared, or
         transferred to any other party, service, or server — there is nowhere else for it
-        to go, since the app has no backend of its own.
+        to go. This is separate from the short-link snapshots above, which never contain
+        any Google user data.
       </p>
 
       <h2>Data Retention &amp; Deletion</h2>
       <p>
-        Since nothing is stored outside your own browser, you can remove all app data at
-        any time by clearing your browser's site data for this domain, or by using the
-        app's own remove-location / remove-meeting controls. Calendar events created via
-        the app live in your Google Calendar and are governed by your Google account —
-        remove them there, or via the app's delete action, at any time.
+        Data stored only in your own browser (your clock configuration, and the "seen
+        this before" flags) can be removed at any time by clearing your browser's site
+        data for this domain, or by using the app's own remove-location / remove-meeting
+        controls. Calendar events created via the app live in your Google Calendar and
+        are governed by your Google account — remove them there, or via the app's delete
+        action, at any time. Short-link snapshots are kept on overlap's server
+        indefinitely — there is no automatic expiry — and the only way to remove one is
+        to contact the developer (see Contact, below).
       </p>
 
       <h2>Contact</h2>

@@ -94,6 +94,7 @@ describe('useClockConfig — shared_config_loaded analytics event', () => {
       expect(analytics.trackEvent).toHaveBeenCalledWith('shared_config_loaded', {
         location_count: SAMPLE_CONFIG.rings.length + 1,
         has_meetings: SAMPLE_CONFIG.meetings.length > 0,
+        source: 'hash',
       }),
     );
   });
@@ -106,5 +107,41 @@ describe('useClockConfig — shared_config_loaded analytics event', () => {
     });
 
     expect(analytics.trackEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('useClockConfig — URL mirror path', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  function renderClockConfig() {
+    const analytics = createMockAnalyticsService();
+    renderHook(() => useClockConfig(), {
+      wrapper: ({ children }) => <AnalyticsProvider service={analytics}>{children}</AnalyticsProvider>,
+    });
+  }
+
+  // the extension popup runs this same hook at chrome-extension://<id>/popup.html
+  it('keeps a non-short-link path (e.g. /popup.html) and only rewrites the hash', () => {
+    window.history.replaceState(null, '', '/popup.html');
+
+    renderClockConfig();
+
+    expect(window.location.pathname).toBe('/popup.html');
+    expect(window.location.hash).toBe(`#c=${encodeConfig(DEFAULT_CONFIG)}`);
+  });
+
+  // the developer's stated preference: the address bar must never change away
+  // from a path the user actually typed or opened, so a short-link-shaped
+  // path is kept even once a hash is mirrored alongside it
+  it('a hash link opened at a short-link-shaped path keeps the path, only the hash is rewritten', () => {
+    window.history.replaceState(null, '', `/abc123#c=${encodeConfig(SAMPLE_CONFIG)}`);
+
+    renderClockConfig();
+
+    expect(window.location.pathname).toBe('/abc123');
+    expect(window.location.hash).toBe(`#c=${encodeConfig(SAMPLE_CONFIG)}`);
   });
 });

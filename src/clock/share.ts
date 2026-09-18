@@ -16,6 +16,11 @@ type ShareCapableNavigator = { share?: (data: ShareData) => Promise<void> };
 
 export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
 
+// 'short' when a prefetched overlap-api short link was ready in time, 'hash'
+// for today's `#c=` link (the permanent fallback — see tech-design.md decision 1)
+export type ShareLinkType = 'short' | 'hash';
+export type ShareTarget = { url: string; linkType: ShareLinkType };
+
 // outcome -> toast copy; shared so the popup (the second call site) can't
 // fork this mapping from the web app's
 export const SHARE_TOAST_MESSAGE: Partial<Record<ShareOutcome, string>> = {
