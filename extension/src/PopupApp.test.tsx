@@ -136,7 +136,7 @@ describe('PopupApp — sharing links to the web app, never to chrome-extension:/
     const copied = writeText.mock.calls[0][0] as string;
     expect(copied).toBe(`${WEB_APP_ORIGIN}/#c=${encodeConfig(config)}`);
     expect(copied.startsWith('chrome-extension://')).toBe(false);
-    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied' }));
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' }));
     expect(await screen.findByTestId('toast-message')).toBeTruthy();
   });
 
@@ -148,7 +148,7 @@ describe('PopupApp — sharing links to the web app, never to chrome-extension:/
     openClusterMenu();
     fireEvent.click(screen.getByTestId('control-share-button'));
 
-    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'failed' }));
+    await waitFor(() => expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'failed', link_type: 'hash' }));
     expect((await screen.findByTestId('toast-message')).textContent).toBeTruthy();
   });
 });

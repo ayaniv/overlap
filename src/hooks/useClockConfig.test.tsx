@@ -94,6 +94,7 @@ describe('useClockConfig — shared_config_loaded analytics event', () => {
       expect(analytics.trackEvent).toHaveBeenCalledWith('shared_config_loaded', {
         location_count: SAMPLE_CONFIG.rings.length + 1,
         has_meetings: SAMPLE_CONFIG.meetings.length > 0,
+        source: 'hash',
       }),
     );
   });
