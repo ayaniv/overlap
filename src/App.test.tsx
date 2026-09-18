@@ -1296,7 +1296,11 @@ describe('App — opening a path-based short link (GET /links/:id)', () => {
     const { analytics, logger } = renderApp();
 
     await waitFor(() => expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy());
-    expect(screen.getByTestId('toast-message')).toBeTruthy();
+    // the toast lands one commit after the ring (App's own failure-reaction
+    // effect, keyed on shortLinkFailure, runs after that render's commit) —
+    // findByTestId (async, retrying), not a bare getByTestId, same as this
+    // file's other effect-driven toast assertions (e.g. quick-schedule)
+    expect(await screen.findByTestId('toast-message')).toBeTruthy();
     expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'not_found' });
     expect(logger.warn).toHaveBeenCalled();
     expect(logger.error).not.toHaveBeenCalled();
@@ -1311,7 +1315,8 @@ describe('App — opening a path-based short link (GET /links/:id)', () => {
     const { analytics, logger } = renderApp();
 
     await waitFor(() => expect(screen.getByTestId('ring-label-san-francisco')).toBeTruthy());
-    expect(screen.getByTestId('toast-message')).toBeTruthy();
+    // see the 404 test above for why this is findByTestId, not getByTestId
+    expect(await screen.findByTestId('toast-message')).toBeTruthy();
     expect(analytics.trackEvent).toHaveBeenCalledWith('short_link_load_failed', { reason: 'network' });
     expect(logger.error).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('short link'));
   });
@@ -1388,16 +1393,20 @@ describe('App — Share creates a short link (POST /links) with a hash-link fall
     expect(JSON.parse(String(init?.body))).toEqual({ ...STORED_CONFIG, meetings: [] });
   });
 
+  // fireEvent (not userEvent) for the menu-open and Share clicks here: same
+  // reason as PopupApp.test.tsx's share describe block — userEvent.setup()
+  // unconditionally replaces navigator.clipboard with its own internal stub
+  // (@testing-library/user-event's Clipboard.attachClipboardStubToView),
+  // which would silently displace the writeText spy this block asserts on.
   it('Share copies the path-based short URL once it is ready, and tracks link_type short', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { id: 'short123' }));
-    const user = userEvent.setup();
     const { analytics } = renderApp();
 
-    await openClusterMenu(user);
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     // let the POST's promise chain settle before clicking
     await act(async () => {});
-    await user.click(screen.getByTestId('control-share-button'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/short123`));
     expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'short' });
@@ -1405,12 +1414,11 @@ describe('App — Share creates a short link (POST /links) with a hash-link fall
 
   it('Share falls back to the hash URL, and logs, when creating the short link failed', async () => {
     fetchMock.mockResolvedValue(jsonResponse(500, { error: 'internal server error' }));
-    const user = userEvent.setup();
     const { analytics, logger } = renderApp();
 
-    await openClusterMenu(user);
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
     await waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('short link')));
-    await user.click(screen.getByTestId('control-share-button'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
     expect(window.location.href).toContain('#c=');
@@ -1419,11 +1427,10 @@ describe('App — Share creates a short link (POST /links) with a hash-link fall
 
   it('Share never waits on the network: while the POST is still pending it shares the hash URL immediately', async () => {
     fetchMock.mockReturnValue(new Promise<Response>(() => {}));
-    const user = userEvent.setup();
     const { analytics } = renderApp();
 
-    await openClusterMenu(user);
-    await user.click(screen.getByTestId('control-share-button'));
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
     expect(analytics.trackEvent).toHaveBeenCalledWith('clock_shared', { outcome: 'copied', link_type: 'hash' });
@@ -1446,11 +1453,10 @@ describe('App — Share creates a short link (POST /links) with a hash-link fall
 
   it('with VITE_OVERLAP_API_URL unset, no POST is made and Share uses the hash URL exactly as before', async () => {
     vi.stubEnv('VITE_OVERLAP_API_URL', '');
-    const user = userEvent.setup();
     const { analytics } = renderApp();
 
-    await openClusterMenu(user);
-    await user.click(screen.getByTestId('control-share-button'));
+    fireEvent.click(screen.getByTestId('control-menu-toggle'));
+    fireEvent.click(screen.getByTestId('control-share-button'));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
     expect(fetchMock).not.toHaveBeenCalled();

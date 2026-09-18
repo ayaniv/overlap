@@ -1,0 +1,10 @@
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #7b808a;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}

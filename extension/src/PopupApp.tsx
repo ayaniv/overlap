@@ -28,9 +28,11 @@ export function PopupApp() {
   const { message: toastMessage, showToast } = useToast();
 
   // config-dependent, unlike App.tsx's window.location.href-based getter —
-  // its identity only needs to change when the shareable config itself does
-  const getShareUrl = useCallback(() => buildWebAppUrl(config), [config]);
-  const handleShare = useShareHandler(getShareUrl, showToast);
+  // its identity only needs to change when the shareable config itself does.
+  // Always a hash link for now (see tech-design.md's "Out of scope" — the
+  // popup keeps hash links until it reuses createShortLink as a follow-up).
+  const getShareTarget = useCallback(() => ({ url: buildWebAppUrl(config), linkType: 'hash' as const }), [config]);
+  const handleShare = useShareHandler(getShareTarget, showToast);
 
   const handleOpenInWebApp = useCallback(() => {
     analytics.trackEvent('extension_open_web_app_clicked');
