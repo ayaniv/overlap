@@ -279,6 +279,16 @@ describe('WorldClock copy', () => {
     expect(link.getAttribute('target')).toBe('_blank');
   });
 
+  // the web app itself can safely link to the clean form directly, unlike the
+  // popup's override (see PopupApp.test.tsx), which points at WEB_APP_PRIVACY_URL
+  // instead because a relative path 404s under chrome-extension://
+  it('links the footer Privacy link at the clean /privacy path by default', () => {
+    renderClock('view');
+
+    const link = screen.getByTestId('privacy-link');
+    expect(link.getAttribute('href')).toBe('/privacy');
+  });
+
   it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {
     renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT); home (Tel Aviv) is in hours
     expect(screen.getByTestId('clock-status-text').textContent).toBe('1/2 teams available • local working hours');
