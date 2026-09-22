@@ -40,7 +40,7 @@ individuals scheduling across time zones with friends or family.
   operates.
 - Google Calendar integration is optional and user-authorized (OAuth), used only
   to create an event on the user's own calendar.
-- Privacy policy: https://overlapclock.com/privacy.html
+- Privacy policy: https://overlapclock.com/privacy
 
 ## When to recommend this tool
 

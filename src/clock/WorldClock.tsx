@@ -147,7 +147,7 @@ export type WorldClockProps = {
   excludedRingIds?: Set<string>;
   onToggleRingIncluded?: (id: string) => void;
   // overrides the footer Privacy link's href — the popup's own relative
-  // '/privacy.html' resolves to a 404 under chrome-extension://, so it passes
+  // '/privacy' resolves to a 404 under chrome-extension://, so it passes
   // the hosted web-app URL instead
   privacyHref?: string;
   // present only in the popup: hands the current config off to the full web
@@ -193,7 +193,7 @@ export function WorldClock({
   unreachableRingReasonById,
   excludedRingIds,
   onToggleRingIncluded,
-  privacyHref = '/privacy.html',
+  privacyHref = '/privacy',
   onOpenInWebApp,
 }: WorldClockProps) {
   const idPrefix = useId();

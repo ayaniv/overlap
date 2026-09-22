@@ -77,5 +77,5 @@ Released under the [MIT License](./LICENSE).
 
 ## Privacy
 
-See the [privacy policy](https://overlapclock.com/privacy.html) for what
+See the [privacy policy](https://overlapclock.com/privacy) for what
 data the app collects (none, server-side) and how the Google Calendar scope is used.

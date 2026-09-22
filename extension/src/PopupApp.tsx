@@ -15,7 +15,7 @@ import { openWebApp } from './openWebApp';
 // a different composition of the same parts App.tsx uses, not a fork of
 // App — see tech-design.md's "Why the popup can't just render <App />" for
 // the three MV3-specific blockers this sidesteps (remote Google Identity
-// Services script, a relative /privacy.html link, and window.location.href
+// Services script, a relative /privacy link, and window.location.href
 // being a useless chrome-extension:// URL to share)
 export function PopupApp() {
   const analytics = useAnalytics();
