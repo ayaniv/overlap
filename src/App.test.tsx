@@ -1198,3 +1198,38 @@ describe('App — Find Time: a city is disabled only by the cities selected righ
     expect(analyticsService.trackEvent).toHaveBeenCalledWith('find_meeting_time_city_included', { remaining_count: 1 });
   });
 });
+
+describe('App — Chrome extension calls to action', () => {
+  const CHROME_DESKTOP_USER_AGENT =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+  const FIREFOX_DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:127.0) Gecko/20100101 Firefox/127.0';
+
+  it('shows the hero and header Add to Chrome CTAs on desktop Chromium, alongside the untouched Find overlap CTA', () => {
+    stubUserAgent(CHROME_DESKTOP_USER_AGENT);
+    renderApp();
+
+    expect(screen.getByTestId('chrome-extension-cta-hero')).toBeTruthy();
+    expect(screen.getByTestId('chrome-extension-cta-header')).toBeTruthy();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+    expect(screen.queryByTestId('chrome-extension-secondary-link')).toBeNull();
+  });
+
+  it('keeps the web-app CTA primary and shows only the quiet secondary link on Firefox', () => {
+    stubUserAgent(FIREFOX_DESKTOP_USER_AGENT);
+    renderApp();
+
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+    expect(screen.getByTestId('chrome-extension-secondary-link')).toBeTruthy();
+    expect(screen.queryByTestId('chrome-extension-cta-hero')).toBeNull();
+    expect(screen.queryByTestId('chrome-extension-cta-header')).toBeNull();
+  });
+
+  it('never offers Chrome installation on a mobile browser, even a Chromium one', () => {
+    stubUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36');
+    renderApp();
+
+    expect(screen.queryByTestId('chrome-extension-cta-hero')).toBeNull();
+    expect(screen.queryByTestId('chrome-extension-cta-header')).toBeNull();
+    expect(screen.getByTestId('chrome-extension-secondary-link')).toBeTruthy();
+  });
+});
