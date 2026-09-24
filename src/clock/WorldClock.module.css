@@ -33,6 +33,21 @@
   transition: opacity 0.8s ease;
 }
 
+/* sits under the eyebrow/headline block; hidden on narrow windows where it
+   would crowd the ControlCluster, mirroring how the header collapses */
+.headerExtra {
+  position: absolute;
+  top: 100px;
+  left: 44px;
+  transition: opacity 0.8s ease;
+}
+
+@media (max-width: 640px) {
+  .headerExtra {
+    display: none;
+  }
+}
+
 .controlClusterWrap {
   transition: opacity 0.8s ease;
 }
@@ -67,6 +82,7 @@
    itself stays fully visible. Only ever set while mode === 'view' (see
    WorldClock.tsx), so this never hides chrome out from under an open panel. */
 .stage[data-chrome-hidden] .context,
+.stage[data-chrome-hidden] .headerExtra,
 .stage[data-chrome-hidden] .statusRow,
 .stage[data-chrome-hidden] .bottomLinks,
 .stage[data-chrome-hidden] .controlClusterWrap {

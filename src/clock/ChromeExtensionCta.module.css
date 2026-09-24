@@ -1,0 +1,24 @@
+/* the pill itself comes from WorldClock.module.css's .findTimeButton so the
+   CTA matches the site's existing buttons; this only adds what an <a> needs */
+.cta {
+  text-decoration: none;
+}
+
+.cta:focus-visible,
+.secondaryLink:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+/* #565b64 is too dim on this background for body-sized text, so the
+   secondary link uses the brighter #8a909a and brightens again on hover */
+.secondaryLink {
+  color: #8a909a;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.secondaryLink:hover {
+  color: #d6d9de;
+}
