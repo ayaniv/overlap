@@ -123,12 +123,10 @@ describe('PopupApp — the clock itself', () => {
 });
 
 describe('PopupApp — no Chrome extension CTA inside the extension itself', () => {
-  it('renders neither the Add to Chrome CTAs nor the secondary link', () => {
+  it('renders no Add to Chrome CTA', () => {
     renderPopup();
 
-    expect(screen.queryByTestId('chrome-extension-cta-hero')).toBeNull();
-    expect(screen.queryByTestId('chrome-extension-cta-header')).toBeNull();
-    expect(screen.queryByTestId('chrome-extension-secondary-link')).toBeNull();
+    expect(screen.queryByTestId('chrome-extension-cta')).toBeNull();
   });
 });
 

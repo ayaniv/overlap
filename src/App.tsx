@@ -434,8 +434,7 @@ function App() {
 
   return (
     <WorldClock
-      headerExtra={<ChromeExtensionCta placement="header" />}
-      heroExtra={<ChromeExtensionCta placement="hero" />}
+      headerExtra={<ChromeExtensionCta />}
       now={now}
       home={config.home}
       rings={config.rings}

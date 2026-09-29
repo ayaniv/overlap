@@ -7,7 +7,6 @@ export const CHROME_WEB_STORE_URL =
 
 export const CHROME_EXTENSION_CTA_LABEL = 'Add to Chrome';
 export const CHROME_EXTENSION_CTA_ARIA_LABEL = 'Add Overlap Clock to Chrome';
-export const CHROME_EXTENSION_SECONDARY_LABEL = 'Also available as a Chrome extension';
 
 // Edge and Opera keep "Chrome/" in their user agent, so one pattern covers every
 // Chromium browser the fallback needs to recognise; Chrome on iOS ("CriOS") is

@@ -154,10 +154,9 @@ export type WorldClockProps = {
   // app in a new tab. Absent hides the button entirely, same convention as
   // onFindTime.
   onOpenInWebApp?: () => void;
-  // slots rather than a baked-in CTA: the same WorldClock renders inside the
+  // a slot rather than a baked-in CTA: the same WorldClock renders inside the
   // extension popup, where promoting the extension itself would be wrong
   headerExtra?: ReactNode;
-  heroExtra?: ReactNode;
 };
 
 export function WorldClock({
@@ -200,7 +199,6 @@ export function WorldClock({
   privacyHref = '/privacy',
   onOpenInWebApp,
   headerExtra,
-  heroExtra,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -666,7 +664,6 @@ export function WorldClock({
             Find overlap
           </button>
         )}
-        {heroExtra}
       </div>
 
       {/* part of the idle-fade chrome group, like the header and ControlCluster:
