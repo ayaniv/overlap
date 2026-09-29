@@ -86,6 +86,39 @@ describe('isChromiumDesktop', () => {
     expect(isChromiumDesktop()).toBe(false);
   });
 
+  // "Request desktop site" on a phone rewrites the user agent and userAgentData.mobile to
+  // desktop values, so only the touch-first primary pointer still gives it away
+  describe('when the primary pointer is coarse (a touch device)', () => {
+    function stubPrimaryPointer(isCoarse: boolean) {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn().mockImplementation((query: string) => ({ matches: query === '(pointer: coarse)' && isCoarse })),
+      );
+    }
+
+    it('is false for a phone in "desktop site" mode, via userAgentData', () => {
+      stubNavigator({
+        userAgent: CHROME_DESKTOP_UA,
+        platform: 'Linux armv81',
+        userAgentData: { brands: [{ brand: 'Chromium' }], mobile: false },
+      });
+      stubPrimaryPointer(true);
+      expect(isChromiumDesktop()).toBe(false);
+    });
+
+    it('is false for a phone in "desktop site" mode, via the user agent fallback', () => {
+      stubNavigator({ userAgent: CHROME_DESKTOP_UA, platform: 'Linux armv81' });
+      stubPrimaryPointer(true);
+      expect(isChromiumDesktop()).toBe(false);
+    });
+
+    it('stays true for the same browser with a fine primary pointer (mouse or trackpad)', () => {
+      stubNavigator({ userAgent: CHROME_DESKTOP_UA });
+      stubPrimaryPointer(false);
+      expect(isChromiumDesktop()).toBe(true);
+    });
+  });
+
   it('is false, not a throw, when navigator is unavailable (server rendering)', () => {
     vi.stubGlobal('navigator', undefined);
     expect(isChromiumDesktop()).toBe(false);

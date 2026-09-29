@@ -1224,6 +1224,22 @@ describe('App — Chrome extension call to action', () => {
     expect(screen.queryByTestId('chrome-extension-secondary-link')).toBeNull();
   });
 
+  it('hides the CTA on a phone using Chrome in desktop-site mode, where only the touch pointer gives it away', () => {
+    stubUserAgent(CHROME_DESKTOP_USER_AGENT);
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(pointer: coarse)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    renderApp();
+
+    expect(screen.queryByTestId('chrome-extension-cta')).toBeNull();
+    expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
+  });
+
   it('never offers Chrome installation on a mobile browser, even a Chromium one', () => {
     stubUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36');
     renderApp();

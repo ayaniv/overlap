@@ -18,11 +18,18 @@ interface NavigatorWithUserAgentData {
   userAgentData?: { brands: { brand: string }[]; mobile: boolean };
 }
 
+// "Request desktop site" makes a phone's user agent and userAgentData look like a
+// desktop, but its primary pointer stays a touchscreen; desktops and laptops
+// (touchscreen or not) report a mouse/trackpad as primary
+function hasCoarsePrimaryPointer(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}
+
 // desktop Chromium only: Chrome on Android/iOS shares the engine but can't
-// install from the Web Store, so it must get the "also available" fallback
+// install from the Web Store, so it gets no CTA
 export function isChromiumDesktop(): boolean {
   if (typeof navigator === 'undefined') return false;
-  if (isMobileOS()) return false;
+  if (isMobileOS() || hasCoarsePrimaryPointer()) return false;
   const { userAgentData } = navigator as Navigator & NavigatorWithUserAgentData;
   if (userAgentData) {
     return !userAgentData.mobile && userAgentData.brands.some(({ brand }) => brand === 'Chromium');
