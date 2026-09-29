@@ -46,7 +46,16 @@ describe('ChromeExtensionCta on Chromium desktop', () => {
     expect(link.getAttribute('href')).toBe(CHROME_WEB_STORE_URL);
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(link.getAttribute('aria-label')).toBe('Add Overlap Clock to Chrome');
+  });
+
+  // WCAG 2.5.3 (Label in Name): the accessible name must contain the visible
+  // label text verbatim, so a speech-control user saying "click Add to
+  // Chrome" can activate it — checked via the real accessible-name
+  // computation (getByRole's name matcher), not a raw aria-label assertion
+  it('has an accessible name that starts with the visible "Add to Chrome" label', () => {
+    renderCta();
+
+    expect(screen.getByRole('link', { name: 'Add to Chrome for Overlap Clock' })).toBeTruthy();
   });
 
   it('shows the Chrome logo inside the link, hidden from assistive tech since the link already has a name', () => {

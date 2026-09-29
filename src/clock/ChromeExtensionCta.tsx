@@ -1,28 +1,15 @@
-import { useEffect, useState } from 'react';
 import { useAnalytics } from '../analytics/AnalyticsProvider';
-import {
-  CHROME_EXTENSION_CTA_ARIA_LABEL,
-  CHROME_EXTENSION_CTA_LABEL,
-  CHROME_WEB_STORE_URL,
-  isChromiumDesktop,
-} from './chromeExtension';
+import { useChromiumDesktopSupport } from '../hooks/useChromiumDesktopSupport';
+import { CHROME_EXTENSION_CTA_HIDDEN_SUFFIX, CHROME_EXTENSION_CTA_LABEL, CHROME_WEB_STORE_URL } from './chromeExtension';
 import { ChromeIcon } from './icons/ChromeIcon';
 import styles from './ChromeExtensionCta.module.css';
-import clockStyles from './WorldClock.module.css';
-
-// 'unknown' is what the server and the first client render both produce, so
-// markup can't mismatch on hydration; the real answer lands after mount
-type BrowserSupport = 'unknown' | 'installable' | 'not-installable';
+import visuallyHiddenStyles from './visuallyHidden.module.css';
 
 export function ChromeExtensionCta() {
   const analytics = useAnalytics();
-  const [browserSupport, setBrowserSupport] = useState<BrowserSupport>('unknown');
+  const support = useChromiumDesktopSupport();
 
-  useEffect(() => {
-    setBrowserSupport(isChromiumDesktop() ? 'installable' : 'not-installable');
-  }, []);
-
-  if (browserSupport !== 'installable') return null;
+  if (support !== 'supported') return null;
 
   return (
     <a
@@ -30,12 +17,20 @@ export function ChromeExtensionCta() {
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => analytics.trackEvent('chrome_extension_cta_clicked', { placement: 'header' })}
-      className={`${clockStyles.findTimeButton} ${styles.cta}`}
+      className={styles.cta}
       data-testid="chrome-extension-cta"
-      aria-label={CHROME_EXTENSION_CTA_ARIA_LABEL}
     >
-      <ChromeIcon data-testid="chrome-extension-cta-logo" />
+      <ChromeIcon className={styles.icon} data-testid="chrome-extension-cta-logo" />
       {CHROME_EXTENSION_CTA_LABEL}
+      {/* the visible label alone satisfies WCAG 2.5.3 (Label in Name); this
+          just adds context for screen-reader users without changing what a
+          speech-control user needs to say. The space is its own text node,
+          not folded into either string — accessible-name computation trims
+          each node's own text before joining, so a leading/trailing space
+          inside the span (or the label) would otherwise be silently dropped,
+          running the two words together for screen-reader users. */}
+      {' '}
+      <span className={visuallyHiddenStyles.srOnly}>{CHROME_EXTENSION_CTA_HIDDEN_SUFFIX}</span>
     </a>
   );
 }

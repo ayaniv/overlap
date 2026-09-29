@@ -245,42 +245,11 @@
 /* always secondary/understated — this sits beside the status line, not as a
    prominent header CTA. .findTimeButtonActive marks the toggled-on state
    (a result is currently active): clicking it again clears the result,
-   mirroring Cancel. */
-.findTimeButton,
+   mirroring Cancel. Base pill shape/sizing comes from PillButton.module.css
+   (shared with ChromeExtensionCta) via `composes`; only the active-state
+   color override lives here. */
 .findTimeButtonActive {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  min-height: 28px;
-  border-radius: 999px;
-  font-family: 'Space Grotesk', -apple-system, sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.findTimeButton svg,
-.findTimeButtonActive svg {
-  flex: none;
-  width: 13px;
-  height: 13px;
-}
-
-.findTimeButton {
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.7);
-  color: #c4c8cf;
-}
-
-.findTimeButton:hover {
-  border-color: #565b64;
-  color: #f5f6f8;
-}
-
-.findTimeButtonActive {
+  composes: pillButton from './PillButton.module.css';
   border: 1px solid #38bdf8;
   background: rgba(56, 189, 248, 0.14);
   color: #f5f6f8;
@@ -334,18 +303,6 @@
   text-decoration: underline;
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* portrait/mobile: scale the clock up so it dominates the narrow screen,
    centered in the viewport (the stage's default flex centering) with the
    widest rings bleeding off the sides against the stage's overflow:hidden (M5) */
@@ -369,6 +326,14 @@
   }
 
   .headline {
+    display: none;
+  }
+
+  /* .headerExtra is positioned under the headline block, which is dropped
+     here — without this override a wide-enough portrait window (e.g. a
+     tablet, wider than the max-width:640px rule above) would show it
+     floating at its landscape offset with nothing to anchor it to */
+  .headerExtra {
     display: none;
   }
 
@@ -396,13 +361,6 @@
     flex-wrap: wrap;
     justify-content: center;
     max-width: 90vw;
-  }
-
-  .findTimeButton,
-  .findTimeButtonActive {
-    min-height: 32px;
-    padding: 0 16px;
-    font-size: 13px;
   }
 
   .bottomLinks {

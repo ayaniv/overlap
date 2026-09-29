@@ -44,7 +44,9 @@ import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
+import pillButtonStyles from './PillButton.module.css';
 import styles from './WorldClock.module.css';
+import visuallyHiddenStyles from './visuallyHidden.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
 const OUT_OF_HOURS_DOT_COLOR = '#5E626B';
@@ -656,7 +658,7 @@ export function WorldClock({
           <button
             type="button"
             data-testid="control-find-time-button"
-            className={isFindResultActive ? styles.findTimeButtonActive : styles.findTimeButton}
+            className={isFindResultActive ? styles.findTimeButtonActive : pillButtonStyles.pillButton}
             aria-pressed={isFindResultActive}
             onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime?.())}
           >
@@ -702,7 +704,7 @@ export function WorldClock({
         )}
       </div>
 
-      <p className={styles.srOnly} role="status">
+      <p className={visuallyHiddenStyles.srOnly} role="status">
         {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
     </section>

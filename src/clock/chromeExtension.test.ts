@@ -12,6 +12,9 @@ const CHROME_ANDROID_UA =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 const CHROME_IOS_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.0.0 Mobile/15E148 Safari/604.1';
+// Electron shells (Slack, VS Code, Discord desktop) embed real Chromium and keep
+// "Chrome/" in their UA, but have no Web Store to install into
+const SLACK_ELECTRON_UA = `${CHROME_DESKTOP_UA} Slack/4.36.140 Electron/30.0.6`;
 
 interface FakeNavigator {
   userAgent: string;
@@ -78,6 +81,11 @@ describe('isChromiumDesktop', () => {
     ['Chrome on iOS', CHROME_IOS_UA],
   ])('falls back to the user agent: %s is false', (_name, userAgent) => {
     stubNavigator({ userAgent });
+    expect(isChromiumDesktop()).toBe(false);
+  });
+
+  it('is false for an Electron-shell app (no userAgentData), even though its UA still contains "Chrome/"', () => {
+    stubNavigator({ userAgent: SLACK_ELECTRON_UA });
     expect(isChromiumDesktop()).toBe(false);
   });
 
