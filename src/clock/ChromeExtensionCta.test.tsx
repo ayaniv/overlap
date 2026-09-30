@@ -11,6 +11,8 @@ import { ChromeExtensionCta } from './ChromeExtensionCta';
 
 const CHROME_DESKTOP_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+const IPHONE_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const FIREFOX_DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:127.0) Gecko/20100101 Firefox/127.0';
 
 let analytics: MockAnalyticsService;
@@ -36,7 +38,7 @@ function renderCta() {
   return render(withAnalytics(<ChromeExtensionCta />));
 }
 
-describe('ChromeExtensionCta on Chrome desktop', () => {
+describe('ChromeExtensionCta on desktop', () => {
   beforeEach(() => stubUserAgent(CHROME_DESKTOP_UA));
 
   it('renders an Add to Chrome link to the exact store URL, in a new tab', () => {
@@ -77,8 +79,18 @@ describe('ChromeExtensionCta on Chrome desktop', () => {
   });
 });
 
-describe('ChromeExtensionCta on a browser that cannot install Chrome extensions', () => {
+describe('ChromeExtensionCta on desktop Firefox', () => {
   beforeEach(() => stubUserAgent(FIREFOX_DESKTOP_UA));
+
+  it('still renders the link, since the store page itself tells them to switch to Chrome', () => {
+    renderCta();
+
+    expect(screen.getByTestId('chrome-extension-cta').getAttribute('href')).toBe(CHROME_WEB_STORE_URL);
+  });
+});
+
+describe('ChromeExtensionCta on a mobile browser', () => {
+  beforeEach(() => stubUserAgent(IPHONE_UA));
 
   it('renders nothing, leaving the web-app path untouched', () => {
     const { container } = renderCta();
@@ -91,10 +103,10 @@ describe('ChromeExtensionCta server rendering', () => {
   it('renders identical (empty) markup on the server regardless of browser, so nothing can mismatch on hydration', () => {
     stubUserAgent(CHROME_DESKTOP_UA);
     const chromeMarkup = renderToString(withAnalytics(<ChromeExtensionCta />));
-    stubUserAgent(FIREFOX_DESKTOP_UA);
-    const firefoxMarkup = renderToString(withAnalytics(<ChromeExtensionCta />));
+    stubUserAgent(IPHONE_UA);
+    const iphoneMarkup = renderToString(withAnalytics(<ChromeExtensionCta />));
 
     expect(chromeMarkup).toBe('');
-    expect(firefoxMarkup).toBe(chromeMarkup);
+    expect(iphoneMarkup).toBe(chromeMarkup);
   });
 });
