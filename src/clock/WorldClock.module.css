@@ -24,6 +24,11 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  /* single source of truth for how far below the eyebrow/headline block
+     .headerExtra sits, so the landscape and portrait values can't drift out
+     of sync with each other the way two independent magic numbers could */
+  --header-extra-top: 100px;
+  --header-extra-left: 44px;
 }
 
 .context {
@@ -37,8 +42,8 @@
    would crowd the ControlCluster, mirroring how the header collapses */
 .headerExtra {
   position: absolute;
-  top: 100px;
-  left: 44px;
+  top: var(--header-extra-top);
+  left: var(--header-extra-left);
   transition: opacity 0.8s ease;
 }
 
@@ -255,6 +260,19 @@
   color: #f5f6f8;
 }
 
+/* PillButton.module.css's shared `.pillButton:hover, .pillButton:focus-visible`
+   rule (border-color/color) has higher specificity than this file's own plain
+   `.findTimeButtonActive` rule, so without this override hovering or
+   keyboard-focusing the toggled-on button would grey out its blue border
+   instead of keeping it. Matches `.pillButton:hover`'s specificity exactly;
+   `composes` guarantees PillButton.module.css's rules are emitted first, so
+   this rule (defined later, in this file) wins the tie. */
+.findTimeButtonActive:hover,
+.findTimeButtonActive:focus-visible {
+  border-color: #38bdf8;
+  color: #f5f6f8;
+}
+
 .findTimeButtonActive:hover {
   background: rgba(56, 189, 248, 0.22);
 }
@@ -329,12 +347,15 @@
     display: none;
   }
 
-  /* .headerExtra is positioned under the headline block, which is dropped
-     here — without this override a wide-enough portrait window (e.g. a
-     tablet, wider than the max-width:640px rule above) would show it
-     floating at its landscape offset with nothing to anchor it to */
-  .headerExtra {
-    display: none;
+  /* .headerExtra is positioned under the headline block by default, but the
+     headline is dropped here, and a desktop browser in portrait orientation
+     (a rotated monitor, or a narrow tall window) still needs the CTA — a
+     display:none here would be a false negative against "visible to every
+     desktop visitor". Repositioned to sit right under the now-shrunk eyebrow
+     line instead, at the same left offset as .context, rather than hidden. */
+  .stage {
+    --header-extra-top: 40px;
+    --header-extra-left: 16px;
   }
 
   .clockContainer {

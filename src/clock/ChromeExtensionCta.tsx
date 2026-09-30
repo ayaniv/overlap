@@ -16,11 +16,13 @@ export function ChromeExtensionCta() {
       href={CHROME_WEB_STORE_URL}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => analytics.trackEvent('chrome_extension_cta_clicked', { placement: 'header' })}
+      onClick={() => analytics.trackEvent('chrome_extension_cta_clicked')}
       className={styles.cta}
       data-testid="chrome-extension-cta"
     >
-      <ChromeIcon className={styles.icon} data-testid="chrome-extension-cta-logo" />
+      {/* sized via the `.cta svg` descendant selector in
+          ChromeExtensionCta.module.css, so no className is needed here */}
+      <ChromeIcon data-testid="chrome-extension-cta-logo" />
       {CHROME_EXTENSION_CTA_LABEL}
       {/* the visible label alone satisfies WCAG 2.5.3 (Label in Name); this
           just adds context for screen-reader users without changing what a

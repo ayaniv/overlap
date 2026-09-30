@@ -9,10 +9,6 @@ export type DesktopSupport = 'unknown' | 'supported' | 'unsupported';
 // are what isDesktop() itself needs and already guards separately.
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? () => {} : useLayoutEffect;
 
-// a single hook call (in App, shared by both the hero and header CTAs) so
-// the desktop check only runs once, and so both placements resolve
-// off the exact same value rather than two independently-timed effects.
-//
 // useLayoutEffect, not useEffect, is what actually prevents a visible
 // reflow: for the initial mount, React fires layout effects synchronously
 // as part of the very same commit that produces the page's first paint, so

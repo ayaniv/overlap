@@ -1213,8 +1213,6 @@ describe('App — Chrome extension call to action', () => {
     expect(screen.getAllByTestId('chrome-extension-cta')).toHaveLength(1);
     expect(screen.getByTestId('chrome-extension-cta-logo')).toBeTruthy();
     expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
-    expect(screen.queryByTestId('chrome-extension-cta-hero')).toBeNull();
-    expect(screen.queryByTestId('chrome-extension-secondary-link')).toBeNull();
   });
 
   it.each([

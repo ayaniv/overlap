@@ -4,7 +4,11 @@ export type ChromeIconProps = {
 };
 
 // Simplified rendition of the Chrome logo (red/yellow/green wedges around a
-// blue core), drawn inline so the site never hotlinks a brand asset
+// blue core), drawn inline so the site never hotlinks a brand asset.
+// TODO: this is a hand-drawn approximation, not Google's official asset —
+// Google's brand guidelines discourage altering the logo. Accepted as debt
+// for now; revisit with the official SVG from
+// https://www.google.com/chrome/brand-guidelines before wider distribution.
 export function ChromeIcon({ className, 'data-testid': testId }: ChromeIconProps) {
   return (
     <svg className={className} viewBox="0 0 48 48" aria-hidden="true" data-testid={testId}>

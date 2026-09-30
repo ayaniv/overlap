@@ -68,14 +68,14 @@ describe('ChromeExtensionCta on desktop', () => {
     expect(logo.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('emits chrome_extension_cta_clicked with the header placement through the analytics abstraction', async () => {
+  it('emits chrome_extension_cta_clicked through the analytics abstraction', async () => {
     const user = userEvent.setup();
     renderCta();
 
     await user.click(screen.getByTestId('chrome-extension-cta'));
 
     expect(analytics.trackEvent).toHaveBeenCalledTimes(1);
-    expect(analytics.trackEvent).toHaveBeenCalledWith('chrome_extension_cta_clicked', { placement: 'header' });
+    expect(analytics.trackEvent).toHaveBeenCalledWith('chrome_extension_cta_clicked');
   });
 });
 
