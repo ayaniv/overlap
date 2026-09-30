@@ -122,6 +122,14 @@ describe('PopupApp — the clock itself', () => {
   });
 });
 
+describe('PopupApp — no Chrome extension CTA inside the extension itself', () => {
+  it('renders no Add to Chrome CTA', () => {
+    renderPopup();
+
+    expect(screen.queryByTestId('chrome-extension-cta')).toBeNull();
+  });
+});
+
 describe('PopupApp — sharing links to the web app, never to chrome-extension://', () => {
   it('copies an overlapclock.com link carrying the current config', async () => {
     const config: ClockConfig = { ...DEFAULT_CONFIG, rings: DEFAULT_CONFIG.rings.slice(0, 2) };

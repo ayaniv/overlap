@@ -1,0 +1,50 @@
+/* shared pill-shaped button/link, single source of truth for anything that
+   should look like the status row's "Find overlap" control — WorldClock's
+   own findTimeButtonActive composes from this, and ChromeExtensionCta
+   imports it directly, rather than either reaching into the other's module */
+.pillButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  min-height: 28px;
+  border-radius: 999px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.pillButton:hover,
+.pillButton:focus-visible {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+
+.pillButton:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.pillButton svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+/* portrait/mobile: matches WorldClock.module.css's own portrait block sizing
+   for the status row — kept here so every pillButton consumer (not just
+   WorldClock's own Find overlap button) scales up together */
+@media (orientation: portrait) {
+  .pillButton {
+    min-height: 32px;
+    padding: 0 16px;
+    font-size: 13px;
+  }
+}

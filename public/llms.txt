@@ -34,6 +34,7 @@ individuals scheduling across time zones with friends or family.
 
 - Free and open source (MIT license): https://github.com/ayaniv/overlap
 - No signup or account required.
+- Also available as a Chrome extension: https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj
 - No backend/server — fully static, runs entirely client-side.
 - Chosen cities/colors/hours persist in the browser (localStorage) and can be
   shared via a URL; no data is sent to or stored on any server the developer

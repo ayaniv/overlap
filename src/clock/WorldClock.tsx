@@ -44,7 +44,9 @@ import { Toast } from './Toast';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
+import pillButtonStyles from './PillButton.module.css';
 import styles from './WorldClock.module.css';
+import visuallyHiddenStyles from './visuallyHidden.module.css';
 
 const IN_HOURS_DOT_COLOR = '#FFFFFF';
 const OUT_OF_HOURS_DOT_COLOR = '#5E626B';
@@ -154,6 +156,9 @@ export type WorldClockProps = {
   // app in a new tab. Absent hides the button entirely, same convention as
   // onFindTime.
   onOpenInWebApp?: () => void;
+  // a slot rather than a baked-in CTA: the same WorldClock renders inside the
+  // extension popup, where promoting the extension itself would be wrong
+  headerExtra?: ReactNode;
 };
 
 export function WorldClock({
@@ -195,6 +200,7 @@ export function WorldClock({
   onToggleRingIncluded,
   privacyHref = '/privacy',
   onOpenInWebApp,
+  headerExtra,
 }: WorldClockProps) {
   const idPrefix = useId();
   // the caller (App.tsx) only passes scrubBind when dragging the rings is currently
@@ -398,6 +404,8 @@ export function WorldClock({
           World Clock at a Glance
         </div>
       </div>
+
+      {headerExtra && <div className={styles.headerExtra}>{headerExtra}</div>}
 
       <div className={styles.controlClusterWrap}>
         <ControlCluster
@@ -650,7 +658,7 @@ export function WorldClock({
           <button
             type="button"
             data-testid="control-find-time-button"
-            className={isFindResultActive ? styles.findTimeButtonActive : styles.findTimeButton}
+            className={isFindResultActive ? styles.findTimeButtonActive : pillButtonStyles.pillButton}
             aria-pressed={isFindResultActive}
             onClick={() => (isFindResultActive ? onBackToNow?.() : onFindTime?.())}
           >
@@ -696,7 +704,7 @@ export function WorldClock({
         )}
       </div>
 
-      <p className={styles.srOnly} role="status">
+      <p className={visuallyHiddenStyles.srOnly} role="status">
         {home.label} local time {homeTime.label}, {homeDateLabel}. {statusText}. {summary}.
       </p>
     </section>

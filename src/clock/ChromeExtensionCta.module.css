@@ -1,0 +1,14 @@
+/* the pill shape/sizing/focus styling comes from the shared PillButton
+   module (also used by WorldClock's own Find overlap button), so a rename
+   there can't silently break this component the way reaching into
+   WorldClock.module.css directly used to */
+.cta {
+  composes: pillButton from './PillButton.module.css';
+}
+
+/* overrides .pillButton svg's 13px icon size — composes guarantees
+   PillButton.module.css's rules are emitted first, so this local rule wins */
+.cta svg {
+  width: 18px;
+  height: 18px;
+}

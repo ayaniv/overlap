@@ -51,6 +51,9 @@ enable it; without it, the Schedule panel shows a note instead of the form.
 
 ## Chrome extension
 
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj);
+the website also links to it from the header on desktop.
+
 A Manifest V3 toolbar popup renders the same `WorldClock` at 380×600, with a
 Share action and an "Open in Overlap" handoff to the full web app — see
 `tech-design.md` for what it deliberately leaves out (Google Calendar

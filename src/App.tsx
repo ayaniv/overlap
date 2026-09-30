@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from './analytics/AnalyticsProvider';
 import { useLogger } from './logger/LoggerProvider';
+import { ChromeExtensionCta } from './clock/ChromeExtensionCta';
 import { AddLocationModePanel } from './clock/AddLocationModePanel';
 import {
   DEFAULT_MEETING_DURATION_MINUTES,
@@ -433,6 +434,7 @@ function App() {
 
   return (
     <WorldClock
+      headerExtra={<ChromeExtensionCta />}
       now={now}
       home={config.home}
       rings={config.rings}
