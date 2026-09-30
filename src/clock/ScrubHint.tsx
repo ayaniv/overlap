@@ -1,6 +1,7 @@
 // src/clock/ScrubHint.tsx
 import { DEGREES_PER_HOUR, MS_PER_HOUR, pointOnCircle, ringRadius } from './geometry';
 import { ANGLE_REST_DEG } from './useScrubHintDemo';
+import { PointingHandIcon } from './icons/PointingHandIcon';
 import styles from './ScrubHint.module.css';
 
 export type ScrubHintProps = {
@@ -44,7 +45,7 @@ export function ScrubHint({ offsetMs, totalRings, onDismiss, isDismissing = fals
 
   return (
     <div className={styles.overlay} data-testid="scrub-hint-overlay" data-dismissing={isDismissing || undefined}>
-      <span
+      <PointingHandIcon
         className={styles.hand}
         data-testid="scrub-hint-hand"
         style={
@@ -53,10 +54,7 @@ export function ScrubHint({ offsetMs, totalRings, onDismiss, isDismissing = fals
             '--hint-hand-top': `${handPoint.y / VIEWBOX_UNITS_PER_PERCENT}%`,
           } as React.CSSProperties
         }
-        aria-hidden="true"
-      >
-        👆
-      </span>
+      />
       <div
         className={isDismissing ? `${styles.tooltip} ${styles.tooltipLeaving}` : styles.tooltip}
         style={
