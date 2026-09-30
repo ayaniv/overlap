@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-09-30
+
+- [#88](https://github.com/ayaniv/overlap/pull/88) Add Chrome extension CTAs to the site
+
 ## 2026-08-18
 
 - [#80](https://github.com/ayaniv/overlap/pull/80) Rename "Find Time" CTA to "Find overlap"
