@@ -36,7 +36,7 @@ function renderCta() {
   return render(withAnalytics(<ChromeExtensionCta />));
 }
 
-describe('ChromeExtensionCta on Chromium desktop', () => {
+describe('ChromeExtensionCta on Chrome desktop', () => {
   beforeEach(() => stubUserAgent(CHROME_DESKTOP_UA));
 
   it('renders an Add to Chrome link to the exact store URL, in a new tab', () => {

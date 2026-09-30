@@ -1,5 +1,5 @@
 import { useAnalytics } from '../analytics/AnalyticsProvider';
-import { useChromiumDesktopSupport } from '../hooks/useChromiumDesktopSupport';
+import { useChromeDesktopSupport } from '../hooks/useChromeDesktopSupport';
 import { CHROME_EXTENSION_CTA_HIDDEN_SUFFIX, CHROME_EXTENSION_CTA_LABEL, CHROME_WEB_STORE_URL } from './chromeExtension';
 import { ChromeIcon } from './icons/ChromeIcon';
 import styles from './ChromeExtensionCta.module.css';
@@ -7,7 +7,7 @@ import visuallyHiddenStyles from './visuallyHidden.module.css';
 
 export function ChromeExtensionCta() {
   const analytics = useAnalytics();
-  const support = useChromiumDesktopSupport();
+  const support = useChromeDesktopSupport();
 
   if (support !== 'supported') return null;
 

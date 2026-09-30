@@ -2,7 +2,7 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useChromiumDesktopSupport } from './useChromiumDesktopSupport';
+import { useChromeDesktopSupport } from './useChromeDesktopSupport';
 
 const CHROME_DESKTOP_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -17,14 +17,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('useChromiumDesktopSupport', () => {
-  it('resolves to "supported" on desktop Chromium and "unsupported" elsewhere', () => {
+describe('useChromeDesktopSupport', () => {
+  it('resolves to "supported" on desktop Chrome and "unsupported" elsewhere', () => {
     stubUserAgent(CHROME_DESKTOP_UA);
-    const { result: chromeResult } = renderHook(() => useChromiumDesktopSupport());
+    const { result: chromeResult } = renderHook(() => useChromeDesktopSupport());
     expect(chromeResult.current).toBe('supported');
 
     stubUserAgent(FIREFOX_DESKTOP_UA);
-    const { result: firefoxResult } = renderHook(() => useChromiumDesktopSupport());
+    const { result: firefoxResult } = renderHook(() => useChromeDesktopSupport());
     expect(firefoxResult.current).toBe('unsupported');
   });
 
@@ -32,7 +32,7 @@ describe('useChromiumDesktopSupport', () => {
     stubUserAgent(CHROME_DESKTOP_UA);
     let observedSupport: string | undefined;
     function Probe() {
-      observedSupport = useChromiumDesktopSupport();
+      observedSupport = useChromeDesktopSupport();
       return null;
     }
 

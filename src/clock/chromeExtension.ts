@@ -12,13 +12,15 @@ export const CHROME_EXTENSION_CTA_LABEL = 'Add to Chrome';
 // still naming the app for screen-reader users
 export const CHROME_EXTENSION_CTA_HIDDEN_SUFFIX = 'for Overlap Clock';
 
-// Edge and Opera keep "Chrome/" in their user agent, so one pattern covers every
-// Chromium browser the fallback needs to recognise; Chrome on iOS ("CriOS") is
-// WebKit underneath and can't install extensions, so it is intentionally absent.
-// Electron shells (Slack, VS Code, Discord desktop) also keep "Chrome/" but have
-// no Web Store, so they're excluded below.
-const CHROMIUM_USER_AGENT_PATTERN = /Chrome\/|Edg\/|OPR\//;
-const ELECTRON_USER_AGENT_PATTERN = /Electron\//;
+// Other Chromium browsers (Edge, Opera, Vivaldi, Samsung Internet, Yandex) and
+// Electron shells (Slack, VS Code, Discord desktop) all keep "Chrome/" in their
+// user agent, so the fallback needs their own tokens to tell them apart from real
+// Chrome. Chrome on iOS ("CriOS") is WebKit underneath and never matches "Chrome/".
+// Brave and other privacy browsers deliberately present as Chrome; that's
+// indistinguishable from here and acceptable, so it isn't chased.
+const CHROME_USER_AGENT_PATTERN = /Chrome\//;
+const NON_CHROME_USER_AGENT_PATTERN = /Edg\/|EdgA\/|OPR\/|Vivaldi\/|SamsungBrowser\/|Electron\/|YaBrowser\//;
+const GOOGLE_CHROME_BRAND = 'Google Chrome';
 
 // userAgentData isn't in lib.dom yet, hence the local shape
 interface NavigatorWithUserAgentData {
@@ -32,18 +34,21 @@ function hasCoarsePrimaryPointer(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 }
 
-// desktop Chromium only: Chrome on Android/iOS shares the engine but can't
-// install from the Web Store, so it gets no CTA
-export function isChromiumDesktop(): boolean {
+// desktop Google Chrome only: the CTA links to the Chrome Web Store and is labelled
+// "Add to Chrome", so other Chromium browsers don't get it, and Chrome on
+// Android/iOS can't install from the Web Store either
+export function isChromeDesktop(): boolean {
   if (typeof navigator === 'undefined') return false;
   if (isMobileOS() || hasCoarsePrimaryPointer()) return false;
+  // checked on both paths: an embedder that exposes userAgentData still keeps
+  // its own token in the user agent
+  if (NON_CHROME_USER_AGENT_PATTERN.test(navigator.userAgent)) return false;
   // userAgentData is only exposed in secure (HTTPS) contexts, so it's absent
   // on an HTTP preview even in real desktop Chrome; those fall through to
   // the UA-string fallback below, which still detects them correctly
   const { userAgentData } = navigator as Navigator & NavigatorWithUserAgentData;
   if (userAgentData) {
-    return !userAgentData.mobile && userAgentData.brands.some(({ brand }) => brand === 'Chromium');
+    return !userAgentData.mobile && userAgentData.brands.some(({ brand }) => brand === GOOGLE_CHROME_BRAND);
   }
-  if (ELECTRON_USER_AGENT_PATTERN.test(navigator.userAgent)) return false;
-  return CHROMIUM_USER_AGENT_PATTERN.test(navigator.userAgent);
+  return CHROME_USER_AGENT_PATTERN.test(navigator.userAgent);
 }

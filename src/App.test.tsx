@@ -1204,7 +1204,7 @@ describe('App — Chrome extension call to action', () => {
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
   const FIREFOX_DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:127.0) Gecko/20100101 Firefox/127.0';
 
-  it('shows exactly one Add to Chrome CTA, with the Chrome logo, on desktop Chromium, alongside the untouched Find overlap CTA', () => {
+  it('shows exactly one Add to Chrome CTA, with the Chrome logo, on desktop Chrome, alongside the untouched Find overlap CTA', () => {
     stubUserAgent(CHROME_DESKTOP_USER_AGENT);
     renderApp();
 
@@ -1240,7 +1240,7 @@ describe('App — Chrome extension call to action', () => {
     expect(screen.getByTestId('control-find-time-button')).toBeTruthy();
   });
 
-  it('never offers Chrome installation on a mobile browser, even a Chromium one', () => {
+  it('never offers Chrome installation on a mobile browser, even a Chrome one', () => {
     stubUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36');
     renderApp();
 
