@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@vvo/tzdb": "^6.198.0",
+    "city-timezones": "1.3.4",
     "lz-string": "^1.5.0",
     "posthog-js": "^1.398.7",
     "react": "^19.2.7",

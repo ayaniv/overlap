@@ -1,11 +1,25 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsProvider } from '../analytics/AnalyticsProvider';
 import { createMockAnalyticsService } from '../analytics/mockAnalyticsService';
+import { LoggerProvider } from '../logger/LoggerProvider';
+import { createMockLoggerService } from '../logger/mockLoggerService';
 import { AddLocationForm } from './AddLocationForm';
 import type { AddLocationFormProps } from './AddLocationForm';
+import * as cityCatalog from './cityCatalog';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, PALETTE } from './defaultCities';
+
+// wrapped (not replaced) so the real dataset still loads, but the test can see
+// whether and when the form asked for it, and make it fail
+vi.mock('./cityCatalog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./cityCatalog')>();
+  return { ...actual, loadCityCatalog: vi.fn(actual.loadCityCatalog) };
+});
+
+beforeEach(() => {
+  vi.mocked(cityCatalog.loadCityCatalog).mockClear();
+});
 
 afterEach(cleanup);
 
@@ -18,12 +32,15 @@ function renderForm(overrides: Partial<AddLocationFormProps> = {}) {
   const onAdd = vi.fn();
   const onDone = vi.fn();
   const analytics = createMockAnalyticsService();
+  const logger = createMockLoggerService();
   render(
     <AnalyticsProvider service={analytics}>
-      <AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={onDone} {...overrides} />
+      <LoggerProvider service={logger}>
+        <AddLocationForm existingIds={[]} existingColors={[]} onAdd={onAdd} onDone={onDone} {...overrides} />
+      </LoggerProvider>
     </AnalyticsProvider>,
   );
-  return { onAdd, onDone, analytics };
+  return { onAdd, onDone, analytics, logger };
 }
 
 describe('AddLocationForm', () => {
@@ -199,5 +216,79 @@ describe('AddLocationForm isPortrait (mobile immediate add)', () => {
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAdd.mock.calls[0][0].label).toBe('London');
+  });
+});
+
+describe('AddLocationForm city list', () => {
+  it('can pick Boston, which the old per-timezone list did not include', async () => {
+    const user = userEvent.setup();
+    const { onAdd } = renderForm();
+
+    await user.type(screen.getByLabelText('Search city'), 'Boston');
+    await user.click(await screen.findByTestId('city-suggestion-America/New_York-Boston'));
+    await user.click(screen.getByTestId('add-location-submit'));
+
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ label: 'Boston', timezoneId: 'America/New_York' }));
+  });
+
+  it('lists Washington, D.C. first for "washington"', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText('Search city'), 'washington');
+    const firstSuggestion = (await screen.findAllByTestId(/^city-suggestion-(?!region)/))[0];
+
+    expect(firstSuggestion.getAttribute('data-testid')).toBe('city-suggestion-America/New_York-Washington, D.C.');
+  });
+
+  it('shows the region on each suggestion and no country text', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText('Search city'), 'Boston');
+
+    expect((await screen.findByTestId('city-suggestion-region-America/New_York-Boston')).textContent).toBe('Massachusetts');
+    expect(screen.queryByText(/United States/)).toBeNull();
+  });
+
+  it('does not load the city list until the field is focused', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(cityCatalog.loadCityCatalog).not.toHaveBeenCalled();
+
+    await user.click(screen.getByLabelText('Search city'));
+
+    expect(cityCatalog.loadCityCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a loading state while the list loads, then the suggestions', async () => {
+    const user = userEvent.setup();
+    let resolveLoad: (cities: cityCatalog.CityEntry[]) => void = () => {};
+    vi.mocked(cityCatalog.loadCityCatalog).mockReturnValueOnce(new Promise((resolve) => (resolveLoad = resolve)));
+    renderForm();
+
+    await user.type(screen.getByLabelText('Search city'), 'osl');
+    expect(screen.getByTestId('city-list-loading')).toBeTruthy();
+
+    resolveLoad([{ label: 'Oslo', timezoneId: 'Europe/Oslo', country: 'Norway', region: 'Oslo', population: 1 }]);
+
+    expect(await screen.findByTestId('city-suggestion-Europe/Oslo-Oslo')).toBeTruthy();
+    expect(screen.queryByTestId('city-list-loading')).toBeNull();
+  });
+
+  it('logs a failed load, tells the user, and keeps the form usable with the default cities', async () => {
+    const user = userEvent.setup();
+    const loadError = new Error('chunk failed to load');
+    vi.mocked(cityCatalog.loadCityCatalog).mockRejectedValueOnce(loadError);
+    const { logger, onAdd } = renderForm();
+
+    await user.type(screen.getByLabelText('Search city'), 'London');
+
+    expect(await screen.findByTestId('city-list-error')).toBeTruthy();
+    expect(logger.error).toHaveBeenCalledWith(loadError, 'failed to load the city list for the Add location search');
+
+    await user.click(await screen.findByTestId('city-suggestion-Europe/London-London'));
+    await user.click(screen.getByTestId('add-location-submit'));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ label: 'London', timezoneId: 'Europe/London' }));
   });
 });

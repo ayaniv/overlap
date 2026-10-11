@@ -66,9 +66,15 @@
   background: rgba(56, 189, 248, 0.12);
 }
 
-.suggestionCountry {
+.suggestionRegion {
   color: #7b808a;
   font-size: 11px;
+}
+
+.listStatus {
+  color: #7b808a;
+  font-size: 11px;
+  padding: 6px 4px 0;
 }
 
 .selectedMeta {
