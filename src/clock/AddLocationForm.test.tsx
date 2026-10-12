@@ -280,7 +280,7 @@ describe('AddLocationForm city list', () => {
     const user = userEvent.setup();
     const loadError = new Error('chunk failed to load');
     vi.mocked(cityCatalog.loadCityCatalog).mockRejectedValueOnce(loadError);
-    const { logger, onAdd } = renderForm();
+    const { logger, onAdd, analytics } = renderForm();
 
     await user.type(screen.getByLabelText('Search city'), 'London');
 
@@ -290,5 +290,7 @@ describe('AddLocationForm city list', () => {
     await user.click(await screen.findByTestId('city-suggestion-Europe/London-London'));
     await user.click(screen.getByTestId('add-location-submit'));
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ label: 'London', timezoneId: 'Europe/London' }));
+    // fallback cities carry no country, so the event sends an empty one rather than a guess
+    expect(analytics.trackEvent).toHaveBeenCalledWith('location_added', { timezone_id: 'Europe/London', country: '' });
   });
 });

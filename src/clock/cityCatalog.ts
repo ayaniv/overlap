@@ -16,7 +16,8 @@ type RawCity = {
   province: string;
   country: string;
   pop: number;
-  timezone: string;
+  // null for a few entries (Antarctic stations), which cannot be shown on a clock
+  timezone: string | null;
 };
 
 type CityDataset = { cityMapping: RawCity[] };
@@ -52,6 +53,21 @@ export function searchCityList(cities: CityEntry[], query: string, limit = SUGGE
     .slice(0, limit);
 }
 
+// drops entries without a timezone and exact repeats (the dataset lists
+// Bandar Lampung twice), so every entry is pickable and uniquely keyed
+function toCityEntries(rawCities: RawCity[]): CityEntry[] {
+  const seenKeys = new Set<string>();
+  const entries: CityEntry[] = [];
+  for (const raw of rawCities) {
+    if (!raw.timezone) continue;
+    const key = `${raw.timezone}|${raw.city}|${raw.province}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    entries.push({ label: raw.city, timezoneId: raw.timezone, country: raw.country, region: raw.province, population: raw.pop });
+  }
+  return entries;
+}
+
 // takes the importer as a parameter so the lazy-load and retry behavior is
 // testable without the real ~2 MB dataset; a failed import is not cached, so
 // the next call can retry
@@ -60,15 +76,7 @@ export function createCityCatalogLoader(importDataset: () => Promise<CityDataset
   return () => {
     if (!pendingCatalog) {
       pendingCatalog = importDataset()
-        .then(({ cityMapping }) =>
-          cityMapping.map((raw) => ({
-            label: raw.city,
-            timezoneId: raw.timezone,
-            country: raw.country,
-            region: raw.province,
-            population: raw.pop,
-          })),
-        )
+        .then(({ cityMapping }) => toCityEntries(cityMapping))
         .catch((error: unknown) => {
           pendingCatalog = null;
           throw error;

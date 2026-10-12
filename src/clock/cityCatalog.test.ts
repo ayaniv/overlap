@@ -63,6 +63,13 @@ describe('loadCityCatalog (real city-timezones dataset)', () => {
     expect(results[0].label).toBe('Washington, D.C.');
   });
 
+  it('has no entry without a timezone and no repeated city/timezone/region key', async () => {
+    const catalog = await loadCityCatalog();
+    const keys = catalog.map((entry) => `${entry.timezoneId}|${entry.label}|${entry.region}`);
+    expect(catalog.every((entry) => entry.timezoneId)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it('returns the same cached list on repeated loads', async () => {
     expect(await loadCityCatalog()).toBe(await loadCityCatalog());
   });
@@ -83,6 +90,15 @@ describe('createCityCatalogLoader', () => {
     expect(first).toEqual([
       { label: 'Boston', timezoneId: 'America/New_York', country: 'United States of America', region: 'Massachusetts', population: 5 },
     ]);
+  });
+
+  it('drops entries with no timezone and exact duplicates', async () => {
+    const station = { city: 'Rothera Station', province: 'Antarctica', country: 'Antarctica', pop: 1, timezone: null };
+    const importer = vi.fn().mockResolvedValue({ cityMapping: [...rawCities, station, ...rawCities] });
+
+    const catalog = await createCityCatalogLoader(importer)();
+
+    expect(catalog.map((entry) => entry.label)).toEqual(['Boston']);
   });
 
   it('rejects when the import fails, and retries on the next call instead of caching the failure', async () => {
