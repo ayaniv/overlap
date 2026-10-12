@@ -4,7 +4,7 @@ import type { NewLocationInput } from './locationForm';
 import type { CityEntry } from './cityCatalog';
 import { PALETTE } from './defaultCities';
 
-const TOKYO: CityEntry = { label: 'Tokyo', timezoneId: 'Asia/Tokyo', country: 'Japan' };
+const TOKYO: CityEntry = { label: 'Tokyo', timezoneId: 'Asia/Tokyo', country: 'Japan', region: 'Tokyo', population: 1 };
 
 const VALID_INPUT: NewLocationInput = { city: TOKYO, label: 'Tokyo', color: '#38BDF8', workStart: 9, workEnd: 18 };
 

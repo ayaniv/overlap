@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAnalytics } from '../analytics/AnalyticsProvider';
-import { searchCities } from './cityCatalog';
 import type { CityEntry } from './cityCatalog';
+import { useCitySearch } from './useCitySearch';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START } from './defaultCities';
 import { buildNewLocation, pickAvailableColor, validateNewLocation } from './locationForm';
 import type { NewLocationInput } from './locationForm';
@@ -36,7 +36,10 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
   const [error, setError] = useState<string | null>(null);
   const [hasAdded, setHasAdded] = useState(false);
 
-  const suggestions = useMemo(() => (selectedCity ? [] : searchCities(query)), [query, selectedCity]);
+  const { suggestions: citySuggestions, status: cityListStatus, requestLoad: requestCityListLoad } = useCitySearch(query);
+  const suggestions = selectedCity ? [] : citySuggestions;
+  const isCityListLoading = cityListStatus === 'loading' && !selectedCity;
+  const hasCityListFailed = cityListStatus === 'failed';
 
   // `usedColors` lets the caller factor in a color not yet reflected in the
   // existingColors prop (namely the one just submitted) so back-to-back adds
@@ -94,17 +97,29 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
           type="text"
           placeholder="Search city…"
           value={query}
+          onFocus={requestCityListLoad}
           onChange={(event) => {
+            requestCityListLoad();
             setQuery(event.target.value);
             if (selectedCity) setSelectedCity(null);
           }}
           aria-label="Search city"
           autoComplete="off"
         />
+        {isCityListLoading && (
+          <div className={styles.listStatus} role="status" data-testid="city-list-loading">
+            Loading cities…
+          </div>
+        )}
+        {hasCityListFailed && (
+          <div className={styles.listStatus} role="status" data-testid="city-list-error">
+            Couldn’t load the full city list — showing common cities only.
+          </div>
+        )}
         {suggestions.length > 0 && (
           <ul className={styles.suggestions}>
             {suggestions.map((city) => (
-              <li key={`${city.timezoneId}-${city.label}`}>
+              <li key={`${city.timezoneId}-${city.label}-${city.region}`}>
                 <button
                   type="button"
                   className={styles.suggestion}
@@ -112,7 +127,12 @@ export function AddLocationForm({ existingIds, existingColors, onAdd, onDone, is
                   onClick={() => pickCity(city)}
                 >
                   {city.label}
-                  <span className={styles.suggestionCountry}>{city.country}</span>
+                  <span
+                    className={styles.suggestionRegion}
+                    data-testid={`city-suggestion-region-${city.timezoneId}-${city.label}`}
+                  >
+                    {city.region || city.timezoneId}
+                  </span>
                 </button>
               </li>
             ))}
