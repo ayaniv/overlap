@@ -122,6 +122,32 @@ describe('PopupApp — the clock itself', () => {
   });
 });
 
+describe('PopupApp — complete city search', () => {
+  it('offers Boston, which only the full lazy-loaded city list has, and adds it as a ring', async () => {
+    const user = userEvent.setup();
+    renderPopup();
+
+    await user.click(screen.getByTestId('control-menu-toggle'));
+    await user.click(screen.getByTestId('control-config-button'));
+    await user.type(screen.getByLabelText('Search city'), 'Boston');
+    await user.click(await screen.findByTestId('city-suggestion-America/New_York-Boston'));
+
+    expect(await screen.findByTestId('ring-label-boston')).toBeTruthy();
+  });
+
+  it('shows no suggestion for a city that is in no list', async () => {
+    const user = userEvent.setup();
+    renderPopup();
+
+    await user.click(screen.getByTestId('control-menu-toggle'));
+    await user.click(screen.getByTestId('control-config-button'));
+    await user.type(screen.getByLabelText('Search city'), 'Zzyzxville');
+
+    await waitFor(() => expect(screen.queryByTestId('city-list-loading')).toBeNull());
+    expect(screen.queryAllByTestId(/^city-suggestion-/)).toHaveLength(0);
+  });
+});
+
 describe('PopupApp — no Chrome extension CTA inside the extension itself', () => {
   it('renders no Add to Chrome CTA', () => {
     renderPopup();
