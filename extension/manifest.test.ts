@@ -19,6 +19,12 @@ describe('extension manifest', () => {
     expect(manifest.description).toEqual(expect.any(String));
   });
 
+  // Web Store rejects an upload whose version is not above the published one
+  // (1.0.0 shipped before the complete city search); bump this with every upload.
+  it('is above the already-published 1.0.0 so the Web Store accepts the upload', () => {
+    expect(manifest.version).toBe('1.1.0');
+  });
+
   it('opens popup.html from the toolbar action', () => {
     const action = manifest.action as { default_popup?: string; default_icon?: Record<string, string> };
     expect(action.default_popup).toBe('popup.html');
