@@ -11,8 +11,9 @@
   left: var(--hint-hand-left);
   top: var(--hint-hand-top);
   transform: translate(-50%, calc(-50% + 70px)) rotate(-15deg);
-  font-size: 32px;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
+  color: #f5f6f8;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
