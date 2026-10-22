@@ -2,7 +2,9 @@
 
 ## Summary
 
-Make overlapclock.com something ChatGPT, Claude, Perplexity and Google's AI features can find, read and quote: a new static `/faq` page of self-contained Q&As with matching `FAQPage` structured data, the AI crawlers' current user agents allowed in `robots.txt`, and an `llms.txt` brought into the llmstxt.org shape with a link to the FAQ. It is one small flat unit of static files. The FAQ is a plain HTML page under `public/`, like `privacy.html`, so crawlers see it without JS, and it does **not** depend on the SEO task's prerender work.
+Make overlapclock.com something ChatGPT, Claude, Perplexity and Google's AI features can find, read and quote: a new static `/faq` page of self-contained Q&As with matching `FAQPage` structured data, the AI crawlers' current user agents allowed in `robots.txt`, and an `llms.txt` brought into the llmstxt.org shape with a link to the FAQ, and `/faq` added to the sitemap. It is one small flat unit of static files. The FAQ is a plain HTML page under `public/`, like `privacy.html`, and both pages share one extracted stylesheet so the second static page doesn't copy the first one's styles. Crawlers see the FAQ without JS, and it does not depend on the SEO task's prerender work.
+
+## References
 
 **QA Spec:** `e2e/aeo.spec.ts`
 
@@ -10,7 +12,7 @@ Issue: https://github.com/ayaniv/overlap/issues/84 · companion: #83 (`overlap-s
 
 ## Exploration findings (what this plan is built on)
 
-Verified against `origin/main` at `8dfdd6e`.
+Verified against `origin/master` at `8dfdd6e`. Re-checked at plan review on `claude/overlap-aeo-answer-engines` at `c2aeea9`.
 
 - **Most of the issue's checklist already shipped in `575ca33`.** `public/robots.txt` already has
   `Allow: /` groups for GPTBot, ChatGPT-User, Google-Extended, ClaudeBot, Claude-Web, anthropic-ai,
@@ -36,13 +38,14 @@ Verified against `origin/main` at `8dfdd6e`.
   says "No analytics, tracking scripts, or cookies are used", but the web app ships PostHog
   (`src/posthog/posthogClient.ts`). The FAQ must not repeat that claim (see Open questions).
 - **Test env:** the repo pins Node 24 (`.nvmrc`, `engines`). Under Node 26, 137 existing extension
-  tests fail on `localStorage` (pre-existing, unrelated). Under Node 24 all 579 pass. So the verifier
-  pins Node 24.
+  tests fail on `localStorage` (pre-existing, unrelated). Under Node 24 every pre-existing test passes
+  (597 passed at plan review, with only the 7 intended `aeo.spec.ts` reds). So the verifier pins Node 24.
 
 ## Flat vs milestones
 
-**Flat.** These are four static-file edits with no dependency between them, and each is a few minutes of
-work. The FAQ content is the only real effort. Splitting would add ceremony without adding any shippable
+**Flat.** These are a handful of static-file edits (`faq.html`, the extracted `static-page.css` plus its `privacy.html`
+swap, `robots.txt`, `llms.txt`, `sitemap.xml`). Most are a few minutes of work, and none is worth shipping alone:
+the `llms.txt` and sitemap links point at a page that has to exist (the spec enforces that). The FAQ content is the only real effort. Splitting would add ceremony without adding any shippable
 increments.
 
 ## Design
@@ -52,15 +55,21 @@ increments.
 - Same shell as `privacy.html`: the same inline dark-theme styles and fonts, no JS, and
   `<link rel="canonical" href="https://overlapclock.com/faq">`, a `<title>`, a `<meta name="description">`,
   and a "← Back to Overlap Clock" link (`data-testid="faq-home-link"`, `href="/"`).
-  To avoid duplicating the stylesheet, note that the two pages share only a handful of base rules, and there is no build step
-  for `public/`. Copying the base block matches the existing per-page pattern. If that feels wrong, the
-  alternative is a shared `public/static-page.css` linked from both. **Dev's call. Don't do both.**
+- **Styles: extract, don't copy.** `privacy.html`'s inline `<style>` (~55 lines) is entirely base rules
+  the FAQ needs too (body, `main`, headings, links, `.back`). So move that block verbatim into a new
+  `public/static-page.css`, and link it from both `privacy.html` and `faq.html` with
+  `<link rel="stylesheet" href="/static-page.css">`. `privacy.html`'s only change is swapping that
+  `<style>` for the `<link>`, with no copy change. Vite copies `public/` as-is, and a stylesheet `<link>` doesn't
+  trip the spec's no-`script[src]` check. FAQ-only rules, if any, stay in a small inline `<style>` in `faq.html`.
 - Each Q&A is `<section id="<anchor>" data-testid="faq-item">` with an
   `<h2 data-testid="faq-question">` and one `<div data-testid="faq-answer">`. The ids are stable,
   citable anchors (`/faq#is-it-free`).
 - **Answer-writing rules (this is what makes it AEO, not just FAQ):** the first sentence answers the
   question outright, and every answer names "Overlap Clock" so a quoted excerpt stands alone. Each answer is
-  2–4 sentences and makes only claims true of the current code.
+  2–4 sentences and makes only claims true of the current code *and of the production deploy*.
+  Two answers depend on build-time env vars, so check them against live https://overlapclock.com,
+  not just the code. `schedule-google-calendar`: the Schedule flow only appears when `VITE_GOOGLE_CLIENT_ID`
+  is set. If it isn't live, the answer says so rather than promising it. `data-privacy`: see the decision below.
 - Required entries (ids are asserted by the spec, but the question wording is the dev's):
 
   | id | question intent |
@@ -70,7 +79,7 @@ increments.
   | `is-it-free` | Is it free / do I need an account? |
   | `share-timezone-view` | How do I share my time zone view with my team? |
   | `schedule-google-calendar` | Can I schedule a meeting in Google Calendar from it? |
-  | `data-privacy` | Does it store or send my data? (see Open questions — must be accurate re: PostHog) |
+  | `data-privacy` | Does it store or send my data? (must be accurate re: PostHog, see Decisions) |
   | `chrome-extension` | Is there a Chrome extension? (link the Web Store URL from `llms.txt`) |
   | `compare-world-clocks` | How is it different from a regular world clock / time zone converter? (no competitor names or claims about them) |
   | `open-source` | Is it open source? (MIT, GitHub link) |
@@ -91,8 +100,10 @@ Add `User-agent: OAI-SearchBot`, `Claude-SearchBot`, `Claude-User` and `Perplexi
 Keep the existing H1, blockquote and prose (it's accurate). Add a `## Docs` section with link-list
 entries: the FAQ (`https://overlapclock.com/faq`), the privacy policy, the GitHub repo and the Chrome Web Store
 listing. Every link must be absolute `https://`, and every overlapclock.com link must resolve to a real page.
-Both rules are spec-enforced. Correct the "Key facts" privacy bullet too, if the analytics answer
-(Open questions) changes what's true.
+Both rules are spec-enforced. Anchor links such as `https://overlapclock.com/faq#is-it-free` are fine:
+the spec strips `#…`/`?…` before checking that the page exists. Rewrite the "Key facts" privacy bullet
+so it agrees with the FAQ's `data-privacy` answer (see Decisions). Today it implies nothing leaves the
+browser, which is not true while PostHog ships.
 
 ### 4. `public/sitemap.xml` — add `/faq`
 
@@ -114,6 +125,11 @@ Its tech-design didn't exist yet when this plan was written. Re-check
 - **Shared files:** `public/robots.txt` (SEO owns `User-agent: *` and `Sitemap:`, and this task only *adds* the
   four AI groups) and `public/sitemap.xml` (SEO owns the file, and this task adds one `<url>`). Both are small
   additive hunks. Whichever PR merges second rebases, and the conflict is a trivial keep-both.
+  If SEO switches the sitemap to a build-generated file, a rebase would silently drop the `/faq`
+  entry. In that case, add `/faq` to SEO's source list instead. The spec's `/faq`-in-sitemap test
+  catches a drop as long as it reads the file the site actually serves.
+- **Possibly shared:** `public/privacy.html`. This task only swaps its `<style>` for the stylesheet `<link>`.
+  If SEO adds meta/OG tags to it, the hunks are in the same `<head>` and the conflict is a keep-both.
 - **Not shared:** `index.html`, `src/**`. This task doesn't touch them.
 - **No dependency on prerender:** `/faq` is static HTML, visible to non-JS crawlers on its own.
 - **Ask of #83:** if its landing copy grows a FAQ section, it should *link to* `/faq` rather than
@@ -126,6 +142,12 @@ Its tech-design didn't exist yet when this plan was written. Re-check
 
 - **Verifier (VERIFY):** `npx -y node@24 ./node_modules/vitest/vitest.mjs run && npm run build`.
   This is the full unit suite plus `e2e/aeo.spec.ts` on the repo's pinned Node, then the typecheck and production build.
+  Confirmed runnable at plan review: 7 failed (the intended reds) and 597 passed, with the two FAQ suites skipped
+  because their `beforeAll` hits `ENOENT`.
+- **Failure paths:** the spec's negative assertions are the failure-path coverage for static files. No crawler group may
+  `Disallow`, there are no off-site or dead sitemap/`llms.txt` links, and JSON-LD may not drift from the visible Q&As.
+  There is no runtime code here, so there is no fallible operation to log. The error-observability constraint
+  doesn't apply.
 - **QA spec:** `e2e/aeo.spec.ts` (vitest, tagged `@pending` in each `describe`). By default it reads
   `public/`. Set `AEO_BASE_URL=https://<vercel-preview>` to run the same assertions against a live
   deploy, which also exercises `cleanUrls` (`/faq`) and the real served bytes.
@@ -139,12 +161,16 @@ Its tech-design didn't exist yet when this plan was written. Re-check
 - **Manual post-deploy check:** validate `/faq` in Google's Rich Results Test (FAQPage detected, no
   errors).
 
-## Open questions
+## Decisions
 
-1. **Analytics truthfulness.** The `data-privacy` answer can't honestly say "no analytics" while PostHog
-   ships. Recommended: the FAQ answer says the app uses privacy-respecting product analytics (PostHog),
-   with no account and no server-side storage of your clocks. Fixing `privacy.html:95` itself is a separate
-   change. It should be filed, not bundled here.
+1. **Analytics truthfulness (resolved at plan review).** The `data-privacy` answer can't honestly say "no analytics"
+   while PostHog ships (`src/posthog/posthogClient.ts`). It states facts, not adjectives: no account, your
+   cities/hours stay in your browser and in the share link, the developer runs no server that stores them,
+   and the site uses PostHog for usage analytics. Leave out "privacy-respecting", because it's a claim an answer
+   engine would quote as fact. The `llms.txt` "Key facts" bullet says the same thing.
+   Fixing `privacy.html:95` ("No analytics…") is a policy-copy change. The dev **files it as an overlap
+   issue before opening this PR** and links it in the PR body, rather than bundling it. Until it lands,
+   don't link the privacy policy from the `data-privacy` FAQ answer, so the FAQ doesn't point at a page that contradicts it.
 
 ## Manual developer checklist (not code — do after merge)
 

@@ -28,7 +28,9 @@ async function loadAsset(path: string): Promise<string> {
   return readFileSync(resolve(PUBLIC_DIR, publicFileFor(path)), 'utf8');
 }
 
-function pathExistsOnSite(path: string): boolean {
+function pathExistsOnSite(pathWithSuffix: string): boolean {
+  // a citable anchor (/faq#is-it-free) or a query string is the same page on disk
+  const path = pathWithSuffix.replace(/[?#].*$/, '');
   // the app's own index.html lives at the repo root, not under public/
   if (path === '/') return existsSync(resolve(PUBLIC_DIR, '../index.html'));
   return existsSync(resolve(PUBLIC_DIR, publicFileFor(path)));
