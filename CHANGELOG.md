@@ -5,6 +5,10 @@ newest first. This file is auto-maintained: a GitHub Actions workflow
 (`.github/workflows/update-changelog.yml`) appends a new entry automatically whenever a
 PR merges into `main`. Manual edits to old entries are safe — only new entries are appended.
 
+## 2026-10-22
+
+- [#93](https://github.com/ayaniv/overlap/pull/93) SEO: make overlapclock.com discoverable via Google (#83)
+
 ## 2026-08-18
 
 - [#80](https://github.com/ayaniv/overlap/pull/80) Rename "Find Time" CTA to "Find overlap"
