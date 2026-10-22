@@ -4,7 +4,7 @@
 
 overlapclock.com already has a title, a meta description, a canonical URL, OG tags, `WebApplication` JSON-LD, `robots.txt` and `sitemap.xml`, but it still doesn't rank, even for its own name. The reason is that Google indexes the *rendered* page, and on overlapclock.com that page is a full-viewport SVG clock with no copy and no links. The only descriptive text is a 60-word visually-clipped fallback that React wipes on mount. This task adds one real, static, keyword-targeted landing page (`/time-zone-meeting-planner`) in the same no-JS shape as `privacy.html`, links to it from the raw HTML and from the rendered app footer, retitles the home page toward the search intent, ties the two pages together in structured data, and completes the sitemap. It is a single flat unit of static files plus one footer link.
 
-**QA Spec:** `e2e/seo.spec.ts`
+**QA Spec:** `e2e/seo.spec.ts`, `src/clock/WorldClock.test.tsx` and `extension/src/PopupApp.test.tsx` (the `@pending` cases)
 
 Issue: https://github.com/ayaniv/overlap/issues/83 · companion: #84 (`overlap-aeo-answer-engines`, plan at `docs/tech-design-aeo-answer-engines.md` on its branch).
 
