@@ -230,7 +230,7 @@ describe('PopupApp — handing off to the full web app', () => {
     expect(privacyLink.rel).toBe('noreferrer');
   });
 
-  it('@pending points the meeting planner link at the hosted page, not a relative path that 404s in the extension', () => {
+  it('points the meeting planner link at the hosted page, not a relative path that 404s in the extension', () => {
     renderPopup();
 
     const link = screen.getByTestId('meeting-planner-link') as HTMLAnchorElement;

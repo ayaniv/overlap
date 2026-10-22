@@ -291,7 +291,7 @@ describe('WorldClock copy', () => {
 
   // the rendered app is otherwise a full-viewport SVG with no crawlable links, so
   // this footer link is the only path a rendering crawler finds to the landing page
-  it('@pending links the footer to the time-zone meeting planner page in a new tab by default', () => {
+  it('links the footer to the time-zone meeting planner page in a new tab by default', () => {
     renderClock('view');
 
     const link = screen.getByTestId('meeting-planner-link');

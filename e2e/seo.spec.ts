@@ -55,7 +55,7 @@ function fileForSitemapPath(path: string): string {
   return path === '/' ? resolve(repoRoot, 'index.html') : resolve(publicDir, `${path.slice(1)}.html`);
 }
 
-describe('time-zone meeting planner landing page @pending', () => {
+describe('time-zone meeting planner landing page', () => {
   let landing: Document;
 
   beforeAll(() => {
@@ -111,7 +111,7 @@ describe('time-zone meeting planner landing page @pending', () => {
   });
 });
 
-describe('index.html crawler-facing shell @pending', () => {
+describe('index.html crawler-facing shell', () => {
   let shell: Document;
 
   beforeAll(() => {
@@ -142,7 +142,7 @@ describe('index.html crawler-facing shell @pending', () => {
   });
 });
 
-describe('sitemap.xml @pending', () => {
+describe('sitemap.xml', () => {
   it('lists only absolute, clean overlapclock.com URLs that resolve to a real page', () => {
     for (const loc of sitemapLocs()) {
       expect(loc.startsWith(`${SITE_ORIGIN}/`)).toBe(true);
@@ -177,7 +177,7 @@ describe('robots.txt', () => {
   });
 });
 
-describe('static pages share one stylesheet @pending', () => {
+describe('static pages share one stylesheet', () => {
   // privacy.html and the landing page used to be the only two hand-written pages;
   // a second copy of the same inline <style> block would drift on the first edit
   it.each(['privacy.html', 'time-zone-meeting-planner.html'])('%s links /static-page.css instead of inlining styles', (name) => {
