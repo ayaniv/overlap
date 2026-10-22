@@ -252,6 +252,69 @@ code {
   text-decoration: underline;
 }
 
+/* the app's "Add to Chrome" pill: values from src/clock/PillButton.module.css,
+   with ChromeExtensionCta.module.css's larger icon. A static page can't
+   `composes:` a CSS module, so keep these in step with that file by hand */
+.landing .landing-chrome-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  min-height: 32px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1px solid #3a3e46;
+  background: rgba(20, 22, 29, 0.7);
+  color: #c4c8cf;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.landing .landing-chrome-cta:hover,
+.landing .landing-chrome-cta:focus-visible {
+  border-color: #565b64;
+  color: #f5f6f8;
+}
+.landing .landing-chrome-cta svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+/* the app only offers the extension on desktop; touch devices can't install it.
+   The link stays in the HTML either way, for crawlers */
+@media not ((hover: hover) and (pointer: fine)) {
+  .landing .landing-chrome-cta {
+    display: none;
+  }
+}
+
+.landing .landing-shots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px;
+  margin-top: 48px;
+}
+.landing figure {
+  margin: 0;
+}
+.landing .landing-shots img,
+.landing .landing-share-shot img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.landing figcaption {
+  margin-top: 12px;
+  max-width: 292px;
+  color: #7b808a;
+  font-size: 14px;
+}
+.landing .landing-share-shot {
+  margin-top: 20px;
+}
+
 @media (max-width: 820px) {
   .landing .landing-header,
   .landing main,

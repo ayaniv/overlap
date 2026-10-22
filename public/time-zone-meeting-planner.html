@@ -58,6 +58,22 @@
           </p>
           <p class="landing-actions">
             <a class="landing-button" data-testid="landing-open-app" href="/">Open Overlap Clock</a>
+            <a
+              class="landing-chrome-cta"
+              data-testid="landing-chrome-extension-cta"
+              href="https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#EA4335" d="M4.95 13A22 22 0 0 1 43.05 13L24 24Z" />
+                <path fill="#FBBC04" d="M43.05 13A22 22 0 0 1 24 46L24 24Z" />
+                <path fill="#34A853" d="M24 46A22 22 0 0 1 4.95 13L24 24Z" />
+                <circle cx="24" cy="24" r="10" fill="#fff" />
+                <circle cx="24" cy="24" r="7.5" fill="#4285F4" />
+              </svg>
+              Add to Chrome
+            </a>
             <span class="landing-note">Free. No account.</span>
           </p>
         </div>
@@ -71,20 +87,22 @@
         </figure>
       </section>
 
-      <section class="landing-section landing-how">
+      <section class="landing-section landing-how" data-testid="landing-working-hours-explainer">
         <h2>How to find a meeting time</h2>
         <ol class="landing-steps">
           <li>
             <h3>Add the cities</h3>
             <p>
-              Add a city for each person you meet with. Every city gets its own ring and color, and
-              you can change its working hours for anyone who keeps a different day.
+              Add a city for each person you meet with, and pick its color and its working hours
+              (Start and End). Under Manage locations you can drag cities into a new order, set
+              which one is home, or remove one.
             </p>
           </li>
           <li>
             <h3>Look for where the colors line up</h3>
             <p>
-              The colored part of each ring is that city's working day. The stretch where every ring
+              Each city's color is drawn on its ring only between the Start and End hours you set,
+              so the colored part of a ring is that city's working day. The stretch where every ring
               is colored is the time your whole group is at work.
             </p>
           </li>
@@ -104,16 +122,45 @@
             </p>
           </li>
         </ol>
+        <div class="landing-shots">
+          <figure>
+            <img
+              src="/screenshots/add-location.png"
+              width="292"
+              height="376"
+              alt="The Add location panel: a city search box, a row of color swatches with a custom hex color, and Start and End fields set to 9 and 18"
+            />
+            <figcaption>Each city's color and working hours, set when you add it.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/screenshots/manage-locations.png"
+              width="300"
+              height="430"
+              alt="The Manage locations panel listing Tel Aviv (marked as home), Sydney, London, New York and San Francisco, each with its color, a drag handle and a delete button"
+            />
+            <figcaption>Reorder cities, change home, or remove one.</figcaption>
+          </figure>
+        </div>
       </section>
 
       <div class="landing-details">
-        <section class="landing-section">
+        <section class="landing-section" data-testid="landing-share-section">
           <h2>Send someone your exact view</h2>
           <p>
-            The cities, colors and hours you set are saved in the page's link. Press Share, send the
-            link, and the other person opens the same clock without signing up. Your setup is also
-            kept in your browser, so it's still there the next time you open Overlap Clock.
+            The cities, colors and hours you set are saved in the page's link. Press Share to send
+            that link through your device's share options, or copy it, and the other person opens the
+            same clock without signing up. Your setup is also kept in your browser, so it's still
+            there the next time you open Overlap Clock.
           </p>
+          <figure class="landing-share-shot">
+            <img
+              src="/screenshots/share.png"
+              width="224"
+              height="266"
+              alt="The share menu that opens from Overlap Clock's Share button, offering AirDrop, Mail, Messages, Notes and Copy"
+            />
+          </figure>
         </section>
 
         <section class="landing-section">
