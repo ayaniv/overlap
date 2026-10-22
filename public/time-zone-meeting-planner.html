@@ -9,7 +9,7 @@
     <title>Time Zone Meeting Planner — Overlap Clock</title>
     <meta
       name="description"
-      content="Find overlapping working hours across time zones at a glance. Overlap Clock is a free, open-source meeting planner for distributed teams. No signup."
+      content="Plan meetings across time zones on one clock. Overlap Clock shows every city's working hours as a ring, so you can see when everyone is at work. Free."
     />
     <link rel="canonical" href="https://overlapclock.com/time-zone-meeting-planner" />
 
@@ -19,7 +19,7 @@
     <meta property="og:title" content="Time Zone Meeting Planner — Overlap Clock" />
     <meta
       property="og:description"
-      content="See every city's working hours as a ring around your local time and find the hours your whole team overlaps. Free, open source, no signup."
+      content="See every city's working hours as a ring around your local time and find the hours your whole team is at work. Free, open source, no signup."
     />
     <meta property="og:image" content="https://overlapclock.com/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
@@ -37,93 +37,123 @@
       }
     </script>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static-page.css" />
   </head>
-  <body>
+  <body class="landing">
+    <header class="landing-header">
+      <a class="landing-wordmark" href="/">Overlap Clock</a>
+    </header>
+
     <main data-testid="landing-content">
-      <a class="back" href="/">&larr; Back to Overlap Clock</a>
-      <h1>Time zone meeting planner: find the hours your team overlaps</h1>
-      <p>
-        Overlap Clock is a free world clock built for one question: when is everyone on my team
-        actually working at the same time? It draws your home time zone in the center and every
-        other city as a ring around it, so overlapping working hours across time zones are
-        something you see, not something you calculate.
+      <section class="landing-hero">
+        <div class="landing-hero-text">
+          <h1>Plan meetings across time zones by looking at one clock</h1>
+          <p class="landing-lead">
+            Overlap Clock puts your local time in the middle and every city you work with on a ring
+            around it. Each ring is colored during that city's working hours. Where the colors line
+            up, everyone is at work, and that's when to meet.
+          </p>
+          <p class="landing-actions">
+            <a class="landing-button" data-testid="landing-open-app" href="/">Open Overlap Clock</a>
+            <span class="landing-note">Free. No account.</span>
+          </p>
+        </div>
+        <figure class="landing-hero-clock">
+          <img
+            src="/clock-screenshot.jpg"
+            width="1120"
+            height="1120"
+            alt="Overlap Clock at 17:05 in Tel Aviv: the New York, London and Tel Aviv rings are all colored, showing those three cities are in working hours together, while San Francisco and Sydney are outside theirs"
+          />
+        </figure>
+      </section>
+
+      <section class="landing-section landing-how">
+        <h2>How to find a meeting time</h2>
+        <ol class="landing-steps">
+          <li>
+            <h3>Add the cities</h3>
+            <p>
+              Add a city for each person you meet with. Every city gets its own ring and color, and
+              you can change its working hours for anyone who keeps a different day.
+            </p>
+          </li>
+          <li>
+            <h3>Look for where the colors line up</h3>
+            <p>
+              The colored part of each ring is that city's working day. The stretch where every ring
+              is colored is the time your whole group is at work.
+            </p>
+          </li>
+          <li>
+            <h3>Pick a time</h3>
+            <p>
+              Drag around the clock, or use the arrow keys, to move every city's time at once. Or
+              press Find overlap to jump to the next time when the most cities are at work together.
+            </p>
+          </li>
+          <li>
+            <h3>Put it on the calendar</h3>
+            <p>
+              Schedule the meeting and it's added to your Google Calendar after you sign in with
+              Google. Overlap Clock creates that one event and never reads the rest of your
+              calendar.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <div class="landing-details">
+        <section class="landing-section">
+          <h2>Send someone your exact view</h2>
+          <p>
+            The cities, colors and hours you set are saved in the page's link. Press Share, send the
+            link, and the other person opens the same clock without signing up. Your setup is also
+            kept in your browser, so it's still there the next time you open Overlap Clock.
+          </p>
+        </section>
+
+        <section class="landing-section">
+          <h2>Who uses it</h2>
+          <p>
+            Remote teams spread across continents, freelancers with clients abroad, and anyone trying
+            to find a reasonable hour to call family in another country.
+          </p>
+        </section>
+
+        <section class="landing-section">
+          <h2>Free and open source</h2>
+          <p>
+            Overlap Clock is free, needs no account, and its code is
+            <a href="https://github.com/ayaniv/overlap">on GitHub</a> under the MIT license. The
+            developer doesn't run a server that stores your cities or hours. The
+            <a href="/privacy">privacy policy</a> lists exactly what the app touches.
+          </p>
+        </section>
+
+        <section class="landing-section">
+          <h2>In your browser toolbar</h2>
+          <p>
+            The <a href="https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj">Chrome extension</a>
+            opens the same clock from your toolbar, with Share and a button to open the full web app.
+            Scheduling to Google Calendar lives in the web app.
+          </p>
+        </section>
+
+      </div>
+
+      <p class="landing-closing">
+        <a class="landing-button" href="/">Open Overlap Clock</a>
       </p>
-      <p><a class="cta" data-testid="landing-open-app" href="/">Open Overlap Clock</a></p>
-
-      <figure class="screenshot">
-        <img
-          src="/og-image.jpg"
-          width="1200"
-          height="630"
-          alt="Overlap Clock showing several cities as concentric rings around the local time, each with a colored arc marking its working hours"
-        />
-      </figure>
-
-      <h2>What Overlap Clock is</h2>
-      <p>
-        Most time zone converters give you a table of numbers to scan. Overlap Clock gives you a
-        single radial clock instead. Each city you add becomes a ring, each ring carries a colored
-        arc for that city's working hours, and a dot on every ring marks its current time. Where
-        the arcs line up, everyone is available; where they don't, someone is asleep. It runs in
-        any modern browser on desktop or mobile.
-      </p>
-
-      <h2>How to find overlapping working hours across time zones</h2>
-      <ol>
-        <li>
-          <strong>Add your cities.</strong> Add the city of every teammate, client or friend you
-          need to meet with. Each one gets its own ring and color, and you can set its working
-          hours to match how that person really works.
-        </li>
-        <li>
-          <strong>Read the arcs.</strong> The colored arcs show each city's working hours against
-          your own day. The stretch where all of them overlap is your shared meeting window.
-        </li>
-        <li>
-          <strong>Pick a time.</strong> Drag the clock face, or use the arrow keys, to preview any
-          time across every ring at once. Or press <strong>Find overlap</strong> to jump to the next
-          time when the most cities are inside their working hours at once.
-        </li>
-        <li>
-          <strong>Schedule it.</strong> Once a time works, schedule the meeting straight to your
-          own Google Calendar after signing in with Google. Overlap Clock only creates that event,
-          and never reads your other calendar events.
-        </li>
-      </ol>
-
-      <h2>Share the exact view with a link</h2>
-      <p>
-        Your cities, colors and working hours are encoded into the page's link. Press Share and
-        anyone who opens that link sees the same clock you do, with no account and nothing to set
-        up. Your setup also stays in your browser's local storage, so it's there the next time you
-        come back.
-      </p>
-
-      <h2>Who it's for</h2>
-      <ul>
-        <li>Distributed and remote teams spread across several time zones.</li>
-        <li>Freelancers and agencies working with overseas clients.</li>
-        <li>Anyone planning a call with friends or family in another country.</li>
-      </ul>
-
-      <h2>Free, open source, no account</h2>
-      <p>
-        Overlap Clock is free and open source under the MIT license, with its code
-        <a href="https://github.com/ayaniv/overlap">on GitHub</a>. There's no signup and no
-        account, and the developer runs no server that stores your clock setup. See the
-        <a href="/privacy">privacy policy</a> for exactly what the app touches.
-      </p>
-
-      <h2>Also a Chrome extension</h2>
-      <p>
-        The same world clock is available as a
-        <a href="https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj">Chrome extension</a>,
-        in a toolbar popup with a Share action and a shortcut to open the full Overlap Clock web
-        app, which is where Google Calendar scheduling lives.
-      </p>
-
-      <p><a class="cta" href="/">Find your team's overlap now</a></p>
     </main>
+
+    <footer class="landing-footer">
+      <a href="https://github.com/ayaniv/overlap">GitHub</a>
+      <span aria-hidden="true">•</span>
+      <a href="/privacy">Privacy</a>
+    </footer>
   </body>
 </html>
