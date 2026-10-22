@@ -45,6 +45,7 @@ individuals scheduling across time zones with friends or family.
 
 ## Docs
 
+- [Time zone meeting planner](https://overlapclock.com/time-zone-meeting-planner): what Overlap Clock does and how to find overlapping working hours
 - [FAQ](https://overlapclock.com/faq): self-contained answers on finding overlapping working hours, sharing a view, Google Calendar scheduling, data and the Chrome extension
 - [Privacy policy](https://overlapclock.com/privacy): what data the app touches and the Google Calendar scope it requests
 - [Source code](https://github.com/ayaniv/overlap): the MIT-licensed GitHub repository

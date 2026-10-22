@@ -3,7 +3,7 @@ import { useAnalytics } from '../../src/analytics/AnalyticsProvider';
 import { useLogger } from '../../src/logger/LoggerProvider';
 import { AddLocationModePanel } from '../../src/clock/AddLocationModePanel';
 import { useShareHandler } from '../../src/clock/useShareHandler';
-import { WEB_APP_PRIVACY_URL, buildWebAppUrl } from '../../src/clock/webAppUrl';
+import { WEB_APP_MEETING_PLANNER_URL, WEB_APP_PRIVACY_URL, buildWebAppUrl } from '../../src/clock/webAppUrl';
 import { WorldClock } from '../../src/clock/WorldClock';
 import type { Mode } from '../../src/clock/types';
 import { useClockConfig } from '../../src/hooks/useClockConfig';
@@ -62,6 +62,7 @@ export function PopupApp() {
       isPortrait={isPortrait}
       onOpenInWebApp={handleOpenInWebApp}
       privacyHref={WEB_APP_PRIVACY_URL}
+      meetingPlannerHref={WEB_APP_MEETING_PLANNER_URL}
     />
   );
 }

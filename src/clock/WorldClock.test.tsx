@@ -289,6 +289,17 @@ describe('WorldClock copy', () => {
     expect(link.getAttribute('href')).toBe('/privacy');
   });
 
+  // the rendered app is otherwise a full-viewport SVG with no crawlable links, so
+  // this footer link is the only path a rendering crawler finds to the landing page
+  it('links the footer to the time-zone meeting planner page in a new tab by default', () => {
+    renderClock('view');
+
+    const link = screen.getByTestId('meeting-planner-link');
+    expect(link.getAttribute('href')).toBe('/time-zone-meeting-planner');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noreferrer');
+  });
+
   it('phrases the status line as a single "N/M teams available • local working hours" line, using the real computed count', () => {
     renderClock('view', [SF]); // SF is out of its working hours at NOW (12:00 UTC -> 04:00 PT); home (Tel Aviv) is in hours
     expect(screen.getByTestId('clock-status-text').textContent).toBe('1/2 teams available • local working hours');

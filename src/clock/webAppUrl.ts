@@ -6,6 +6,8 @@ import type { ClockConfig } from './types';
 // same-device handoff of the current config)
 export const WEB_APP_ORIGIN = 'https://overlapclock.com';
 export const WEB_APP_PRIVACY_URL = `${WEB_APP_ORIGIN}/privacy`;
+export const MEETING_PLANNER_PATH = '/time-zone-meeting-planner';
+export const WEB_APP_MEETING_PLANNER_URL = `${WEB_APP_ORIGIN}${MEETING_PLANNER_PATH}`;
 
 export function buildWebAppUrl(config: ClockConfig): string {
   return `${WEB_APP_ORIGIN}/${HASH_PREFIX}${encodeConfig(config)}`;

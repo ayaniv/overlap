@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="index, follow" />
 
-    <title>Overlap Clock — World Clock at a Glance</title>
+    <title>Overlap Clock — Time Zone Meeting Planner & World Clock</title>
     <meta
       name="description"
       content="Overlap Clock is a free, open-source world clock for scheduling across timezones. Add any cities, see everyone's working hours at a glance, share the exact view via a link, and schedule a meeting straight to Google Calendar — no signup, no backend."
@@ -19,7 +19,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://overlapclock.com/" />
     <meta property="og:site_name" content="Overlap Clock" />
-    <meta property="og:title" content="Overlap Clock — World Clock at a Glance" />
+    <meta property="og:title" content="Overlap Clock — Time Zone Meeting Planner &amp; World Clock" />
     <meta
       property="og:description"
       content="Free, open-source world clock for scheduling across timezones. Shareable links, one-click Google Calendar. No signup."
@@ -29,7 +29,7 @@
     <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Overlap Clock — World Clock at a Glance" />
+    <meta name="twitter:title" content="Overlap Clock — Time Zone Meeting Planner &amp; World Clock" />
     <meta
       name="twitter:description"
       content="Free, open-source world clock for scheduling across timezones. Shareable links, one-click Google Calendar. No signup."
@@ -40,6 +40,7 @@
       {
         "@context": "https://schema.org",
         "@type": "WebApplication",
+        "@id": "https://overlapclock.com/#app",
         "name": "Overlap Clock",
         "url": "https://overlapclock.com/",
         "description": "A free, open-source world clock for scheduling across timezones. Configure any cities as concentric rings, see each one's working hours at a glance, share the exact view via a URL, and schedule a meeting directly to Google Calendar.",
@@ -48,6 +49,10 @@
         "browserRequirements": "Requires JavaScript",
         "isAccessibleForFree": true,
         "screenshot": "https://overlapclock.com/og-image.jpg",
+        "sameAs": [
+          "https://github.com/ayaniv/overlap",
+          "https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj"
+        ],
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -91,6 +96,9 @@
           view with a link — no signup, no account, no backend — and schedule a meeting straight
           to Google Calendar.
         </p>
+        <p>
+          <a data-testid="seo-fallback-meeting-planner-link" href="/time-zone-meeting-planner">How to find overlapping working hours across time zones</a>
+        </p>
         <p>Loading the interactive clock…</p>
       </main>
     </div>
@@ -103,6 +111,9 @@
           working hours, so you can see at a glance who's currently available. Share the exact
           view with a link — no signup, no account, no backend — and schedule a meeting straight
           to Google Calendar.
+        </p>
+        <p style="font-size: 15px; line-height: 1.6;">
+          <a href="/time-zone-meeting-planner" style="color: #38bdf8;">How to find overlapping working hours across time zones</a>
         </p>
         <p style="font-size: 15px; line-height: 1.6;">This app requires JavaScript to run.</p>
       </main>

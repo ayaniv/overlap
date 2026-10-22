@@ -41,6 +41,7 @@ import { RingIncludeCheckbox } from './RingIncludeCheckbox';
 // tsconfig.app.json sets allowImportingTsExtensions.
 import { ScrubHint } from './ScrubHint.tsx';
 import { Toast } from './Toast';
+import { MEETING_PLANNER_PATH } from './webAppUrl';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
 import type { ReactNode } from 'react';
@@ -152,6 +153,9 @@ export type WorldClockProps = {
   // '/privacy' resolves to a 404 under chrome-extension://, so it passes
   // the hosted web-app URL instead
   privacyHref?: string;
+  // same chrome-extension:// 404 problem as privacyHref, for the footer link
+  // to the static landing page
+  meetingPlannerHref?: string;
   // present only in the popup: hands the current config off to the full web
   // app in a new tab. Absent hides the button entirely, same convention as
   // onFindTime.
@@ -199,6 +203,7 @@ export function WorldClock({
   excludedRingIds,
   onToggleRingIncluded,
   privacyHref = '/privacy',
+  meetingPlannerHref = MEETING_PLANNER_PATH,
   onOpenInWebApp,
   headerExtra,
 }: WorldClockProps) {
@@ -680,6 +685,18 @@ export function WorldClock({
           rel="noreferrer"
         >
           GitHub
+        </a>
+        <span className={styles.bottomLinkSeparator} aria-hidden="true">
+          •
+        </span>
+        <a
+          className={styles.privacyLink}
+          data-testid="meeting-planner-link"
+          href={meetingPlannerHref}
+          target="_blank"
+          rel="noreferrer"
+        >
+          How it works
         </a>
         <span className={styles.bottomLinkSeparator} aria-hidden="true">
           •
