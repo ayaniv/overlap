@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Answers about Overlap Clock, the free world clock for seeing overlapping working hours across time zones: how it works, sharing, Google Calendar scheduling, privacy and the Chrome extension."
+    />
+    <title>Overlap Clock FAQ — free time zone overlap tool</title>
+    <link rel="canonical" href="https://overlapclock.com/faq" />
+    <link rel="stylesheet" href="/static-page.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What's a good free tool to see time zone overlap with my team?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Overlap Clock (overlapclock.com) is a free web app built for exactly this. It draws your home time zone in the center and each teammate's city as a ring around it, with a colored arc for that city's working hours, so the hours where the arcs line up are the hours everyone is available. Overlap Clock needs no signup and runs in any modern browser on desktop or mobile."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I find overlapping working hours across time zones?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "In Overlap Clock, add each city you work with and set its working hours, then look for where the colored working-hours arcs overlap on the clock face. The Find overlap button jumps the clock to the upcoming time when the most selected cities are inside their working hours at once. You can also drag the clock face, or use the arrow keys, to preview any other time across every city."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Overlap Clock free, and do I need an account?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Overlap Clock is completely free, and it has no account system, so there is nothing to sign up for. You open overlapclock.com and start adding cities. The only sign-in it ever asks for is Google's own, and only if you choose to schedule a meeting on your Google Calendar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I share my time zone view with my team?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Click Share in Overlap Clock to copy a link that reproduces your exact view: the same cities, colors and working hours. Overlap Clock encodes the whole configuration in the link itself, so anyone who opens it sees the same clock without an account or a database behind it."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I schedule a meeting in Google Calendar from it?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. In Overlap Clock, pick a time by dragging the clock face (or with the arrow keys), then schedule the meeting, and it is created on your own Google Calendar after you sign in with Google. Overlap Clock only creates that event, and deletes it if you remove the meeting in the app; it never reads your other calendar events."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Overlap Clock store or send my data?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Overlap Clock has no account, and your cities, colors and working hours stay in your browser's local storage and in any share link you create. The developer runs no server that stores them. Overlap Clock's website and Chrome extension use PostHog for usage analytics."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there an Overlap Clock Chrome extension?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Overlap Clock is available as a Chrome extension from the Chrome Web Store. It shows the same world clock in a toolbar popup, with a Share action and a shortcut to open the full Overlap Clock web app, which is where Google Calendar scheduling lives."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Overlap Clock different from a regular world clock or time zone converter?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Overlap Clock shows working hours, not just the current time: every city's workday is drawn as an arc, so you can see at a glance who is available now and when everyone's hours overlap. Overlap Clock also lets you preview any time across all cities at once, share the whole view as a link, and schedule the meeting to Google Calendar from the same screen."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Overlap Clock open source?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Overlap Clock is open source under the MIT license. The code is on GitHub at github.com/ayaniv/overlap."
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/" data-testid="faq-home-link">&larr; Back to Overlap Clock</a>
+      <h1>Overlap Clock FAQ</h1>
+      <p class="updated">Last updated: 2026-10-22</p>
+
+      <section id="free-timezone-overlap-tool" data-testid="faq-item">
+        <h2 data-testid="faq-question">What's a good free tool to see time zone overlap with my team?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Overlap Clock (overlapclock.com) is a free web app built for exactly this. It draws
+            your home time zone in the center and each teammate's city as a ring around it, with a
+            colored arc for that city's working hours, so the hours where the arcs line up are the
+            hours everyone is available. Overlap Clock needs no signup and runs in any modern
+            browser on desktop or mobile.
+          </p>
+        </div>
+      </section>
+
+      <section id="find-overlapping-working-hours" data-testid="faq-item">
+        <h2 data-testid="faq-question">How do I find overlapping working hours across time zones?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            In Overlap Clock, add each city you work with and set its working hours, then look for
+            where the colored working-hours arcs overlap on the clock face. The Find overlap button
+            jumps the clock to the upcoming time when the most selected cities are inside their
+            working hours at once. You can also drag the clock face, or use the arrow keys, to
+            preview any other time across every city.
+          </p>
+        </div>
+      </section>
+
+      <section id="is-it-free" data-testid="faq-item">
+        <h2 data-testid="faq-question">Is Overlap Clock free, and do I need an account?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Yes, Overlap Clock is completely free, and it has no account system, so there is
+            nothing to sign up for. You open overlapclock.com and start adding cities. The only
+            sign-in it ever asks for is Google's own, and only if you choose to schedule a meeting
+            on your Google Calendar.
+          </p>
+        </div>
+      </section>
+
+      <section id="share-timezone-view" data-testid="faq-item">
+        <h2 data-testid="faq-question">How do I share my time zone view with my team?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Click Share in Overlap Clock to copy a link that reproduces your exact view: the same
+            cities, colors and working hours. Overlap Clock encodes the whole configuration in the
+            link itself, so anyone who opens it sees the same clock without an account or a
+            database behind it.
+          </p>
+        </div>
+      </section>
+
+      <section id="schedule-google-calendar" data-testid="faq-item">
+        <h2 data-testid="faq-question">Can I schedule a meeting in Google Calendar from it?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Yes. In Overlap Clock, pick a time by dragging the clock face (or with the arrow keys),
+            then schedule the meeting, and it is created on your own Google Calendar after you sign
+            in with Google. Overlap Clock only creates that event, and deletes it if you remove the
+            meeting in the app; it never reads your other calendar events.
+          </p>
+        </div>
+      </section>
+
+      <section id="data-privacy" data-testid="faq-item">
+        <h2 data-testid="faq-question">Does Overlap Clock store or send my data?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Overlap Clock has no account, and your cities, colors and working hours stay in your
+            browser's local storage and in any share link you create. The developer runs no server
+            that stores them. Overlap Clock's website and Chrome extension use PostHog for usage
+            analytics.
+          </p>
+        </div>
+      </section>
+
+      <section id="chrome-extension" data-testid="faq-item">
+        <h2 data-testid="faq-question">Is there an Overlap Clock Chrome extension?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Yes, Overlap Clock is available as a Chrome extension from the
+            <a href="https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj">Chrome Web Store</a>.
+            It shows the same world clock in a toolbar popup, with a Share action and a shortcut to
+            open the full Overlap Clock web app, which is where Google Calendar scheduling lives.
+          </p>
+        </div>
+      </section>
+
+      <section id="compare-world-clocks" data-testid="faq-item">
+        <h2 data-testid="faq-question">How is Overlap Clock different from a regular world clock or time zone converter?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Overlap Clock shows working hours, not just the current time: every city's workday is
+            drawn as an arc, so you can see at a glance who is available now and when everyone's
+            hours overlap. Overlap Clock also lets you preview any time across all cities at once,
+            share the whole view as a link, and schedule the meeting to Google Calendar from the
+            same screen.
+          </p>
+        </div>
+      </section>
+
+      <section id="open-source" data-testid="faq-item">
+        <h2 data-testid="faq-question">Is Overlap Clock open source?</h2>
+        <div data-testid="faq-answer">
+          <p>
+            Yes, Overlap Clock is open source under the MIT license. The code is on GitHub at
+            <a href="https://github.com/ayaniv/overlap">github.com/ayaniv/overlap</a>.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
