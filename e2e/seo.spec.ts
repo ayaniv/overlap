@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { CHROME_WEB_STORE_URL } from '../src/clock/chromeExtension';
 
 // Everything here is what a crawler sees *before* any JavaScript runs: the files
 // Vite copies verbatim from public/ plus the index.html shell. A render test can't
@@ -12,6 +13,9 @@ const SITE_ORIGIN = 'https://overlapclock.com';
 const MEETING_PLANNER_PATH = '/time-zone-meeting-planner';
 const MEETING_PLANNER_FILE = resolve(publicDir, 'time-zone-meeting-planner.html');
 const APP_ENTITY_ID = `${SITE_ORIGIN}/#app`;
+const ADD_LOCATION_SCREENSHOT = '/screenshots/add-location.png';
+const MANAGE_LOCATIONS_SCREENSHOT = '/screenshots/manage-locations.png';
+const SHARE_SCREENSHOT = '/screenshots/share.png';
 // below this, the page is a stub rather than something worth indexing on its own
 const MIN_LANDING_WORD_COUNT = 300;
 // Google truncates descriptions past roughly this length in results
@@ -95,6 +99,39 @@ describe('time-zone meeting planner landing page', () => {
     const cta = landing.querySelector('[data-testid="landing-open-app"]');
     expect(cta?.getAttribute('href')).toBe('/');
   });
+
+  it('offers the same Add to Chrome CTA as the app, opening the Web Store listing in a new tab', () => {
+    const cta = landing.querySelector('[data-testid="landing-chrome-extension-cta"]');
+    expect(cta?.getAttribute('href')).toBe(CHROME_WEB_STORE_URL);
+    expect(cta?.getAttribute('target')).toBe('_blank');
+    expect(cta?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(cta?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it("explains that each colored arc is that city's working hours, next to the add-location screenshot", () => {
+    const section = landing.querySelector('[data-testid="landing-working-hours-explainer"]');
+    expect(section?.closest('[data-testid="landing-content"]')).not.toBeNull();
+    expect(section?.querySelector(`img[src="${ADD_LOCATION_SCREENSHOT}"]`)).not.toBeNull();
+  });
+
+  it('shows the Share action next to the copy about sending your exact view', () => {
+    const section = landing.querySelector('[data-testid="landing-share-section"]');
+    expect(section?.closest('[data-testid="landing-content"]')).not.toBeNull();
+    expect(section?.querySelector(`img[src="${SHARE_SCREENSHOT}"]`)).not.toBeNull();
+  });
+
+  it.each([ADD_LOCATION_SCREENSHOT, MANAGE_LOCATIONS_SCREENSHOT, SHARE_SCREENSHOT])(
+    'shows the %s screenshot with alt text and fixed dimensions, backed by a shipped file',
+    (src) => {
+      const img = landing.querySelector(`[data-testid="landing-content"] img[src="${src}"]`);
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute('alt')?.trim()).toBeTruthy();
+      // explicit dimensions reserve the space, so the copy doesn't jump as images load
+      expect(Number(img?.getAttribute('width'))).toBeGreaterThan(0);
+      expect(Number(img?.getAttribute('height'))).toBeGreaterThan(0);
+      expect(existsSync(resolve(publicDir, src.slice(1))), `${src} is not in public/`).toBe(true);
+    },
+  );
 
   it('describes itself for link previews, pointing og:url at the canonical URL', () => {
     expect(metaContent(landing, 'meta[property="og:title"]')).toBeTruthy();
