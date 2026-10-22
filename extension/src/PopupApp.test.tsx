@@ -229,6 +229,13 @@ describe('PopupApp — handing off to the full web app', () => {
     expect(privacyLink.target).toBe('_blank');
     expect(privacyLink.rel).toBe('noreferrer');
   });
+
+  it('@pending points the meeting planner link at the hosted page, not a relative path that 404s in the extension', () => {
+    renderPopup();
+
+    const link = screen.getByTestId('meeting-planner-link') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe(`${WEB_APP_ORIGIN}/time-zone-meeting-planner`);
+  });
 });
 
 describe('PopupApp — features deliberately left to the web app', () => {
