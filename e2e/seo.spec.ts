@@ -110,12 +110,14 @@ describe('time-zone meeting planner landing page', () => {
 
   it("explains that each colored arc is that city's working hours, next to the add-location screenshot", () => {
     const section = landing.querySelector('[data-testid="landing-working-hours-explainer"]');
+    expect(section).not.toBeNull();
     expect(section?.closest('[data-testid="landing-content"]')).not.toBeNull();
     expect(section?.querySelector(`img[src="${ADD_LOCATION_SCREENSHOT}"]`)).not.toBeNull();
   });
 
   it('shows the Share action next to the copy about sending your exact view', () => {
     const section = landing.querySelector('[data-testid="landing-share-section"]');
+    expect(section).not.toBeNull();
     expect(section?.closest('[data-testid="landing-content"]')).not.toBeNull();
     expect(section?.querySelector(`img[src="${SHARE_SCREENSHOT}"]`)).not.toBeNull();
   });
