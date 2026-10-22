@@ -231,7 +231,7 @@ code {
   font-size: 20px;
 }
 .landing .landing-closing {
-  margin: 0 0 96px;
+  margin: 0;
 }
 
 .landing .landing-footer {
@@ -320,16 +320,25 @@ code {
   border: 1px solid #1c2030;
   border-radius: 12px;
 }
-.landing .landing-extension {
-  max-width: none;
+/* the Chrome section and the closing CTA share one band: the extension on
+   the left, the main action on the right, both buttons on the same line */
+.landing .landing-outro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 32px 48px;
+  margin-bottom: 96px;
   padding-top: 56px;
   border-top: 1px solid #1c2030;
+}
+.landing .landing-extension {
+  margin: 0;
 }
 .landing .landing-extension p {
   max-width: 640px;
 }
 .landing .landing-extension .landing-actions {
-  margin-top: 24px;
+  margin: 24px 0 0;
 }
 /* the section's one action, so a step up from the app's 32px header pill */
 .landing .landing-extension .landing-chrome-cta {
@@ -359,7 +368,8 @@ code {
     max-width: 440px;
   }
   .landing .landing-steps,
-  .landing .landing-details {
+  .landing .landing-details,
+  .landing .landing-outro {
     grid-template-columns: minmax(0, 1fr);
   }
   .landing .landing-lead {
