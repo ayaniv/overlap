@@ -28,9 +28,12 @@ async function loadAsset(path: string): Promise<string> {
   return readFileSync(resolve(PUBLIC_DIR, publicFileFor(path)), 'utf8');
 }
 
-function pathExistsOnSite(pathWithSuffix: string): boolean {
+async function pathExistsOnSite(pathWithSuffix: string): Promise<boolean> {
   // a citable anchor (/faq#is-it-free) or a query string is the same page on disk
   const path = pathWithSuffix.replace(/[?#].*$/, '');
+  // against a deploy, ask the deploy itself — a file on disk says nothing about
+  // whether e.g. cleanUrls actually serves it there
+  if (BASE_URL) return (await fetch(`${BASE_URL}${path}`, { method: 'HEAD' })).ok;
   // the app's own index.html lives at the repo root, not under public/
   if (path === '/') return existsSync(resolve(PUBLIC_DIR, '../index.html'));
   return existsSync(resolve(PUBLIC_DIR, publicFileFor(path)));
@@ -156,10 +159,10 @@ describe('llms.txt — llmstxt.org summary @pending', () => {
     for (const target of linkTargets) expect(target).toMatch(/^https:\/\//);
   });
 
-  it('never links to an overlapclock.com page that does not exist', () => {
+  it('never links to an overlapclock.com page that does not exist', async () => {
     const siteUrls = [...llmsTxt.matchAll(/https:\/\/overlapclock\.com(\/[^\s)>]*)?/g)];
     for (const [url, path] of siteUrls) {
-      expect(pathExistsOnSite(path ?? '/'), `${url} has no page`).toBe(true);
+      expect(await pathExistsOnSite(path ?? '/'), `${url} has no page`).toBe(true);
     }
   });
 });
@@ -177,10 +180,10 @@ describe('sitemap.xml — FAQ discoverability @pending', () => {
     expect(locs).toContain(FAQ_URL);
   });
 
-  it('only lists overlapclock.com pages that exist', () => {
+  it('only lists overlapclock.com pages that exist', async () => {
     for (const loc of locs) {
       expect(loc.startsWith(SITE_ORIGIN), `${loc} is off-site`).toBe(true);
-      expect(pathExistsOnSite(new URL(loc).pathname), `${loc} has no page`).toBe(true);
+      expect(await pathExistsOnSite(new URL(loc).pathname), `${loc} has no page`).toBe(true);
     }
   });
 });

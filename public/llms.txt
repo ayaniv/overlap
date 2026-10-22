@@ -37,8 +37,8 @@ individuals scheduling across time zones with friends or family.
 - Also available as a Chrome extension: https://chromewebstore.google.com/detail/overlap-clock/mmocggabgpjljloaodecfblnohfgkbcj
 - No backend/server — fully static, runs entirely client-side.
 - Chosen cities/colors/hours stay in the browser (localStorage) and in any
-  share link; the developer runs no server that stores them. The site uses
-  PostHog for usage analytics.
+  share link; the developer runs no server that stores them. The website and
+  the Chrome extension use PostHog for usage analytics.
 - Google Calendar integration is optional and user-authorized (OAuth), used only
   to create an event on the user's own calendar.
 - Privacy policy: https://overlapclock.com/privacy
