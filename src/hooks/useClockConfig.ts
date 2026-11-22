@@ -2,15 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAnalytics } from '../analytics/AnalyticsProvider';
 import { addLocationOp, addMeetingOp, removeLocationOp, removeMeetingOp, reorderLocationsOp, setHomeOp, updateLocationOp } from '../clock/configOps';
 import { isValidClockConfig } from '../clock/configValidation';
-import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES } from '../clock/defaultCities';
+import { DEFAULT_HOME_CITY, DEFAULT_WORLD_CITIES, NEO_HOME_CITY, NEO_WORLD_CITIES } from '../clock/defaultCities';
+import { CLOCK_THEME } from '../theme';
 import { decodeConfig, encodeConfig, HASH_PREFIX } from '../clock/shareCodec';
 import type { ClockConfig, Location, Meeting } from '../clock/types';
 
 export const CONFIG_STORAGE_KEY = 'overlap:config:v1';
 
+const NEO_DEFAULTS = CLOCK_THEME.defaultCities === 'neo';
+
 export const DEFAULT_CONFIG: ClockConfig = {
-  home: DEFAULT_HOME_CITY,
-  rings: DEFAULT_WORLD_CITIES,
+  home: NEO_DEFAULTS ? NEO_HOME_CITY : DEFAULT_HOME_CITY,
+  rings: NEO_DEFAULTS ? NEO_WORLD_CITIES : DEFAULT_WORLD_CITIES,
   meetings: [],
 };
 

@@ -8,6 +8,9 @@ import {
   ORBIT_SPAN_DEG,
   orbitArcPath,
   RIPPLE_CORE_RATIO,
+  orbitRadius,
+  NEO_MARK_OUTLINE,
+  neoMarkTransform,
   hexToRgba,
   labelArcHalfLength,
   labelArcPath,
@@ -47,7 +50,7 @@ import { Toast } from './Toast';
 import { MEETING_PLANNER_PATH } from './webAppUrl';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import pillButtonStyles from './PillButton.module.css';
 import styles from './WorldClock.module.css';
 import visuallyHiddenStyles from './visuallyHidden.module.css';
@@ -294,6 +297,7 @@ export function WorldClock({
   const glowingRings = CLOCK_THEME.ringGlowOnlyInHours ? ringViews.filter((ring) => ring.inHours) : ringViews;
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
+  const rippleCoreRadius = homeRadius * RIPPLE_CORE_RATIO;
   // driven by `effectiveNow`, matching every other angle on the ring (working-hours
   // arcs, the NOW axis itself): the dot is anchored to the ring's own rotating
   // reference frame, not a fixed screen position, so scrubbing sweeps it around
@@ -323,7 +327,7 @@ export function WorldClock({
   }, [meetings, homeRadius, effectiveNow, home.timezoneId, isGoogleCalendarConnected]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
-  const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
+  const ticks = useMemo(() => (CLOCK_THEME.bezelTicks ? bezelTicks(bezelRadius) : []), [bezelRadius]);
   // ring radii depend only on index/totalRings (not `now`), so this only needs
   // to recompute when the ring count changes, not every tick like ringViews does
   const chevrons = useMemo(
@@ -471,6 +475,20 @@ export function WorldClock({
             ))}
           </defs>
 
+          {CLOCK_THEME.backgroundMark && (
+            <path
+              data-testid="neo-mark"
+              d={NEO_MARK_OUTLINE}
+              transform={neoMarkTransform(totalRings)}
+              fill="none"
+              stroke={CLOCK_THEME.hand}
+              strokeOpacity={0.35}
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+
           {ringViews.map((ring) => (
             <circle key={`base-${ring.location.id}`} cx={500} cy={500} r={ring.radius} fill="none" stroke={CLOCK_THEME.ringTrack} strokeWidth={CLOCK_THEME.ringTrackWidth} />
           ))}
@@ -587,18 +605,20 @@ export function WorldClock({
               data-testid="center-ripple"
               cx={CENTER}
               cy={CENTER}
-              r={(homeRadius * RIPPLE_CORE_RATIO).toFixed(2)}
+              r={rippleCoreRadius.toFixed(2)}
               fill="none"
               stroke={CLOCK_THEME.hand}
               strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
               className={styles.ripple}
+              style={{ '--ripple-scale': (orbitRadius(totalRings) / rippleCoreRadius).toFixed(3) } as CSSProperties}
             />
           )}
 
           <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
             {CLOCK_THEME.secondsMotion === 'orbit' ? (
               <path
-                d={orbitArcPath(sweepHandDotRadius(totalRings), ORBIT_SPAN_DEG)}
+                d={orbitArcPath(orbitRadius(totalRings), ORBIT_SPAN_DEG)}
                 fill="none"
                 stroke={CLOCK_THEME.hand}
                 strokeWidth={2.5}

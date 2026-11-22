@@ -393,7 +393,8 @@
 
 /* Neo seconds motion, from operator coreui neo-overview.css (NeoOverviewHub).
    The animation exists only under no-preference, so reduced motion draws no
-   ripple at all. The orbit arc turns with the seconds (useSweepAngle), not on
+   ripple at all. The ripple grows from the center to the edge of the clock
+   (--ripple-scale, set by WorldClock), not 1.55x as on the Hub. The orbit arc turns with the seconds (useSweepAngle), not on
    its own 9s loop, so it still shows the time. */
 .orbitGlow {
   filter: drop-shadow(0 0 3px rgba(var(--color-accent-rgb), 0.85));
@@ -409,7 +410,7 @@
     opacity: 0.5;
   }
   to {
-    transform: scale(1.55);
+    transform: scale(var(--ripple-scale, 1.55));
     opacity: 0;
   }
 }

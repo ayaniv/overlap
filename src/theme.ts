@@ -40,6 +40,12 @@ export type ClockTheme = {
   // Overview Hub motion (operator coreui NeoOverviewHub): a glowing arc on
   // the sweep path, and a ripple that leaves the center.
   secondsMotion: 'hand' | 'orbit';
+  // the clock's default locations, for a visitor with no saved or shared config
+  defaultCities: 'world' | 'neo';
+  // an outlined Neo mark behind the clock, large enough to hold the clock
+  backgroundMark: boolean;
+  // the 60 dashes around the outside of the clock
+  bezelTicks: boolean;
 };
 
 const NEO_BLUE = '#00ACDF';
@@ -76,6 +82,9 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     timeFont: 'JetBrains Mono, monospace',
     timeFontWeight: 400,
     secondsMotion: 'hand',
+    defaultCities: 'world',
+    backgroundMark: false,
+    bezelTicks: true,
   },
   // every element is the Neo logo blue; opacity sets how strongly it reads
   neo: {
@@ -108,6 +117,9 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     timeFont: 'Public Sans, sans-serif',
     timeFontWeight: 500,
     secondsMotion: 'orbit',
+    defaultCities: 'neo',
+    backgroundMark: true,
+    bezelTicks: false,
   },
 };
 

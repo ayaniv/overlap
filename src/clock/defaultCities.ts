@@ -69,3 +69,50 @@ export const DEFAULT_HOME_CITY: Location = {
   workStart: DEFAULT_WORK_START,
   workEnd: DEFAULT_WORK_END,
 };
+
+// the Neo build's defaults (VITE_THEME=neo): Neo's offices, Tel Aviv at home
+// and Boston on the ring next to it. Rings go outer to inner.
+export const NEO_WORLD_CITIES: Location[] = [
+  {
+    id: 'san-francisco',
+    label: 'San Francisco',
+    timezoneId: 'America/Los_Angeles',
+    color: '#FB7185',
+    workStart: DEFAULT_WORK_START,
+    workEnd: DEFAULT_WORK_END,
+  },
+  {
+    id: 'denver',
+    label: 'Denver',
+    timezoneId: 'America/Denver',
+    color: '#A3E635',
+    workStart: DEFAULT_WORK_START,
+    workEnd: DEFAULT_WORK_END,
+  },
+  {
+    id: 'chicago',
+    label: 'Chicago',
+    timezoneId: 'America/Chicago',
+    color: '#34D399',
+    workStart: DEFAULT_WORK_START,
+    workEnd: DEFAULT_WORK_END,
+  },
+  {
+    id: 'washington-dc',
+    label: 'Washington DC',
+    timezoneId: 'America/New_York',
+    color: '#A78BFA',
+    workStart: DEFAULT_WORK_START,
+    workEnd: DEFAULT_WORK_END,
+  },
+  {
+    id: 'boston',
+    label: 'Boston',
+    timezoneId: 'America/New_York',
+    color: '#FBBF4B',
+    workStart: DEFAULT_WORK_START,
+    workEnd: DEFAULT_WORK_END,
+  },
+];
+
+export const NEO_HOME_CITY: Location = DEFAULT_HOME_CITY;

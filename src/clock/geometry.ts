@@ -165,9 +165,32 @@ export function orbitArcPath(radius: number, spanDeg: number): string {
   return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 1 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
 }
 
-// the Hub ripple leaves a core 1/1.5 of its ring's radius and grows 1.55x, so
-// it ends just past the ring; the clock uses the home ring as that ring
+// the orbit arc runs midway between the outermost ring and the tick bezel
+export function orbitRadius(totalRings: number): number {
+  return outermostRingRadius(totalRings) + BEZEL_MARGIN / 2;
+}
+
+// the ripple leaves a core inside the home ring (the Hub's core-to-ring
+// ratio, 1/1.5) and grows to the orbit arc, the edge of the Neo clock
 export const RIPPLE_CORE_RATIO = 1 / 1.5;
+
+// the outer outline of the Neo mark (operator coreui brandAssets NEO_MARK,
+// the first subpath only: the inner hole would cross the clock), 22 units
+export const NEO_MARK_OUTLINE =
+  'M21.3539 8.15447L18.2444 5.04496C17.831 4.63154 17.2717 4.39957 16.6875 4.39957H14.0796C13.5929 4.39957 13.1994 4.00608 13.1994 3.51937V0.880199C13.1994 0.393492 12.8059 0 12.3192 0H9.71137C9.12718 0 8.56718 0.231968 8.15447 0.645385L5.04496 3.7549C4.63154 4.16832 4.39957 4.7276 4.39957 5.31179V7.91966C4.39957 8.40637 4.00608 8.79986 3.51937 8.79986H0.880199C0.393492 8.79986 0 9.19335 0 9.68006V12.2879C0 12.8721 0.231968 13.4321 0.645385 13.8448L3.7549 16.9543C4.16832 17.3677 4.7276 17.5997 5.31179 17.5997H7.91966C8.40637 17.5997 8.79986 17.9932 8.79986 18.4799V21.1198C8.79986 21.6065 9.19335 22 9.68006 22H12.2879C12.8721 22 13.4321 21.768 13.8448 21.3546L16.9543 18.2451C17.3677 17.8317 17.5997 17.2724 17.5997 16.6882V14.0803C17.5997 13.5936 17.9932 13.2001 18.4799 13.2001H21.1198C21.6065 13.2001 22 12.8067 22 12.3199V9.71208C22 9.12789 21.768 8.56789 21.3546 8.15519L21.3539 8.15447Z';
+const NEO_MARK_CENTER = 11;
+// the outline's nearest point to its center (the inner corners of its arms
+// are 7.28 units out); a little less, so the clock never touches the outline
+const NEO_MARK_INNER_RADIUS = 7.2;
+// distance from the bezel base (where the ticks start in the original
+// theme) to the mark's inner corners
+const NEO_MARK_GAP = 36;
+
+// scales and centers the mark so the whole clock fits inside it
+export function neoMarkTransform(totalRings: number): string {
+  const scale = (bezelBaseRadius(totalRings) + NEO_MARK_GAP) / NEO_MARK_INNER_RADIUS;
+  return `translate(${CENTER} ${CENTER}) scale(${scale.toFixed(3)}) translate(${-NEO_MARK_CENTER} ${-NEO_MARK_CENTER})`;
+}
 
 // one full clockwise turn per minute
 export function handAngle(now: Date): number {

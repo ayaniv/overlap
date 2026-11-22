@@ -27,3 +27,17 @@ describe('seconds motion', () => {
     expect(CLOCK_THEMES.neo.secondsMotion).toBe('orbit');
   });
 });
+
+describe('Neo clock face', () => {
+  it('draws the Neo mark and no tick dashes only in the Neo theme', () => {
+    expect(CLOCK_THEMES.neo.backgroundMark).toBe(true);
+    expect(CLOCK_THEMES.neo.bezelTicks).toBe(false);
+    expect(CLOCK_THEMES.original.backgroundMark).toBe(false);
+    expect(CLOCK_THEMES.original.bezelTicks).toBe(true);
+  });
+
+  it('uses the Neo office cities only in the Neo theme', () => {
+    expect(CLOCK_THEMES.neo.defaultCities).toBe('neo');
+    expect(CLOCK_THEMES.original.defaultCities).toBe('world');
+  });
+});
