@@ -165,9 +165,10 @@ export function orbitArcPath(radius: number, spanDeg: number): string {
   return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 1 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
 }
 
-// the orbit arc runs midway between the outermost ring and the tick bezel
+// the orbit arc runs one ring step outside the outermost ring, as if it
+// were the next ring
 export function orbitRadius(totalRings: number): number {
-  return outermostRingRadius(totalRings) + BEZEL_MARGIN / 2;
+  return outermostRingRadius(totalRings) + RING_RADIUS_STEP;
 }
 
 // the ripple leaves a core inside the home ring (the Hub's core-to-ring
