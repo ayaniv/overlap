@@ -189,8 +189,12 @@ const NEO_MARK_INNER_RADIUS = 7.2;
 const NEO_MARK_GAP = 36;
 
 // scales and centers the mark so the whole clock fits inside it
+export function neoMarkScale(totalRings: number): number {
+  return (bezelBaseRadius(totalRings) + NEO_MARK_GAP) / NEO_MARK_INNER_RADIUS;
+}
+
 export function neoMarkTransform(totalRings: number): string {
-  const scale = (bezelBaseRadius(totalRings) + NEO_MARK_GAP) / NEO_MARK_INNER_RADIUS;
+  const scale = neoMarkScale(totalRings);
   return `translate(${CENTER} ${CENTER}) scale(${scale.toFixed(3)}) translate(${-NEO_MARK_CENTER} ${-NEO_MARK_CENTER})`;
 }
 

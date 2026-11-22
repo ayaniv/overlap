@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
@@ -11,6 +11,9 @@ import {
   orbitRadius,
   NEO_MARK_OUTLINE,
   neoMarkTransform,
+  neoMarkScale,
+  INNER_RING_RADIUS,
+  RING_RADIUS_STEP,
   hexToRgba,
   labelArcHalfLength,
   labelArcPath,
@@ -30,6 +33,7 @@ import {
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
+import { isNeoMarkLit } from './neoMarkLit';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
@@ -72,6 +76,13 @@ const STRETCHED_ARC_DASH = '22 13';
 // screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'local working hours';
 const LABEL_DOT_GAP = 18;
+// Neo draw-in on load, from the Hub links' draw-in (operator coreui
+// neo-overview.css): the mark first, then the rings from the inside out
+const MARK_DRAW_MS = 1600;
+const RING_DRAW_MS = 1200;
+const RING_DRAW_DELAY_MS = 400;
+const RING_DRAW_STAGGER_MS = 120;
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
 // used only as the ARIA slider's advertised range, since the underlying offset itself
 // isn't clamped
@@ -294,7 +305,32 @@ export function WorldClock({
     [orderedLocations, totalRings, effectiveNow, idPrefix, isFindResultActive, findResultStatusById],
   );
 
+  // true only while the Neo draw-in runs; the arcs then go back to their
+  // normal dash (a 'stretched' arc needs its own) and the mark may light up
+  const [drawingIn, setDrawingIn] = useState(
+    () => CLOCK_THEME.drawIn && typeof window.matchMedia === 'function' && !window.matchMedia(REDUCED_MOTION_QUERY).matches,
+  );
+  const [drawInEndMs] = useState(() => Math.max(MARK_DRAW_MS, RING_DRAW_DELAY_MS + (totalRings - 1) * RING_DRAW_STAGGER_MS + RING_DRAW_MS));
+  useEffect(() => {
+    if (!drawingIn) return;
+    const id = setTimeout(() => setDrawingIn(false), drawInEndMs);
+    return () => clearTimeout(id);
+  }, [drawingIn, drawInEndMs]);
   const glowingRings = CLOCK_THEME.ringGlowOnlyInHours ? ringViews.filter((ring) => ring.inHours) : ringViews;
+  const markScale = neoMarkScale(totalRings);
+  const markLit = CLOCK_THEME.backgroundMark && !drawingIn && isNeoMarkLit(ringViews);
+  // inner ring first, then outward, each RING_DRAW_STAGGER_MS after the one inside it
+  const drawInProps = (radius: number, fitStatus: CityFitStatus | undefined) =>
+    drawingIn && fitStatus !== 'stretched'
+      ? {
+          pathLength: 1,
+          className: styles.drawIn,
+          style: {
+            '--draw-delay': `${RING_DRAW_DELAY_MS + Math.round((radius - INNER_RING_RADIUS) / RING_RADIUS_STEP) * RING_DRAW_STAGGER_MS}ms`,
+            '--draw-duration': `${RING_DRAW_MS}ms`,
+          } as CSSProperties,
+        }
+      : {};
 
   const homeRadius = ringRadius(totalRings - 1, totalRings);
   const rippleCoreRadius = homeRadius * RIPPLE_CORE_RATIO;
@@ -476,17 +512,24 @@ export function WorldClock({
           </defs>
 
           {CLOCK_THEME.backgroundMark && (
-            <path
-              data-testid="neo-mark"
-              d={NEO_MARK_OUTLINE}
-              transform={neoMarkTransform(totalRings)}
-              fill="none"
-              stroke={CLOCK_THEME.hand}
-              strokeOpacity={0.35}
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
+            <g transform={neoMarkTransform(totalRings)} data-testid="neo-mark" data-lit={markLit}>
+              {markLit && (
+                <path d={NEO_MARK_OUTLINE} fill="none" stroke={CLOCK_THEME.hand} strokeWidth={2 / markScale} strokeLinejoin="round" className={styles.neoMarkGlow} />
+              )}
+              <path
+                d={NEO_MARK_OUTLINE}
+                pathLength={1}
+                fill="none"
+                stroke={CLOCK_THEME.hand}
+                strokeOpacity={0.35}
+                // the stroke is in the mark's 22-unit space, so divide by the scale;
+                // vector-effect="non-scaling-stroke" would break the pathLength draw-in
+                strokeWidth={1.5 / markScale}
+                strokeLinejoin="round"
+                className={`${styles.neoMark} ${markLit ? styles.neoMarkLit : ''} ${drawingIn ? styles.drawIn : ''}`}
+                style={drawingIn ? ({ '--draw-delay': '0ms', '--draw-duration': `${MARK_DRAW_MS}ms` } as CSSProperties) : undefined}
+              />
+            </g>
           )}
 
           {ringViews.map((ring) => (
@@ -497,6 +540,7 @@ export function WorldClock({
             {glowingRings.map((ring) => (
               <path
                 key={`glow-${ring.location.id}`}
+                {...drawInProps(ring.radius, ring.fitStatus)}
                 d={ring.arcPath}
                 fill="none"
                 stroke={CLOCK_THEME.ringColor ?? ring.location.color}
@@ -509,6 +553,7 @@ export function WorldClock({
           {ringViews.map((ring) => (
             <path
               key={`crisp-${ring.location.id}`}
+              {...drawInProps(ring.radius, ring.fitStatus)}
               d={ring.arcPath}
               fill="none"
               stroke={CLOCK_THEME.ringColor ?? ring.location.color}

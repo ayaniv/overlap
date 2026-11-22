@@ -46,6 +46,8 @@ export type ClockTheme = {
   backgroundMark: boolean;
   // the 60 dashes around the outside of the clock
   bezelTicks: boolean;
+  // on load, the mark and the ring arcs draw themselves in
+  drawIn: boolean;
 };
 
 const NEO_BLUE = '#00ACDF';
@@ -85,6 +87,7 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     defaultCities: 'world',
     backgroundMark: false,
     bezelTicks: true,
+    drawIn: false,
   },
   // every element is the Neo logo blue; opacity sets how strongly it reads
   neo: {
@@ -120,6 +123,7 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     defaultCities: 'neo',
     backgroundMark: true,
     bezelTicks: false,
+    drawIn: true,
   },
 };
 

@@ -34,6 +34,8 @@ describe('Neo clock face', () => {
     expect(CLOCK_THEMES.neo.bezelTicks).toBe(false);
     expect(CLOCK_THEMES.original.backgroundMark).toBe(false);
     expect(CLOCK_THEMES.original.bezelTicks).toBe(true);
+    expect(CLOCK_THEMES.neo.drawIn).toBe(true);
+    expect(CLOCK_THEMES.original.drawIn).toBe(false);
   });
 
   it('uses the Neo office cities only in the Neo theme', () => {
