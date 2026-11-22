@@ -1,3 +1,5 @@
+import { CLOCK_THEME } from '../theme';
+
 export const CENTER = 500;
 export const INNER_RING_RADIUS = 160;
 // fixed radial gap between adjacent rings, so existing rings never rescale —
@@ -137,7 +139,7 @@ export function bezelTicks(baseRadius: number): BezelTick[] {
       y1: inner.y,
       x2: outer.x,
       y2: outer.y,
-      stroke: isMajor ? '#6B7079' : '#3D414A',
+      stroke: isMajor ? CLOCK_THEME.tickMajor : CLOCK_THEME.tickMinor,
       width: isMajor ? 2.4 : 1.6,
     });
   }

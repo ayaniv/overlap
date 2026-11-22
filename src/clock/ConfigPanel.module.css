@@ -5,7 +5,7 @@
 }
 
 .section {
-  border-top: 1px solid #3a3e46;
+  border-top: 1px solid var(--color-border);
 }
 
 .section:first-child {
@@ -20,7 +20,7 @@
   padding: 14px 16px;
   border: none;
   background: transparent;
-  color: #c4c8cf;
+  color: var(--color-text-secondary);
   font-family: 'Space Grotesk', -apple-system, sans-serif;
   font-size: 12px;
   font-weight: 600;
@@ -29,17 +29,17 @@
 }
 
 .sectionHeader:hover {
-  color: #f5f6f8;
+  color: var(--color-text);
 }
 
 .sectionHeader[aria-expanded='true'] {
-  color: #f5f6f8;
+  color: var(--color-text);
 }
 
 .chevron,
 .chevronOpen {
   flex: none;
-  color: #7b808a;
+  color: var(--color-text-muted);
   transition: transform 0.15s ease;
 }
 

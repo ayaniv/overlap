@@ -27,6 +27,77 @@
   --z-50: 50;
 }
 
+/* Color theme. These values are the original Overlap look. A build with
+   VITE_THEME=neo sets data-theme="neo" on <html> (vite-plugins/theme.ts),
+   and the block below it replaces them with the Neo brand look. The *-rgb
+   tokens hold bare channels so a rule can add its own alpha:
+   rgba(var(--color-accent-rgb), 0.12). */
+:root {
+  --color-bg: #0a0b0f;
+  --color-bg-rgb: 10, 11, 15;
+  --color-face-rgb: 13, 15, 21;
+  --color-surface: #14161d;
+  --color-surface-rgb: 20, 22, 29;
+  --color-panel-rgb: 32, 35, 47;
+  --color-raised: #1c1f27;
+  --color-backdrop-glow: #1c2030;
+  --color-border: #3a3e46;
+  --color-border-strong: #565b64;
+  --color-text: #f5f6f8;
+  --color-text-secondary: #c4c8cf;
+  --color-text-soft: #d6d9de;
+  --color-text-warm: #f0ede3;
+  --color-text-subtle: #8a8f98;
+  --color-text-muted: #7b808a;
+  --color-text-faint: #565b64;
+  --color-text-dim: #3d424b;
+  --color-accent: #38bdf8;
+  --color-accent-rgb: 56, 189, 248;
+  --color-accent-deep: #1c4a5c;
+  --color-danger: #fb7185;
+  --color-danger-rgb: 251, 113, 133;
+  --color-checkbox: #edeae0;
+  --color-checkbox-rgb: 237, 234, 224;
+  --color-checkbox-disabled: #1c1e26;
+  --color-swatch-ring: #f5f6f8;
+  --clock-disc-border: rgba(255, 255, 255, 0.05);
+  --clock-disc-highlight: rgba(255, 255, 255, 0.06);
+}
+
+/* Neo brand (https://www.neo.ai): ink background, and all text in the Neo
+   logo blue, made quieter with opacity instead of with gray. */
+:root[data-theme='neo'] {
+  --color-bg: #0a0b0d;
+  --color-bg-rgb: 10, 11, 13;
+  --color-face-rgb: 10, 11, 13;
+  --color-surface: #131415;
+  --color-surface-rgb: 19, 20, 21;
+  --color-panel-rgb: 28, 32, 36;
+  --color-raised: #1c2024;
+  --color-backdrop-glow: #1c2024;
+  --color-border: #32363a;
+  --color-border-strong: #4a4e52;
+  --color-text: #00acdf;
+  --color-text-secondary: #00acdf;
+  --color-text-soft: #00acdf;
+  --color-text-warm: #00acdf;
+  --color-text-subtle: rgba(0, 172, 223, 0.6);
+  --color-text-muted: rgba(0, 172, 223, 0.6);
+  --color-text-faint: rgba(0, 172, 223, 0.4);
+  --color-text-dim: rgba(0, 172, 223, 0.3);
+  --color-accent: #00acdf;
+  --color-accent-rgb: 0, 172, 223;
+  --color-accent-deep: #11556e;
+  --color-danger: #e9655f;
+  --color-danger-rgb: 233, 101, 95;
+  --color-checkbox: #f3f5f7;
+  --color-checkbox-rgb: 243, 245, 247;
+  --color-checkbox-disabled: #1c2024;
+  --color-swatch-ring: #f3f5f7;
+  --clock-disc-border: rgba(0, 172, 223, 0.15);
+  --clock-disc-highlight: rgba(0, 172, 223, 0.12);
+}
+
 /* without this, a second quick tap on the same button (e.g. tapping
    Manage-locations' row toggle again to collapse it) can land inside iOS
    Safari's native double-tap-to-zoom window instead of registering as a
@@ -69,7 +140,7 @@ body,
 }
 
 body {
-  background: #0a0b0f;
+  background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

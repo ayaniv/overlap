@@ -21,7 +21,7 @@
   display: flex;
   flex-direction: column;
   border-radius: 8px;
-  background: rgba(20, 22, 29, 0.5);
+  background: rgba(var(--color-surface-rgb), 0.5);
   overflow: hidden;
 }
 
@@ -48,14 +48,14 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #7b808a;
+  color: var(--color-text-muted);
   cursor: grab;
   touch-action: none;
 }
 
 .dragHandle:hover {
-  background: rgba(56, 189, 248, 0.12);
-  color: #f5f6f8;
+  background: rgba(var(--color-accent-rgb), 0.12);
+  color: var(--color-text);
 }
 
 /* the tappable region that expands/collapses the row's editor — stretches to
@@ -90,7 +90,7 @@
 }
 
 .rowToggle:focus-visible {
-  outline: 2px solid rgba(56, 189, 248, 0.5);
+  outline: 2px solid rgba(var(--color-accent-rgb), 0.5);
   outline-offset: -2px;
 }
 
@@ -105,7 +105,7 @@
   flex: none;
   width: 13px;
   height: 13px;
-  color: #7b808a;
+  color: var(--color-text-muted);
 }
 
 .label {
@@ -115,7 +115,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: #f5f6f8;
+  color: var(--color-text);
 }
 
 .removeButton {
@@ -129,7 +129,7 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #c4c8cf;
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
@@ -139,8 +139,8 @@
 }
 
 .removeButton:hover {
-  background: rgba(251, 113, 133, 0.12);
-  color: #fb7185;
+  background: rgba(var(--color-danger-rgb), 0.12);
+  color: var(--color-danger);
 }
 
 /* the row's inline editor (color/hours via LocationColorAndHoursFields, plus
@@ -152,7 +152,7 @@
   flex-direction: column;
   gap: 14px;
   padding: 14px 12px 18px;
-  border-top: 1px solid #3a3e46;
+  border-top: 1px solid var(--color-border);
   animation: expandIn 0.16s ease;
 }
 
@@ -177,9 +177,9 @@
   align-self: flex-start;
   padding: 7px 16px;
   border-radius: 999px;
-  border: 1px solid #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  color: #f5f6f8;
+  border: 1px solid var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.12);
+  color: var(--color-text);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -188,7 +188,7 @@
 }
 
 .setHomeButton:hover {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--color-accent-rgb), 0.2);
 }
 
 .actions {
@@ -200,9 +200,9 @@
 .closeButton {
   padding: 7px 16px;
   border-radius: 999px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.6);
-  color: #c4c8cf;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-surface-rgb), 0.6);
+  color: var(--color-text-secondary);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -211,8 +211,8 @@
 }
 
 .closeButton:hover {
-  border-color: #565b64;
-  color: #f5f6f8;
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
 }
 
 /* mobile touch targets: no hover state to fall back on there, so the drag
