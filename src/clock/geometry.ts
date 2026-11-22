@@ -155,6 +155,20 @@ export function topMarkerPoints(totalRings: number): string {
   return `${CENTER - TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER + TOP_MARKER_HALF_WIDTH},${baseY} ${CENTER},${apexY}`;
 }
 
+// the Neo orbit arc (operator coreui NeoOverviewHub ORBIT_SPAN_DEG): it trails
+// the current second, so its leading end is where the sweep hand would be
+export const ORBIT_SPAN_DEG = 28;
+
+export function orbitArcPath(radius: number, spanDeg: number): string {
+  const start = pointOnCircle(radius, -spanDeg);
+  const end = pointOnCircle(radius, 0);
+  return `M${start.x.toFixed(2)},${start.y.toFixed(2)} A${radius},${radius} 0 0 1 ${end.x.toFixed(2)},${end.y.toFixed(2)}`;
+}
+
+// the Hub ripple leaves a core 1/1.5 of its ring's radius and grows 1.55x, so
+// it ends just past the ring; the clock uses the home ring as that ring
+export const RIPPLE_CORE_RATIO = 1 / 1.5;
+
 // one full clockwise turn per minute
 export function handAngle(now: Date): number {
   return ((now.getTime() % 60000) / 60000) * 360;

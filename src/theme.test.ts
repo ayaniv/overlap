@@ -20,3 +20,10 @@ describe('CLOCK_THEMES', () => {
     expect(CLOCK_THEMES.original.ringGlowOnlyInHours).toBe(false);
   });
 });
+
+describe('seconds motion', () => {
+  it('keeps the sweep hand in the original theme and uses the Hub orbit in the Neo theme', () => {
+    expect(CLOCK_THEMES.original.secondsMotion).toBe('hand');
+    expect(CLOCK_THEMES.neo.secondsMotion).toBe('orbit');
+  });
+});

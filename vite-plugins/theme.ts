@@ -2,6 +2,10 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Plugin } from 'vite';
 
+// Public Sans is the Neo brand font; only the Neo build loads it
+export const NEO_FONT_LINK =
+  '<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />';
+
 export const NEO_ROBOTS_TXT = 'User-agent: *\nDisallow: /\n';
 
 // The Neo build is a second deployment of the same clock. It sets
@@ -12,7 +16,7 @@ export function applyThemeToHtml(html: string, theme: string | undefined): strin
   if (theme !== 'neo') return html;
   return html
     .replace(/<html(\s|>)/, '<html data-theme="neo"$1')
-    .replace('</head>', '    <meta name="robots" content="noindex, nofollow" />\n  </head>');
+    .replace('</head>', `    <meta name="robots" content="noindex, nofollow" />\n    ${NEO_FONT_LINK}\n  </head>`);
 }
 
 export function theme(): Plugin {

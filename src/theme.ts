@@ -33,6 +33,13 @@ export type ClockTheme = {
   hand: string;
   handGlow: string;
   handDotGlow: string;
+  // the clock times on the rings; the center time takes its font from CSS
+  timeFont: string;
+  timeFontWeight: number;
+  // 'hand' is the original line-and-dot sweep hand. 'orbit' is the Neo
+  // Overview Hub motion (operator coreui NeoOverviewHub): a glowing arc on
+  // the sweep path, and a ripple that leaves the center.
+  secondsMotion: 'hand' | 'orbit';
 };
 
 const NEO_BLUE = '#00ACDF';
@@ -66,6 +73,9 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     hand: '#EDEAE0',
     handGlow: 'rgba(237,234,224,0.6)',
     handDotGlow: 'rgba(237,234,224,0.85)',
+    timeFont: 'JetBrains Mono, monospace',
+    timeFontWeight: 400,
+    secondsMotion: 'hand',
   },
   // every element is the Neo logo blue; opacity sets how strongly it reads
   neo: {
@@ -95,6 +105,9 @@ export const CLOCK_THEMES: Record<ThemeName, ClockTheme> = {
     hand: NEO_BLUE,
     handGlow: neoBlue(0.6),
     handDotGlow: neoBlue(0.85),
+    timeFont: 'Public Sans, sans-serif',
+    timeFontWeight: 500,
+    secondsMotion: 'orbit',
   },
 };
 

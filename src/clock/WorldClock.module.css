@@ -180,12 +180,12 @@
 }
 
 .centerTime {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-time);
   font-size: 54px;
-  font-weight: 500;
+  font-weight: var(--font-time-weight);
   line-height: 0.92;
   color: var(--color-text-warm);
-  letter-spacing: -2px;
+  letter-spacing: var(--font-time-tracking);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -388,5 +388,36 @@
     bottom: 6px;
     right: 12px;
     font-size: 10px;
+  }
+}
+
+/* Neo seconds motion, from operator coreui neo-overview.css (NeoOverviewHub).
+   The animation exists only under no-preference, so reduced motion draws no
+   ripple at all. The orbit arc turns with the seconds (useSweepAngle), not on
+   its own 9s loop, so it still shows the time. */
+.orbitGlow {
+  filter: drop-shadow(0 0 3px rgba(var(--color-accent-rgb), 0.85));
+}
+
+.ripple {
+  opacity: 0;
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ripple {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ripple 3.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
   }
 }

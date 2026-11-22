@@ -5,6 +5,9 @@ import {
   CENTER,
   directionChevrons,
   handAngle,
+  ORBIT_SPAN_DEG,
+  orbitArcPath,
+  RIPPLE_CORE_RATIO,
   hexToRgba,
   labelArcHalfLength,
   labelArcPath,
@@ -509,7 +512,7 @@ export function WorldClock({
                     {ring.location.label}
                   </textPath>
                 </text>
-                <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
+                <text fill={textColor} fontFamily={CLOCK_THEME.timeFont} fontSize={22} fontWeight={CLOCK_THEME.timeFontWeight} letterSpacing="0.5" dominantBaseline="central">
                   <textPath href={`#${ring.textPathId}`} startOffset={halfLength + LABEL_DOT_GAP} textAnchor="start">
                     {ring.time.label}
                   </textPath>
@@ -579,24 +582,50 @@ export function WorldClock({
             style={{ filter: `drop-shadow(0 0 4px ${CLOCK_THEME.handGlow})` }}
           />
 
-          <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
-            <line
-              x1={500}
-              y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
-              x2={500}
-              y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
-              stroke={CLOCK_THEME.hand}
-              strokeWidth={2}
-              strokeLinecap="round"
-              style={{ filter: `drop-shadow(0 0 4px ${CLOCK_THEME.handGlow})` }}
-            />
+          {CLOCK_THEME.secondsMotion === 'orbit' && (
             <circle
-              cx={500}
-              cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
-              r={2.6}
-              fill={CLOCK_THEME.hand}
-              style={{ filter: `drop-shadow(0 0 5px ${CLOCK_THEME.handDotGlow})` }}
+              data-testid="center-ripple"
+              cx={CENTER}
+              cy={CENTER}
+              r={(homeRadius * RIPPLE_CORE_RATIO).toFixed(2)}
+              fill="none"
+              stroke={CLOCK_THEME.hand}
+              strokeWidth={1}
+              className={styles.ripple}
             />
+          )}
+
+          <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
+            {CLOCK_THEME.secondsMotion === 'orbit' ? (
+              <path
+                d={orbitArcPath(sweepHandDotRadius(totalRings), ORBIT_SPAN_DEG)}
+                fill="none"
+                stroke={CLOCK_THEME.hand}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                className={styles.orbitGlow}
+              />
+            ) : (
+              <>
+              <line
+                x1={500}
+                y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
+                x2={500}
+                y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
+                stroke={CLOCK_THEME.hand}
+                strokeWidth={2}
+                strokeLinecap="round"
+                style={{ filter: `drop-shadow(0 0 4px ${CLOCK_THEME.handGlow})` }}
+              />
+              <circle
+                cx={500}
+                cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
+                r={2.6}
+                fill={CLOCK_THEME.hand}
+                style={{ filter: `drop-shadow(0 0 5px ${CLOCK_THEME.handDotGlow})` }}
+              />
+              </>
+            )}
           </g>
         </svg>
 
