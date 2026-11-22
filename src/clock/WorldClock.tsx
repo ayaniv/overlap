@@ -34,6 +34,7 @@ import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
 import { isNeoMarkLit } from './neoMarkLit';
+import { neoMarkTrailPath } from './neoMarkTrail';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
@@ -318,6 +319,7 @@ export function WorldClock({
   }, [drawingIn, drawInEndMs]);
   const glowingRings = CLOCK_THEME.ringGlowOnlyInHours ? ringViews.filter((ring) => ring.inHours) : ringViews;
   const markScale = neoMarkScale(totalRings);
+  const markTrailPath = useMemo(() => (CLOCK_THEME.backgroundMark ? neoMarkTrailPath(totalRings) : ''), [totalRings]);
   const markLit = CLOCK_THEME.backgroundMark && !drawingIn && isNeoMarkLit(ringViews);
   // inner ring first, then outward, each RING_DRAW_STAGGER_MS after the one inside it
   const drawInProps = (radius: number, fitStatus: CityFitStatus | undefined) =>
@@ -530,6 +532,10 @@ export function WorldClock({
                 style={drawingIn ? ({ '--draw-delay': '0ms', '--draw-duration': `${MARK_DRAW_MS}ms` } as CSSProperties) : undefined}
               />
             </g>
+          )}
+          {markLit && (
+            // outside the mark's scaled group, so its 12px gap and its stroke are in clock units
+            <path data-testid="neo-mark-trail" d={markTrailPath} pathLength={1} fill="none" stroke={CLOCK_THEME.hand} strokeWidth={2.5} strokeLinecap="round" className={styles.neoMarkTrail} />
           )}
 
           {ringViews.map((ring) => (

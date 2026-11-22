@@ -458,7 +458,33 @@
   }
 }
 
+/* A short glowing dash that runs around the mark, 12px outside it, while
+   the offices overlap. pathLength=1, so the dash is 6% of the way round. */
+.neoMarkTrail {
+  stroke-dasharray: 0.06 0.94;
+  filter: drop-shadow(0 0 4px rgba(var(--color-accent-rgb), 0.85));
+}
+
+@keyframes neoMarkTrailRun {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neoMarkTrail {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .neoMarkTrail {
+    animation: neoMarkTrailRun 12s linear infinite;
+  }
+
   .neoMarkGlow {
     animation: neoMarkBreathe 3.2s ease-in-out infinite alternate;
   }
