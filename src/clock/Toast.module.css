@@ -10,9 +10,9 @@
   z-index: var(--z-30);
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.92);
-  color: #f5f6f8;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-surface-rgb), 0.92);
+  color: var(--color-text);
   font-family: 'Space Grotesk', -apple-system, sans-serif;
   font-size: 13px;
   font-weight: 500;

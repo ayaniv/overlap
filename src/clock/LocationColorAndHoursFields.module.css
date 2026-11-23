@@ -16,7 +16,7 @@
 }
 
 .swatchActive {
-  border-color: #f5f6f8;
+  border-color: var(--color-swatch-ring);
 }
 
 .hexRow {
@@ -31,16 +31,16 @@
   box-sizing: border-box;
   padding: 7px 9px;
   border-radius: 8px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.7);
-  color: #f5f6f8;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-surface-rgb), 0.7);
+  color: var(--color-text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
 }
 
 .hexInput:focus {
   outline: none;
-  border-color: #38bdf8;
+  border-color: var(--color-accent);
 }
 
 .colorPicker {
@@ -48,7 +48,7 @@
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 1px solid #3a3e46;
+  border: 1px solid var(--color-border);
   border-radius: 7px;
   background: transparent;
   cursor: pointer;
@@ -67,7 +67,7 @@
   gap: 5px;
   font-size: 11px;
   letter-spacing: 0.3px;
-  color: #7b808a;
+  color: var(--color-text-muted);
 }
 
 .hoursInput {
@@ -75,16 +75,16 @@
   width: 100%;
   padding: 6px 9px;
   border-radius: 8px;
-  border: 1px solid #3a3e46;
-  background: rgba(20, 22, 29, 0.7);
-  color: #f5f6f8;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-surface-rgb), 0.7);
+  color: var(--color-text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
 }
 
 .hoursInput:focus {
   outline: none;
-  border-color: #38bdf8;
+  border-color: var(--color-accent);
 }
 
 @media (orientation: portrait) {

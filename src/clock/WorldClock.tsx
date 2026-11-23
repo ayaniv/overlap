@@ -1,10 +1,19 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   bezelBaseRadius,
   bezelTicks,
   CENTER,
   directionChevrons,
   handAngle,
+  ORBIT_SPAN_DEG,
+  orbitArcPath,
+  RIPPLE_CORE_RATIO,
+  orbitRadius,
+  NEO_MARK_OUTLINE,
+  neoMarkTransform,
+  neoMarkScale,
+  INNER_RING_RADIUS,
+  RING_RADIUS_STEP,
   hexToRgba,
   labelArcHalfLength,
   labelArcPath,
@@ -24,6 +33,8 @@ import {
 import type { Point } from './geometry';
 import { getCityDateKey, getCityDateLabel, getCityTime, isWithinWorkingHours } from './cityTime';
 import { useSweepAngle } from './useSweepAngle';
+import { isNeoMarkLit } from './neoMarkLit';
+import { neoMarkTrailPath } from './neoMarkTrail';
 import { ConfigPanel } from './ConfigPanel';
 import { ControlCluster } from './ControlCluster';
 import type { ScrubActions } from './ControlCluster';
@@ -44,23 +55,16 @@ import { Toast } from './Toast';
 import { MEETING_PLANNER_PATH } from './webAppUrl';
 import type { RingScrubBind } from './useRingScrub';
 import type { Location, Meeting, Mode } from './types';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import pillButtonStyles from './PillButton.module.css';
 import styles from './WorldClock.module.css';
 import visuallyHiddenStyles from './visuallyHidden.module.css';
+import { CLOCK_THEME } from '../theme';
 
-const IN_HOURS_DOT_COLOR = '#FFFFFF';
-const OUT_OF_HOURS_DOT_COLOR = '#5E626B';
-const IN_HOURS_LABEL_COLOR = '#F4F3EF';
-const OUT_OF_HOURS_LABEL_COLOR = '#7C808A';
 const HOME_DOT_RADIUS = 5.5;
 const WORLD_DOT_RADIUS = 5;
 const MEETING_DOT_RADIUS = 6;
-const MEETING_DOT_COLOR = '#F472B6';
 const STATUS_GOOD_THRESHOLD = 3;
-const STATUS_GOOD_COLOR = '#34D399';
-const STATUS_PARTIAL_COLOR = '#FBBF4B';
-const STATUS_NONE_COLOR = '#565B64';
 // a "stretched" ring (counted in the Find Time fit, but outside its real
 // working hours) is marked by dashing its arc — the ring keeps its own
 // color throughout, so color always means "which city," never "how well it
@@ -73,6 +77,13 @@ const STRETCHED_ARC_DASH = '22 13';
 // screen ties "colored arc" to "that location's local working hours"
 const RING_COLOR_LEGEND_TEXT = 'local working hours';
 const LABEL_DOT_GAP = 18;
+// Neo draw-in on load, from the Hub links' draw-in (operator coreui
+// neo-overview.css): the mark first, then the rings from the inside out
+const MARK_DRAW_MS = 1600;
+const RING_DRAW_MS = 1200;
+const RING_DRAW_DELAY_MS = 400;
+const RING_DRAW_STAGGER_MS = 120;
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 // the dial reads one full rotation as +/-24h from now (DEGREES_PER_HOUR * 24 = 360deg);
 // used only as the ARIA slider's advertised range, since the underlying offset itself
 // isn't clamped
@@ -295,7 +306,36 @@ export function WorldClock({
     [orderedLocations, totalRings, effectiveNow, idPrefix, isFindResultActive, findResultStatusById],
   );
 
+  // true only while the Neo draw-in runs; the arcs then go back to their
+  // normal dash (a 'stretched' arc needs its own) and the mark may light up
+  const [drawingIn, setDrawingIn] = useState(
+    () => CLOCK_THEME.drawIn && typeof window.matchMedia === 'function' && !window.matchMedia(REDUCED_MOTION_QUERY).matches,
+  );
+  const [drawInEndMs] = useState(() => Math.max(MARK_DRAW_MS, RING_DRAW_DELAY_MS + (totalRings - 1) * RING_DRAW_STAGGER_MS + RING_DRAW_MS));
+  useEffect(() => {
+    if (!drawingIn) return;
+    const id = setTimeout(() => setDrawingIn(false), drawInEndMs);
+    return () => clearTimeout(id);
+  }, [drawingIn, drawInEndMs]);
+  const glowingRings = CLOCK_THEME.ringGlowOnlyInHours ? ringViews.filter((ring) => ring.inHours) : ringViews;
+  const markScale = neoMarkScale(totalRings);
+  const markTrailPath = useMemo(() => (CLOCK_THEME.backgroundMark ? neoMarkTrailPath(totalRings) : ''), [totalRings]);
+  const markLit = CLOCK_THEME.backgroundMark && !drawingIn && isNeoMarkLit(ringViews);
+  // inner ring first, then outward, each RING_DRAW_STAGGER_MS after the one inside it
+  const drawInProps = (radius: number, fitStatus: CityFitStatus | undefined) =>
+    drawingIn && fitStatus !== 'stretched'
+      ? {
+          pathLength: 1,
+          className: styles.drawIn,
+          style: {
+            '--draw-delay': `${RING_DRAW_DELAY_MS + Math.round((radius - INNER_RING_RADIUS) / RING_RADIUS_STEP) * RING_DRAW_STAGGER_MS}ms`,
+            '--draw-duration': `${RING_DRAW_MS}ms`,
+          } as CSSProperties,
+        }
+      : {};
+
   const homeRadius = ringRadius(totalRings - 1, totalRings);
+  const rippleCoreRadius = homeRadius * RIPPLE_CORE_RATIO;
   // driven by `effectiveNow`, matching every other angle on the ring (working-hours
   // arcs, the NOW axis itself): the dot is anchored to the ring's own rotating
   // reference frame, not a fixed screen position, so scrubbing sweeps it around
@@ -325,7 +365,7 @@ export function WorldClock({
   }, [meetings, homeRadius, effectiveNow, home.timezoneId, isGoogleCalendarConnected]);
 
   const bezelRadius = bezelBaseRadius(totalRings);
-  const ticks = useMemo(() => bezelTicks(bezelRadius), [bezelRadius]);
+  const ticks = useMemo(() => (CLOCK_THEME.bezelTicks ? bezelTicks(bezelRadius) : []), [bezelRadius]);
   // ring radii depend only on index/totalRings (not `now`), so this only needs
   // to recompute when the ring count changes, not every tick like ringViews does
   const chevrons = useMemo(
@@ -390,7 +430,7 @@ export function WorldClock({
   // available/none signal on its own, so the count + legend can share one line
   // instead of needing a whole sentence to spell out "none available"
   const statusText = `${statusAvailableCount}/${totalCount} teams available • ${RING_COLOR_LEGEND_TEXT}`;
-  const statusColor = statusAvailableCount === 0 ? STATUS_NONE_COLOR : statusAvailableCount >= STATUS_GOOD_THRESHOLD ? STATUS_GOOD_COLOR : STATUS_PARTIAL_COLOR;
+  const statusColor = statusAvailableCount === 0 ? CLOCK_THEME.statusNone : statusAvailableCount >= STATUS_GOOD_THRESHOLD ? CLOCK_THEME.statusGood : CLOCK_THEME.statusPartial;
   const statusGlow = statusAvailableCount === 0 ? 'transparent' : hexToRgba(statusColor, 0.7);
 
   const summary = ringViews.map((ring) => `${ring.location.label} ${ring.time.label}${ring.inHours ? ', in working hours' : ''}`).join('. ');
@@ -462,29 +502,55 @@ export function WorldClock({
         <svg viewBox="0 0 1000 1000" className={styles.svg} aria-hidden="true">
           <defs>
             <filter id={glowFilterId} x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="6" />
+              <feGaussianBlur stdDeviation={CLOCK_THEME.ringGlowBlur} />
             </filter>
             <linearGradient id={fadeLineId} gradientUnits="userSpaceOnUse" x1={CENTER} y1={fadeLineTopY} x2={CENTER} y2={CENTER}>
-              <stop offset="0%" stopColor="#9CA3AF" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#9CA3AF" stopOpacity={0} />
+              <stop offset="0%" stopColor={CLOCK_THEME.guideLine} stopOpacity={CLOCK_THEME.guideLineOpacity} />
+              <stop offset="100%" stopColor={CLOCK_THEME.guideLine} stopOpacity={0} />
             </linearGradient>
             {ringViews.map((ring) => (
               <path key={ring.textPathId} id={ring.textPathId} d={ring.topArcPath} fill="none" />
             ))}
           </defs>
 
+          {CLOCK_THEME.backgroundMark && (
+            <g transform={neoMarkTransform(totalRings)} data-testid="neo-mark" data-lit={markLit}>
+              {markLit && (
+                <path d={NEO_MARK_OUTLINE} fill="none" stroke={CLOCK_THEME.hand} strokeWidth={2 / markScale} strokeLinejoin="round" className={styles.neoMarkGlow} />
+              )}
+              <path
+                d={NEO_MARK_OUTLINE}
+                pathLength={1}
+                fill="none"
+                stroke={CLOCK_THEME.hand}
+                strokeOpacity={0.35}
+                // the stroke is in the mark's 22-unit space, so divide by the scale;
+                // vector-effect="non-scaling-stroke" would break the pathLength draw-in
+                strokeWidth={1.5 / markScale}
+                strokeLinejoin="round"
+                className={`${styles.neoMark} ${markLit ? styles.neoMarkLit : ''} ${drawingIn ? styles.drawIn : ''}`}
+                style={drawingIn ? ({ '--draw-delay': '0ms', '--draw-duration': `${MARK_DRAW_MS}ms` } as CSSProperties) : undefined}
+              />
+            </g>
+          )}
+          {markLit && (
+            // outside the mark's scaled group, so its 12px gap and its stroke are in clock units
+            <path data-testid="neo-mark-trail" d={markTrailPath} pathLength={1} fill="none" stroke={CLOCK_THEME.hand} strokeWidth={2.5} strokeLinecap="round" className={styles.neoMarkTrail} />
+          )}
+
           {ringViews.map((ring) => (
-            <circle key={`base-${ring.location.id}`} cx={500} cy={500} r={ring.radius} fill="none" stroke="#2F323C" strokeWidth={6} />
+            <circle key={`base-${ring.location.id}`} cx={500} cy={500} r={ring.radius} fill="none" stroke={CLOCK_THEME.ringTrack} strokeWidth={CLOCK_THEME.ringTrackWidth} />
           ))}
 
-          <g filter={`url(#${glowFilterId})`} opacity={0.5}>
-            {ringViews.map((ring) => (
+          <g filter={`url(#${glowFilterId})`} opacity={CLOCK_THEME.ringGlowOpacity}>
+            {glowingRings.map((ring) => (
               <path
                 key={`glow-${ring.location.id}`}
+                {...drawInProps(ring.radius, ring.fitStatus)}
                 d={ring.arcPath}
                 fill="none"
-                stroke={ring.location.color}
-                strokeWidth={7}
+                stroke={CLOCK_THEME.ringColor ?? ring.location.color}
+                strokeWidth={CLOCK_THEME.ringGlowWidth}
                 strokeLinecap="round"
                 strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
               />
@@ -493,10 +559,12 @@ export function WorldClock({
           {ringViews.map((ring) => (
             <path
               key={`crisp-${ring.location.id}`}
+              {...drawInProps(ring.radius, ring.fitStatus)}
               d={ring.arcPath}
               fill="none"
-              stroke={ring.location.color}
-              strokeWidth={6}
+              stroke={CLOCK_THEME.ringColor ?? ring.location.color}
+              strokeWidth={CLOCK_THEME.ringWidth}
+              strokeOpacity={ring.inHours ? 1 : CLOCK_THEME.outOfHoursRingOpacity}
               strokeLinecap="round"
               strokeDasharray={ring.fitStatus === 'stretched' ? STRETCHED_ARC_DASH : undefined}
               data-fit-status={ring.fitStatus}
@@ -504,7 +572,7 @@ export function WorldClock({
           ))}
 
           {ringViews.map((ring) => {
-            const textColor = ring.inHours ? IN_HOURS_LABEL_COLOR : OUT_OF_HOURS_LABEL_COLOR;
+            const textColor = ring.inHours ? CLOCK_THEME.inHoursLabel : CLOCK_THEME.outOfHoursLabel;
             const halfLength = labelArcHalfLength(ring.labelRadius);
             return (
               <g key={`label-${ring.location.id}`} data-testid={`ring-label-${ring.location.id}`}>
@@ -513,7 +581,7 @@ export function WorldClock({
                     {ring.location.label}
                   </textPath>
                 </text>
-                <text fill={textColor} fontFamily="JetBrains Mono, monospace" fontSize={22} fontWeight={400} letterSpacing="0.5" dominantBaseline="central">
+                <text fill={textColor} fontFamily={CLOCK_THEME.timeFont} fontSize={22} fontWeight={CLOCK_THEME.timeFontWeight} letterSpacing="0.5" dominantBaseline="central">
                   <textPath href={`#${ring.textPathId}`} startOffset={halfLength + LABEL_DOT_GAP} textAnchor="start">
                     {ring.time.label}
                   </textPath>
@@ -531,8 +599,8 @@ export function WorldClock({
               cx={ring.dotPosition.x.toFixed(2)}
               cy={ring.dotPosition.y.toFixed(2)}
               r={ring.location.isHome ? HOME_DOT_RADIUS : WORLD_DOT_RADIUS}
-              fill={ring.inHours ? IN_HOURS_DOT_COLOR : OUT_OF_HOURS_DOT_COLOR}
-              style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? 'rgba(255,255,255,0.55)' : 'transparent'})` }}
+              fill={ring.inHours ? CLOCK_THEME.inHoursDot : CLOCK_THEME.outOfHoursDot}
+              style={{ filter: `drop-shadow(0 0 4px ${ring.inHours ? CLOCK_THEME.inHoursDotGlow : 'transparent'})` }}
             />
           ))}
 
@@ -542,8 +610,8 @@ export function WorldClock({
               cx={position.x.toFixed(2)}
               cy={position.y.toFixed(2)}
               r={MEETING_DOT_RADIUS}
-              fill={MEETING_DOT_COLOR}
-              style={{ filter: `drop-shadow(0 0 5px ${hexToRgba(MEETING_DOT_COLOR, 0.7)})` }}
+              fill={CLOCK_THEME.meetingDot}
+              style={{ filter: `drop-shadow(0 0 5px ${hexToRgba(CLOCK_THEME.meetingDot, 0.7)})` }}
             />
           ))}
 
@@ -552,7 +620,7 @@ export function WorldClock({
               <polyline
                 points={chevron.points}
                 fill="none"
-                stroke="#868C97"
+                stroke={CLOCK_THEME.chevron}
                 strokeWidth={2.4}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -579,28 +647,56 @@ export function WorldClock({
           {/* sole "now" marker: a triangle fixed at 12 o'clock, apex pointing into the dial */}
           <polygon
             points={topMarkerPoints(totalRings)}
-            fill="#EDEAE0"
-            style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
+            fill={CLOCK_THEME.hand}
+            style={{ filter: `drop-shadow(0 0 4px ${CLOCK_THEME.handGlow})` }}
           />
 
-          <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
-            <line
-              x1={500}
-              y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
-              x2={500}
-              y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
-              stroke="#EDEAE0"
-              strokeWidth={2}
-              strokeLinecap="round"
-              style={{ filter: 'drop-shadow(0 0 4px rgba(237,234,224,0.6))' }}
-            />
+          {CLOCK_THEME.secondsMotion === 'orbit' && (
             <circle
-              cx={500}
-              cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
-              r={2.6}
-              fill="#EDEAE0"
-              style={{ filter: 'drop-shadow(0 0 5px rgba(237,234,224,0.85))' }}
+              data-testid="center-ripple"
+              cx={CENTER}
+              cy={CENTER}
+              r={rippleCoreRadius.toFixed(2)}
+              fill="none"
+              stroke={CLOCK_THEME.hand}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              className={styles.ripple}
+              style={{ '--ripple-scale': (orbitRadius(totalRings) / rippleCoreRadius).toFixed(3) } as CSSProperties}
             />
+          )}
+
+          <g ref={handRef} data-testid="sweep-hand" transform={`rotate(${initialHandAngle.toFixed(2)} 500 500)`}>
+            {CLOCK_THEME.secondsMotion === 'orbit' ? (
+              <path
+                d={orbitArcPath(orbitRadius(totalRings), ORBIT_SPAN_DEG)}
+                fill="none"
+                stroke={CLOCK_THEME.hand}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                className={styles.orbitGlow}
+              />
+            ) : (
+              <>
+              <line
+                x1={500}
+                y1={(CENTER - sweepHandOuterRadius(totalRings)).toFixed(2)}
+                x2={500}
+                y2={(CENTER - sweepHandInnerRadius(totalRings)).toFixed(2)}
+                stroke={CLOCK_THEME.hand}
+                strokeWidth={2}
+                strokeLinecap="round"
+                style={{ filter: `drop-shadow(0 0 4px ${CLOCK_THEME.handGlow})` }}
+              />
+              <circle
+                cx={500}
+                cy={(CENTER - sweepHandDotRadius(totalRings)).toFixed(2)}
+                r={2.6}
+                fill={CLOCK_THEME.hand}
+                style={{ filter: `drop-shadow(0 0 5px ${CLOCK_THEME.handDotGlow})` }}
+              />
+              </>
+            )}
           </g>
         </svg>
 

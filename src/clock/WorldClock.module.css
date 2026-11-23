@@ -17,9 +17,9 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(120% 90% at 50% 4%, #1c2030 0%, rgba(20, 22, 29, 0) 46%),
-    radial-gradient(125% 115% at 50% 44%, #14161d 0%, #0a0b0f 66%);
-  color: #f5f6f8;
+    radial-gradient(120% 90% at 50% 4%, var(--color-backdrop-glow) 0%, rgba(var(--color-surface-rgb), 0) 46%),
+    radial-gradient(125% 115% at 50% 44%, var(--color-surface) 0%, var(--color-bg) 66%);
+  color: var(--color-text);
   font-family: 'Space Grotesk', -apple-system, sans-serif;
   overflow: hidden;
   user-select: none;
@@ -98,7 +98,7 @@
 .eyebrow {
   font-size: 11px;
   letter-spacing: 4px;
-  color: #565b64;
+  color: var(--color-text-faint);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -106,7 +106,7 @@
 .headline {
   font-size: 19px;
   font-weight: 500;
-  color: #c4c8cf;
+  color: var(--color-text-secondary);
   letter-spacing: -0.2px;
   margin-top: 8px;
 }
@@ -138,7 +138,7 @@
 }
 
 .clockContainer[data-scrubbable]:focus-visible {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--color-accent);
   outline-offset: 6px;
   border-radius: 50%;
 }
@@ -152,11 +152,11 @@
   width: 30%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 40%, rgba(32, 35, 47, 0.92), rgba(13, 15, 21, 0.5));
+  background: radial-gradient(circle at 50% 40%, rgba(var(--color-panel-rgb), 0.92), rgba(var(--color-face-rgb), 0.5));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--clock-disc-highlight),
     0 24px 70px rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--clock-disc-border);
   pointer-events: none;
 }
 
@@ -175,17 +175,17 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 3px;
-  color: #7b808a;
+  color: var(--color-text-muted);
   margin-bottom: 14px;
 }
 
 .centerTime {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-time);
   font-size: 54px;
-  font-weight: 500;
+  font-weight: var(--font-time-weight);
   line-height: 0.92;
-  color: #f0ede3;
-  letter-spacing: -2px;
+  color: var(--color-text-warm);
+  letter-spacing: var(--font-time-tracking);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -193,7 +193,7 @@
 .centerDate {
   font-size: 18px;
   font-weight: 500;
-  color: #8a8f98;
+  color: var(--color-text-subtle);
   letter-spacing: 2px;
   text-align: center;
   margin-top: 14px;
@@ -207,8 +207,8 @@
   right: 44px;
   z-index: var(--z-20);
   border-radius: 14px;
-  border: 1px solid #3a3e46;
-  background: #14161d;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
 }
@@ -237,7 +237,7 @@
 }
 
 .statusText {
-  color: #d6d9de;
+  color: var(--color-text-soft);
 }
 
 .statusDot {
@@ -255,9 +255,9 @@
    color override lives here. */
 .findTimeButtonActive {
   composes: pillButton from './PillButton.module.css';
-  border: 1px solid #38bdf8;
-  background: rgba(56, 189, 248, 0.14);
-  color: #f5f6f8;
+  border: 1px solid var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.14);
+  color: var(--color-text);
 }
 
 /* PillButton.module.css's shared `.pillButton:hover, .pillButton:focus-visible`
@@ -269,12 +269,12 @@
    this rule (defined later, in this file) wins the tie. */
 .findTimeButtonActive:hover,
 .findTimeButtonActive:focus-visible {
-  border-color: #38bdf8;
-  color: #f5f6f8;
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .findTimeButtonActive:hover {
-  background: rgba(56, 189, 248, 0.22);
+  background: rgba(var(--color-accent-rgb), 0.22);
 }
 
 .bottomLinks {
@@ -287,13 +287,13 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.3px;
-  color: #565b64;
+  color: var(--color-text-faint);
   transition: opacity 0.8s ease;
 }
 
 /* dimmer than the links themselves so it reads as punctuation, not a third item */
 .bottomLinkSeparator {
-  color: #3d424b;
+  color: var(--color-text-dim);
 }
 
 .privacyLink,
@@ -317,7 +317,7 @@
 .privacyLink:focus-visible,
 .githubLink:hover,
 .githubLink:focus-visible {
-  color: #d6d9de;
+  color: var(--color-text-soft);
   text-decoration: underline;
 }
 
@@ -388,5 +388,112 @@
     bottom: 6px;
     right: 12px;
     font-size: 10px;
+  }
+}
+
+/* Neo seconds motion, from operator coreui neo-overview.css (NeoOverviewHub).
+   The animation exists only under no-preference, so reduced motion draws no
+   ripple at all. The ripple grows from the center to the edge of the clock
+   (--ripple-scale, set by WorldClock), not 1.55x as on the Hub. The orbit arc turns with the seconds (useSweepAngle), not on
+   its own 9s loop, so it still shows the time. */
+.orbitGlow {
+  filter: drop-shadow(0 0 3px rgba(var(--color-accent-rgb), 0.85));
+}
+
+.ripple {
+  opacity: 0;
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(var(--ripple-scale, 1.55));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ripple {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ripple 3.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  }
+}
+
+/* Neo mark: faint, and lit (brighter, with a slow glow) while Tel Aviv and
+   Boston both work (neoMarkLit.ts). */
+.neoMark {
+  transition: stroke-opacity 600ms ease-out;
+}
+
+.neoMarkLit {
+  stroke-opacity: 0.9;
+}
+
+.neoMarkGlow {
+  filter: drop-shadow(0 0 6px rgba(var(--color-accent-rgb), 0.7));
+  opacity: 0.6;
+}
+
+@keyframes neoMarkBreathe {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+/* Draw-in, from the Hub links (operator coreui neo-overview.css). The path
+   has pathLength=1, but the browser's length of it is not exact, and a dash
+   of exactly 1 left a small gap at the end of the mark until the draw-in
+   ended. A dash 2% longer than the path covers it. */
+@keyframes drawIn {
+  from {
+    stroke-dashoffset: 1.02;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* A short glowing dash that runs around the mark, 12px outside it, while
+   the offices overlap. pathLength=1, so the dash is 6% of the way round. */
+.neoMarkTrail {
+  stroke-dasharray: 0.06 0.94;
+  filter: drop-shadow(0 0 4px rgba(var(--color-accent-rgb), 0.85));
+}
+
+@keyframes neoMarkTrailRun {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neoMarkTrail {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .neoMarkTrail {
+    animation: neoMarkTrailRun 12s linear infinite;
+  }
+
+  .neoMarkGlow {
+    animation: neoMarkBreathe 3.2s ease-in-out infinite alternate;
+  }
+
+  .drawIn {
+    stroke-dasharray: 1.02;
+    stroke-dashoffset: 1.02;
+    animation: drawIn var(--draw-duration, 1200ms) cubic-bezier(0.65, 0, 0.35, 1) var(--draw-delay, 0ms) forwards;
   }
 }
